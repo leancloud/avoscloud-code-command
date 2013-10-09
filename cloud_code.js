@@ -287,6 +287,7 @@ exports.runCloudCode = function(id){
 	var app = Global.app;
 	if(!app){
 		app = express();
+		app.use(express.bodyParser());
 	}
 	var port = app.port || 3000;
 	app.post("/avos/:className/:func", function(req, res){
