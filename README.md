@@ -20,12 +20,12 @@ local_storage.json
 * 测试函数:
 
 ```
-curl -X POST -d '{ "name": "dennis"}' http://localhost:3000/avos/hello
+curl -X POST -H 'Content-Type:application/json' -d '{ "name": "dennis"}' http://localhost:3000/avos/hello
 ```
 其中hello是你通过`AV.Cloud.define`定义的函数名称。
 
 * 测试beforeSave,afterSave,afterUpdate,beforeDelete/afterDelete等:
 ```
-curl -X POST -d '{ "name": "dennis"}' http://localhost:3000/avos/MyUser/beforeSave
+curl -X POST -H 'Content-Type:application/json' -d '{ "name": "dennis"}' http://localhost:3000/avos/MyUser/beforeSave
 ```
 其中`MyUser`是className，beforeSave指定调用`MyUser`定义的beforeSave函数，其他函数类似。
