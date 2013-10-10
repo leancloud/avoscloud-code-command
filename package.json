@@ -1,7 +1,7 @@
 {
  "name": "avoscloud-code-mock-sdk",
- "version": "0.1.0",
- "main": "./cloud_code.js",
+ "version": "0.1.1",
+ "main": "./lib/cloud_code.js",
  "description": "AVOSCloud Cloud Code Mock SDK.!",
  "dependencies": {
     "avoscloud-sdk"				: "latest",
@@ -19,6 +19,11 @@
     "ejs"						: "0.8.4",
     "jade"  					: "0.26.0"
   },
+
+  "bin": {
+     "avoscloud" : "./bin/avoscloud"
+  },
+
   "devDependencies": {
     "mocha":"1.9.0",
     "expect.js ":"0.2.0"
