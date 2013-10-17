@@ -23,3 +23,7 @@ curl -X POST -H 'Content-Type:application/json' \
 	 http://localhost:3000/avos/MyUser/beforeSave
 ```
 其中`MyUser`是className，beforeSave指定调用`MyUser`定义的beforeSave函数，其他函数类似。
+
+## 更新日志
+
+* 2013-10-17 更新0.2.0版本，添加定时器API
