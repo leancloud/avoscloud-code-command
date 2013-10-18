@@ -1,9 +1,10 @@
 {
  "name": "avoscloud-code-mock-sdk",
- "version": "0.2.1",
+ "version": "0.2.2-beta",
  "main": "./lib/cloud_code.js",
  "description": "AVOSCloud Cloud Code Mock SDK.!",
  "dependencies": {
+    "qs"		                : "0.6.5",
     "avoscloud-sdk"				: "latest",
     "underscore"				: "1.4.4",
     "cron"						: "latest",
