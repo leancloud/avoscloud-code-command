@@ -1,3 +1,9 @@
+## 更新日志
+
+* 2013-10-17 更新0.2.0版本，添加定时器API
+* 2013-10-18 更新0.2.1版本，修复AV.Cloud.httpRequest
+
+
 ## 说明
 
 为了方便本地运行和调试云代码，请遵照下列步骤进行:
@@ -24,7 +30,3 @@ curl -X POST -H 'Content-Type:application/json' \
 ```
 其中`MyUser`是className，beforeSave指定调用`MyUser`定义的beforeSave函数，其他函数类似。
 
-## 更新日志
-
-* 2013-10-17 更新0.2.0版本，添加定时器API
-* 2013-10-18 更新0.2.1版本，修复AV.Cloud.httpRequest
