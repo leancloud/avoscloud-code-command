@@ -27,3 +27,4 @@ curl -X POST -H 'Content-Type:application/json' \
 ## 更新日志
 
 * 2013-10-17 更新0.2.0版本，添加定时器API
+* 2013-10-18 更新0.2.1版本，修复AV.Cloud.httpRequest
