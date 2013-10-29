@@ -1,5 +1,6 @@
 ## 更新日志
 
+* 2013-10-29 更新0.2.3 beta版本，支持从浏览器测试函数，hook等。
 * 2013-10-18 更新0.2.2 beta版本，支持代码热加载，修复httpRequest没有返回data的bug。
 * 2013-10-18 更新0.2.1版本，修复AV.Cloud.httpRequest
 * 2013-10-17 更新0.2.0版本，添加定时器API
@@ -30,4 +31,3 @@ curl -X POST -H 'Content-Type:application/json' \
 	 http://localhost:3000/avos/MyUser/beforeSave
 ```
 其中`MyUser`是className，beforeSave指定调用`MyUser`定义的beforeSave函数，其他函数类似。
-
