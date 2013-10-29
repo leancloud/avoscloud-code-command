@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
-var path = require('path');
-var fs   = require('fs');
-var lib  = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
+var path		= require('path');
+var fs			= require('fs');
+var lib			= path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
+var exec		= require('child_process').exec;
 
 require(lib + '/mock').run();
+exec('open http://localhost:3000/avos')
