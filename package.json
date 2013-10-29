@@ -15,6 +15,7 @@
     "node-qiniu"				: "6.1.0",
     "mailgun"					: "latest",
     "mandrill"					: "latest",
+	 "xml2js"                   : "latest",
     "stripe"					: "latest",
     "sendgrid"					: "latest",
     "rekuire"					: "0.1.3",

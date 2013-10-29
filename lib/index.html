@@ -17,7 +17,7 @@
 								  .attr("value",name)
 								  .text(name));
 							  });
-				}); 
+				});
 		 	}
 		 });
 		 $.get("/avos/functions", function(data){
@@ -27,7 +27,7 @@
 				          .attr("value",name)
 				          .text(name));
 			 });
-		 }); 
+		 });
 		 $.get("/avos/classes", function(data){
 			 _.each(data, function(name){
 				 $('#classes')
@@ -36,8 +36,8 @@
 				          .text(name));
 			 });
 			 $("#classes").trigger('change');
-		 }); 
-		 
+		 });
+
 		 //events
 		 $('#callFuncs').click(function(e){
 			 $('#result').html('');
@@ -49,7 +49,7 @@
 				 }catch(e){
 				 	$('#result').html("Parse JSON failed:  " + e);
 					return;
-				 }	
+				 }
 			 }
 			 $.post("/avos/" + $('#functions').val(), data , function(data){
 				 $('#result').html(data);
@@ -65,7 +65,7 @@
 				 }catch(e){
 				 	$('#result').html("Parse JSON failed:  " + e);
 					return;
-				 }	
+				 }
 			 }else{
 				 var objectId = $('#objectId').val();
 				 data.id = objectId;
@@ -107,10 +107,16 @@
     	  <p><input type="text" id="objectId"></input></p>
   		  <p><label>或者传入JSON格式的对象</label></p>
     	  	  <p><textarea rows="10" cols="100" id="object"></textarea></p>
-  		  
-    	  	  <p><button type="button" id="callHooks">执行</button></p> 
+
+    	  	  <p><button type="button" id="callHooks">执行</button></p>
 	      </div>
 	    </div>
 	  </div>
+	</div>
+	<footer class="footer">
+  	  <div class="container">
+		  <p>&copy;2013-2022, <a href="http://avoscloud.com">AVOSCloud.com</a>. All Rights Reserved.</p>
+ 	 </div>
+	</footer>
   </body>
 </html>
