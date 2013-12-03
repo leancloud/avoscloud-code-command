@@ -4,6 +4,7 @@
  "main": "./lib/cloud_code.js",
  "description": "AVOSCloud Cloud Code Mock SDK.!",
  "dependencies": {
+	 "qiniu"                 : "latest",
     "qs"		                : "0.6.5",
     "avoscloud-sdk"				: "latest",
     "underscore"				: "1.4.4",
