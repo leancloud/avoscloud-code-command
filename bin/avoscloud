@@ -12,15 +12,16 @@ console.log(version)
 program
 	.version(version)
 	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台. \n    undeploy: 从AVOS Cloud平台清除云代码部署. \n    status: 查询当前部署状态.")
-	.option('-g, --git', '使用定义在管理平台的Git仓库.')
-	.option('-l, --local', '使用本地代码')
+	.option('-g, --git', '使用定义在管理平台的Git仓库，默认使用本地代码.')
+	.option('-l, --local', '使用本地代码，默认使用本地代码。')
+    .option('-f,--filepath <path>', '本地云代码文件路径，默认是当前目录。')
 	.option('-p, --production', '部署到生产环境，默认操作的都是测试环境。')
 	.parse(process.argv);
 
 var cmd = program.args[0]
 
 if(!cmd){
-	require(lib + '/mock').run();
+	require(lib + '/mock').run(program.filepath || './');
 }else{
 	switch(cmd){
 	case "deploy":
