@@ -11,7 +11,7 @@ var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(
 console.log(version)
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台. \n    undeploy: 从AVOS Cloud平台清除云代码部署. \n    status: 查询当前部署状态.")
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台. \n    undeploy: 从AVOS Cloud平台清除云代码部署. \n    status: 查询当前部署状态.\n    search <keyword>：根据关键字查询开发文档.")
 	.option('-g, --git', '使用定义在管理平台的Git仓库，默认使用本地代码.')
 	.option('-l, --local', '使用本地代码，默认使用本地代码。')
     .option('-f,--filepath <path>', '本地云代码文件路径，默认是当前目录。')
@@ -22,8 +22,17 @@ var cmd = program.args[0]
 
 if(!cmd){
 	require(lib + '/mock').run(program.filepath || './');
+	exec('open http://localhost:3000/avos');
 }else{
 	switch(cmd){
+	case "search":
+		if(!program.args[1]){
+			console.log("Please provide keyword to search.");
+			process.exit(1);
+		}
+		program.args.shift();
+		exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
+		break;
 	case "deploy":
     case "undeploy":
     case "status":
@@ -34,6 +43,3 @@ if(!cmd){
 		process.exit(1);
 	}
 }
-
-
-//exec('open http://localhost:3000/avos')
