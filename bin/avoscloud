@@ -5,5 +5,34 @@ var fs			= require('fs');
 var lib			= path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
 var exec		= require('child_process').exec;
 
-require(lib + '/mock').run();
-exec('open http://localhost:3000/avos')
+var program = require('commander');
+
+var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
+console.log(version)
+program
+	.version(version)
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台. \n    undeploy: 从AVOS Cloud平台清除云代码部署. \n    status: 查询当前部署状态.")
+	.option('-g, --git', '使用定义在管理平台的Git仓库.')
+	.option('-l, --local', '使用本地代码')
+	.option('-p, --production', '部署到生产环境，默认操作的都是测试环境。')
+	.parse(process.argv);
+
+var cmd = program.args[0]
+
+if(!cmd){
+	require(lib + '/mock').run();
+}else{
+	switch(cmd){
+	case "deploy":
+    case "undeploy":
+    case "status":
+		console.log(cmd);
+		break;
+	default:
+		console.log("Invalid command: %s", cmd);
+		process.exit(1);
+	}
+}
+
+
+//exec('open http://localhost:3000/avos')
