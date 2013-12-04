@@ -4,7 +4,9 @@ var path		= require('path');
 var fs			= require('fs');
 var lib			= path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
 var exec		= require('child_process').exec;
-
+var Zip           = new require('adm-zip');
+var os            = require('os');
+var http         = require('http');
 var program = require('commander');
 
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
@@ -18,10 +20,68 @@ program
 	.option('-p, --production', '部署到生产环境，默认操作的都是测试环境。')
 	.parse(process.argv);
 
-var cmd = program.args[0]
+function zipSubFolder(zip, cloudPath, folder, throwError){
+	if(fs.existsSync(cloudPath + '/' + folder)){
+		var files = fs.readdirSync(cloudPath + '/' + folder);
+		files.forEach(function(file){
+			var stat = fs.statSync(cloudPath + '/' + folder + '/' + file);
+			if(stat.isFile()){
+				zip.addFile(folder + '/' + file, fs.readFileSync(cloudPath + '/' + folder + '/' + file));
+			}else{
+				zipSubFolder(zip, cloudPath, folder +'/' + file);
+			}
+		});
+	}else if(throwError){
+		throw "Could not find folder: " + foler;
+	}
+}
+
+function uploadFile(file){
+	var boundaryKey = Math.random().toString(16);
+	var request = http.request({
+		host: 'cn-stg1.avoscloud.com',
+		port: 80,
+		method: 'POST',
+		path: '1/cloudCode/upload'
+	});
+	request.setHeader('X-AVOS', '');
+	request.setHeader('X-AVOS', '');
+	request.setHeader('Content-Type', 'multipart/form-data; boundary="'+boundaryKey+'"');
+	request.write(
+		'--' + boundaryKey + '\r\n'
+			+ 'Content-Type: application/octet-stream\r\n'
+			+ 'Content-Disposition: form-data; name="cloud_file"; filename="cloud.zip"\r\n'
+			+ 'Content-Transfer-Encoding: binary\r\n\r\n'
+	);
+	fs.createReadStream(file, { bufferSize: 8 * 1024 })
+		.on('end', function() {
+			request.end('\r\n--' + boundaryKey + '--');
+		})
+		.pipe(request, { end: false });
+}
+
+function deployLocalCloudCode(cloudPath){
+	console.log("Deflating files...");
+	//zip files.
+	var zip = Zip();
+	zipSubFolder(zip, cloudPath, "cloud", true);
+	zipSubFolder(zip, cloudPath, "config", true);
+	zipSubFolder(zip, cloudPath, "public");
+	var file = os.tmpdir() + new Date().getTime() +'.zip';
+	zip.writeZip(file);
+	console.log("Wrote file " + file + ' ...');
+
+	//upload file to cloud code
+	console.log("Begin to upload cloud code...");
+
+}
+
+var cmd = program.args[0];
+
+var cloudPath = program.filepath || './';
 
 if(!cmd){
-	require(lib + '/mock').run(program.filepath || './');
+	require(lib + '/mock').run(cloudPath);
 	exec('open http://localhost:3000/avos');
 }else{
 	switch(cmd){
@@ -34,6 +94,11 @@ if(!cmd){
 		exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
 		break;
 	case "deploy":
+		if(program.git){
+		}else{
+			deployLocalCloudCode(cloudPath);
+		}
+		break;
     case "undeploy":
     case "status":
 		console.log(cmd);
