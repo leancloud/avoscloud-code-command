@@ -19,14 +19,13 @@ var util          = require(lib +'/util');
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台. \n    undeploy: 从AVOS Cloud平台清除云代码部署. \n    status: 查询当前部署状态.\n    search <keyword>：根据关键字查询开发文档.")
-	.option('-g, --git', '使用定义在管理平台的Git仓库，默认使用本地代码.')
-	.option('-l, --local', '使用本地代码，默认使用本地代码。')
-    .option('-f,--filepath <path>', '本地云代码文件路径，默认是当前目录。')
-	.option('-p, --production', '部署到生产环境，默认操作的都是测试环境。', parseInt)
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台. \n    undeploy: 从AVOS Cloud平台清除云代码部署. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。")
+	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
+	.option('-u, --giturl', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
+	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
+    .option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
+	.option('-p, --production', '指定当前命令运行在生产环境，仅对undeploy命令有效，默认为false。', parseInt)
 	.parse(process.argv);
-
-var done=false;
 
 function uploadFile(localFile, applicationId, cb) {
 	var key = util.guid() + '.tar.gz';
@@ -54,7 +53,7 @@ function uploadFile(localFile, applicationId, cb) {
 }
 
 function deployLocalCloudCode(cloudPath){
-	console.log("Deflating files...");
+	console.log("Compress cloud code files...");
 	var file = os.tmpdir() + new Date().getTime() +'.tar.gz';
 	var count = 0 ;
 	fstream.Reader({ 'path': cloudPath, 'type': 'Directory' , filter: function () {
@@ -71,7 +70,7 @@ function deployLocalCloudCode(cloudPath){
 		.pipe(zlib.Gzip())
 		.pipe(fstream.Writer({ 'path': file }))
 	    .on('close', function(){
-			console.log("Wrote file " + file + ' ...');
+			console.log("Wrote compressed file " + file + ' ...');
 			//upload file to cloud code
 			console.log("Begin to upload cloud code files...");
 			uploadFile(file, AV.applicationId, function(err, url){
@@ -79,17 +78,14 @@ function deployLocalCloudCode(cloudPath){
 					console.log("Upload cloud code files failed with '%j'", err);
 					process.exit(1);
 				}else{
-					console.log(url);
 					console.log("Upload cloud code files successfully.Begin to deploy...");
 					//notify avoscloud platform to fetch new deployment.
 					util.requestCloud('functions/localDeploy', {version: url, prod: AV.production}, 'POST', {
 						success: function(resp){
 							console.log("Congrats! Deploy cloud code successfully.");
-							done=true;
 						},
 						error: function(err){
 							console.log("Sorry, try to deploy cloud code failed with '%s'", JSON.parse(err.responseText).error);
-							done=true;
 						}
 					});
 				}
@@ -97,8 +93,29 @@ function deployLocalCloudCode(cloudPath){
 		});
 }
 
+function deployGitCloudCode(revision){
+	util.requestCloud('apps/' + AV.applicationId, null, 'GET', {
+		success: function(resp){
+			var repoUrl = resp.cloud_code_path;
+			console.log("Deploying %s to development environment...", repoUrl);
+			util.requestCloud('functions', { after: revision, repository: { url: repoUrl}}, 'POST', {
+				success: function(resp){
+					console.log("Deployed cloud code from git repository successfully!");
+					console.log("Revision: %s,  Log: '%s'", resp.dev, _s.trim(resp.devLog));
+				},
+				error: function(err){
+					console.log("Deployed cloud code from git repository failed with '%j'", err);
+				}
+			}, true);
+		},
+		error: function(err){
+			console.log("Fetch repository url failed with '%j', but you can pass it by -u or --giturl", err);
+		}
+	});
+}
+
 var cmd = program.args[0];
-var cloudPath = program.filepath || './';
+var cloudPath = path.normalize(program.filepath || './');
 
 if(!cloudPath.match(/.*\/$/)){
 	cloudPath = cloudPath + "/";
@@ -108,7 +125,7 @@ if(fs.existsSync(cloudPath + 'config/global.json')){
 	//try to initialize avoscloud sdk.
 	var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {encoding: 'utf-8'}))
 	AV.initialize(data.applicationId, data.applicationKey);
-	AV.production = program.production;
+	AV.production = (program.production == null ? 0 : program.production) ;
 }
 
 if(!cmd){
@@ -126,6 +143,7 @@ if(!cmd){
 		break;
 	case "deploy":
 		if(program.git){
+			deployGitCloudCode('master', 'git@github.com:avos/avoscloud-ticket.git');
 		}else{
 			deployLocalCloudCode(cloudPath);
 		}
