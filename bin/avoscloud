@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 
-var path		= require('path');
-var fs			= require('fs');
-var lib			= path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
-var exec		= require('child_process').exec;
+var path = require('path');
+var fs = require('fs');
+var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
+var exec = require('child_process').exec;
 var fstream = require('fstream'),
-tar = require('tar'),
-zlib = require('zlib');
-var os           = require('os');
-var _s           = require('underscore.string'),
-_ = require('underscore');
-var http         = require('http');
-var program   = require('commander');
-var AV          = require('avoscloud-sdk').AV;
-var qiniu        = require('qiniu');
-var util          = require(lib +'/util');
+	tar = require('tar'),
+	zlib = require('zlib');
+var os = require('os');
+var _s = require('underscore.string'),
+	_ = require('underscore');
+var http = require('http');
+var program = require('commander');
+var AV = require('avoscloud-sdk').AV;
+var qiniu = require('qiniu');
+var util = require(lib + '/util');
 
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
 program
@@ -23,68 +23,81 @@ program
 	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
 	.option('-u, --giturl', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
-    .option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
+	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-p, --production', '指定当前命令运行在生产环境，仅对undeploy命令有效，默认为false。', parseInt)
 	.parse(process.argv);
 
 function uploadFile(localFile, applicationId, cb) {
 	var key = util.guid() + '.tar.gz';
-	util.requestCloud("qiniu", {key: key, name: localFile, mime_type: 'application/x-gzip, application/octet-stream'}, 'POST', {
-		success: function(resp){
+	util.requestCloud("qiniu", {
+		key: key,
+		name: localFile,
+		mime_type: 'application/x-gzip, application/octet-stream'
+	}, 'POST', {
+		success: function(resp) {
 			var uptoken = resp.token;
-			if(!uptoken){
-				if(cb){
+			if (!uptoken) {
+				if (cb) {
 					cb(JSON.parse(resp.responseText).error);
 					return
 				}
 			}
 			qiniu.io.put(uptoken, key, fs.readFileSync(localFile), null, function(err, ret) {
-				if(cb){
-					cb(err, 'http://paas-files.qiniudn.com/' + (ret? ret.key: '404.html'));
+				if (cb) {
+					cb(err, 'http://paas-files.qiniudn.com/' + (ret ? ret.key : '404.html'));
 				}
 			});
 		},
-		error: function(err){
-			if(cb){
+		error: function(err) {
+			if (cb) {
 				cb(err);
 			}
 		}
 	});
 }
 
-function deployLocalCloudCode(cloudPath){
+function deployLocalCloudCode(cloudPath) {
 	console.log("Compress cloud code files...");
-	var file = os.tmpdir() + new Date().getTime() +'.tar.gz';
-	var count = 0 ;
-	fstream.Reader({ 'path': cloudPath, 'type': 'Directory' , filter: function () {
-		count ++ ;
-		if(count == 1){
-			//the root folder.
-			return true;
+	var file = os.tmpdir() + new Date().getTime() + '.tar.gz';
+	var count = 0;
+	fstream.Reader({
+		'path': cloudPath,
+		'type': 'Directory',
+		filter: function() {
+			count++;
+			if (count == 1) {
+				//the root folder.
+				return true;
+			}
+			var filePath = path.normalize(this.path);
+			return _.find(['cloud', 'public', 'config'], function(folder) {
+				return _s.startsWith(filePath, cloudPath + folder);
+			});
 		}
-		var filePath = path.normalize(this.path);
-		return _.find(['cloud', 'public', 'config'], function(folder){
-			return _s.startsWith(filePath, cloudPath + folder);
-		});
-    }}).pipe(tar.Pack())
+	}).pipe(tar.Pack())
 		.pipe(zlib.Gzip())
-		.pipe(fstream.Writer({ 'path': file }))
-	    .on('close', function(){
+		.pipe(fstream.Writer({
+			'path': file
+		}))
+		.on('close', function() {
 			console.log("Wrote compressed file " + file + ' ...');
 			//upload file to cloud code
 			console.log("Begin to upload cloud code files...");
-			uploadFile(file, AV.applicationId, function(err, url){
-				if(err){
+			uploadFile(file, AV.applicationId, function(err, url) {
+				if (err) {
 					console.log("Upload cloud code files failed with '%j'", err);
 					process.exit(1);
-				}else{
+				} else {
 					console.log("Upload cloud code files successfully.Begin to deploy...");
 					//notify avoscloud platform to fetch new deployment.
-					util.requestCloud('functions/localDeploy', {version: url, prod: AV.production}, 'POST', {
-						success: function(resp){
+					util.requestCloud('functions/localDeploy', {
+						version: url,
+						prod: AV.production
+					}, 'POST', {
+						success: function(resp) {
 							console.log("Congrats! Deploy cloud code successfully.");
 						},
-						error: function(err){
+						error: function(err) {
 							console.log("Sorry, try to deploy cloud code failed with '%s'", JSON.parse(err.responseText).error);
 						}
 					});
@@ -93,22 +106,27 @@ function deployLocalCloudCode(cloudPath){
 		});
 }
 
-function deployGitCloudCode(revision){
+function deployGitCloudCode(revision) {
 	util.requestCloud('apps/' + AV.applicationId, null, 'GET', {
-		success: function(resp){
+		success: function(resp) {
 			var repoUrl = resp.cloud_code_path;
 			console.log("Deploying %s to development environment...", repoUrl);
-			util.requestCloud('functions', { after: revision, repository: { url: repoUrl}}, 'POST', {
-				success: function(resp){
+			util.requestCloud('functions', {
+				after: revision,
+				repository: {
+					url: repoUrl
+				}
+			}, 'POST', {
+				success: function(resp) {
 					console.log("Deployed cloud code from git repository successfully!");
 					console.log("Revision: %s,  Log: '%s'", resp.dev, _s.trim(resp.devLog));
 				},
-				error: function(err){
+				error: function(err) {
 					console.log("Deployed cloud code from git repository failed with '%j'", err);
 				}
 			}, true);
 		},
-		error: function(err){
+		error: function(err) {
 			console.log("Fetch repository url failed with '%j', but you can pass it by -u or --giturl", err);
 		}
 	});
@@ -117,43 +135,46 @@ function deployGitCloudCode(revision){
 var cmd = program.args[0];
 var cloudPath = path.normalize(program.filepath || './');
 
-if(!cloudPath.match(/.*\/$/)){
+if (!cloudPath.match(/.*\/$/)) {
 	cloudPath = cloudPath + "/";
 }
 
-if(fs.existsSync(cloudPath + 'config/global.json')){
+if (fs.existsSync(cloudPath + 'config/global.json')) {
 	//try to initialize avoscloud sdk.
-	var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {encoding: 'utf-8'}))
+	var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
+		encoding: 'utf-8'
+	}))
 	AV.initialize(data.applicationId, data.applicationKey);
-	AV.production = (program.production == null ? 0 : program.production) ;
+	AV.production = (program.production == null ? 0 : program.production);
 }
 
-if(!cmd){
+if (!cmd) {
 	require(lib + '/mock').run(cloudPath);
 	exec('open http://localhost:3000/avos');
-}else{
-	switch(cmd){
-	case "search":
-		if(!program.args[1]){
-			console.log("Please provide keyword to search.");
+} else {
+	switch (cmd) {
+		case "search":
+			if (!program.args[1]) {
+				console.log("Please provide keyword to search.");
+				process.exit(1);
+			}
+			program.args.shift();
+			exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
+			break;
+		case "deploy":
+			if (program.git) {
+				deployGitCloudCode('master', 'git@github.com:avos/avoscloud-ticket.git');
+			} else {
+				deployLocalCloudCode(cloudPath);
+			}
+			break;
+		case "undeploy":
+		case "publish":
+		case "status":
+			console.log(cmd);
+			break;
+		default:
+			console.log("Invalid command: %s", cmd);
 			process.exit(1);
-		}
-		program.args.shift();
-		exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
-		break;
-	case "deploy":
-		if(program.git){
-			deployGitCloudCode('master', 'git@github.com:avos/avoscloud-ticket.git');
-		}else{
-			deployLocalCloudCode(cloudPath);
-		}
-		break;
-    case "undeploy":
-    case "status":
-		console.log(cmd);
-		break;
-	default:
-		console.log("Invalid command: %s", cmd);
-		process.exit(1);
 	}
 }
