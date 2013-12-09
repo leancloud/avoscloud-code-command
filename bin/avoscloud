@@ -5,27 +5,85 @@ var fs = require('fs');
 var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
 var exec = require('child_process').exec;
 var fstream = require('fstream'),
-	tar = require('tar'),
-	zlib = require('zlib');
+tar = require('tar'),
+zlib = require('zlib');
 var os = require('os');
 var _s = require('underscore.string'),
-	_ = require('underscore');
+_ = require('underscore');
 var http = require('http');
 var program = require('commander');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
+var readline = require('readline');
+var AdmZip = require('adm-zip');
+
+//AV.serverURL = 'http://cn-stg1.avoscloud.com';
 
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台. \n    undeploy: 从AVOS Cloud平台清除云代码部署. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。")
-	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
-	.option('-u, --giturl', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
-	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。")
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
-	.option('-p, --production', '指定当前命令运行在生产环境，仅对undeploy命令有效，默认为false。', parseInt)
+	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
+	.option('-u, --giturl <url>', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
+	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
+	.option('-o, --log <log>', '部署日志，仅对从本地部署有效。')
+	.option('-r, --revision <revision>', 'Git的版本号，仅对从Git仓库部署有效。')
 	.parse(process.argv);
+
+function initMasterKey(done){
+	var home = process.env['HOME'];
+	if(!home)
+		throw "Could not find user home directory";
+    var avoscloudKeysFile = home + '/.avoscloud_keys'
+	fs.exists(avoscloudKeysFile, function(exists){
+		writeMasterKey = function(data, cb){
+			var rl = readline.createInterface({
+				input: process.stdin,
+				output: process.stdout
+			});
+			rl.question("Please provide your application's master key:", function(answer) {
+				if(!answer || answer.trim() == '')
+					throw "Invalid master key."
+				data = data || {}
+				data[AV.applicationId] = answer;
+				//file mode is 0600
+				fs.writeFile(avoscloudKeysFile, JSON.stringify(data), {mode: 384}, function(err){
+					if(err)
+						throw err;
+					cb(answer);
+					rl.close();
+				});
+			});
+		};
+		readMasterKey = function(){
+			fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data){
+				if(err)
+					throw err;
+				var keys = JSON.parse(data);
+				var masterKey = keys[AV.applicationId];
+				if(!masterKey){
+					writeMasterKey(data, function(masterKey){
+						AV.initialize(AV.applicationId, masterKey);
+						done();
+					});
+				}else{
+					AV.initialize(AV.applicationId, masterKey);
+					done();
+				}
+			});
+		}
+		if(exists){
+			readMasterKey();
+		}else{
+			writeMasterKey(null, function(masterKey){
+				AV.initialize(AV.applicationId, masterKey);
+				done();
+			});
+		}
+	});
+}
 
 function uploadFile(localFile, applicationId, cb) {
 	var key = util.guid() + '.tar.gz';
@@ -44,7 +102,7 @@ function uploadFile(localFile, applicationId, cb) {
 			}
 			qiniu.io.put(uptoken, key, fs.readFileSync(localFile), null, function(err, ret) {
 				if (cb) {
-					cb(err, 'http://paas-files.qiniudn.com/' + (ret ? ret.key : '404.html'));
+					cb(err, 'http://paas-files.qiniudn.com/' + (ret ? ret.key : '404.html'), resp.objectId);
 				}
 			});
 		},
@@ -57,124 +115,234 @@ function uploadFile(localFile, applicationId, cb) {
 }
 
 function deployLocalCloudCode(cloudPath) {
-	console.log("Compress cloud code files...");
-	var file = os.tmpdir() + new Date().getTime() + '.tar.gz';
-	var count = 0;
-	fstream.Reader({
-		'path': cloudPath,
-		'type': 'Directory',
-		filter: function() {
-			count++;
-			if (count == 1) {
-				//the root folder.
-				return true;
-			}
-			var filePath = path.normalize(this.path);
-			return _.find(['cloud', 'public', 'config'], function(folder) {
-				return _s.startsWith(filePath, cloudPath + folder);
-			});
-		}
-	}).pipe(tar.Pack())
-		.pipe(zlib.Gzip())
-		.pipe(fstream.Writer({
-			'path': file
-		}))
-		.on('close', function() {
-			console.log("Wrote compressed file " + file + ' ...');
-			//upload file to cloud code
-			console.log("Begin to upload cloud code files...");
-			uploadFile(file, AV.applicationId, function(err, url) {
-				if (err) {
-					console.log("Upload cloud code files failed with '%j'", err);
-					process.exit(1);
-				} else {
-					console.log("Upload cloud code files successfully.Begin to deploy...");
-					//notify avoscloud platform to fetch new deployment.
-					util.requestCloud('functions/localDeploy', {
-						version: url,
-						prod: AV.production
-					}, 'POST', {
-						success: function(resp) {
-							console.log("Congrats! Deploy cloud code successfully.");
-						},
-						error: function(err) {
-							console.log("Sorry, try to deploy cloud code failed with '%s'", JSON.parse(err.responseText).error);
-						}
-					});
+	initMasterKey(function(){
+		console.log("Compress cloud code files...");
+		var file = os.tmpdir() + new Date().getTime() + '.tar.gz';
+		var count = 0;
+
+		fstream.Reader({
+			'root' : cloudPath,
+			'path': cloudPath,
+			'type': 'Directory',
+			filter: function() {
+				count++;
+				if (count == 1) {
+					//the root folder.
+					return true;
 				}
+				var filePath = path.normalize(this.path);
+				return _.find(['cloud', 'public', 'config'], function(folder) {
+					return _s.startsWith(filePath, cloudPath + folder);
+				});
+			}
+		}).pipe(tar.Pack({path: '/'}))
+			.pipe(zlib.Gzip())
+			.pipe(fstream.Writer({
+				'path': file
+			}))
+			.on('close', function() {
+				console.log("Wrote compressed file " + file + ' ...');
+				//upload file to cloud code
+				console.log("Begin to upload cloud code files...");
+				uploadFile(file, AV.applicationId, function(err, url, fileId) {
+					if (err) {
+						console.log("Upload cloud code files failed with '%j'",  (JSON.parse(err.responseText).error));
+						process.exit(1);
+					} else {
+						console.log("Upload cloud code files successfully.Begin to deploy...");
+						//notify avoscloud platform to fetch new deployment.
+						util.requestCloud('functions/deploy/command', {
+							revision: url,
+							fileId: fileId,
+							log: program.log
+						}, 'POST', {
+							success: function(resp) {
+								console.log("Congrats! Deploy cloud code successfully.");
+								queryStatus();
+							},
+							error: function(err) {
+								console.log("Sorry, try to deploy cloud code failed with '%s'", (JSON.parse(err.responseText).error));
+							}
+						}, true);
+					}
+				});
 			});
-		});
+	});
 }
 
 function deployGitCloudCode(revision) {
-	util.requestCloud('apps/' + AV.applicationId, null, 'GET', {
+	initMasterKey(function(){
+		console.log('Deploy cloud code from git repository...');
+		util.requestCloud('functions/deploy/command', {
+			url: program.giturl
+		}, 'POST', {
+			success: function(resp) {
+				console.log("Congrats!Deployed cloud code from git repository successfully.");
+				queryStatus();
+			},
+			error: function(err) {
+				console.log("Deployed cloud code from git repository failed with '%j'" , (JSON.parse(err.responseText).error));
+			}
+		}, true);
+	});
+}
+
+function outputStatus(status){
+	console.log('------------------------------------------------------------------------');
+	console.log("Development    version:  '" + status.dev + "'");
+	console.log("Development commit log:  '" + status.devLog + "'");
+	console.log("Production     version:  '" + status.prod + "'");
+	console.log("Production  commit log:  '" + status.prodLog + "'");
+}
+
+function publishCloudCode(){
+	initMasterKey(function(){
+		console.log('Publishing cloud code to production...');
+		util.requestCloud('functions/publishFunctions', {
+		}, 'GET', {
+			success: function(resp) {
+				console.log("Published cloud code successfully. the status is :");
+				outputStatus(resp);
+			},
+			error: function(err) {
+				console.log("Published cloud code failed with '%j'" , (JSON.parse(err.responseText).error));
+			}
+		}, true);
+	});
+}
+
+function queryStatus(){
+	util.requestCloud('functions/status', {
+	}, 'GET', {
 		success: function(resp) {
-			var repoUrl = resp.cloud_code_path;
-			console.log("Deploying %s to development environment...", repoUrl);
-			util.requestCloud('functions', {
-				after: revision,
-				repository: {
-					url: repoUrl
-				}
-			}, 'POST', {
-				success: function(resp) {
-					console.log("Deployed cloud code from git repository successfully!");
-					console.log("Revision: %s,  Log: '%s'", resp.dev, _s.trim(resp.devLog));
-				},
-				error: function(err) {
-					console.log("Deployed cloud code from git repository failed with '%j'", err);
-				}
-			}, true);
+			console.log("Cloud code status is : ");
+			outputStatus(resp);
 		},
 		error: function(err) {
-			console.log("Fetch repository url failed with '%j', but you can pass it by -u or --giturl", err);
+			console.log("Query cloud code status failed with '%j'" , (JSON.parse(err.responseText).error));
 		}
+	}, true);
+}
+
+function undeployCloudCode(){
+	initMasterKey(function(){
+		util.requestCloud('functions/undeploy/repo', {
+		}, 'POST', {
+			success: function(resp) {
+				console.log("Undeployed cloud code successfully.");
+				queryStatus();
+			},
+			error: function(err) {
+				console.log("Undeployed cloud code status failed with '%j'" , (JSON.parse(err.responseText).error));
+			}
+		}, true);
 	});
 }
 
 var cmd = program.args[0];
-var cloudPath = path.normalize(program.filepath || './');
+var cloudPath = path.resolve(program.filepath || './');
 
 if (!cloudPath.match(/.*\/$/)) {
 	cloudPath = cloudPath + "/";
 }
+console.log('Cloud Code Project Root Directory:' + cloudPath);
+process.chdir(cloudPath);
 
-if (fs.existsSync(cloudPath + 'config/global.json')) {
-	//try to initialize avoscloud sdk.
-	var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
-		encoding: 'utf-8'
-	}))
-	AV.initialize(data.applicationId, data.applicationKey);
-	AV.production = (program.production == null ? 0 : program.production);
+
+
+var rl = null;
+function input(info, cb){
+	if(!rl)
+		rl = readline.createInterface({
+			input: process.stdin,
+			output: process.stdout
+		});
+	rl.question(info, function(answer){
+		cb(answer);
+	});
+}
+
+function createNewProject(){
+	input("Please provide your application id:  ", function(appId) {
+		if(!appId || appId.trim() == '')
+			throw "Invalid application id."
+		input("Please provide your application master key: ", function(masterKey){
+			if(!masterKey || masterKey.trim() == '')
+				throw "Invalid application master key."
+			input("Your application type: [standard(S) or web(W)]", function(type){
+				rl.close();
+				type = type || 'S'
+				var params = '';
+				if(type.toUpperCase() == 'W' || type.toUpperCase() == 'WEB'){
+					params = '&webHosting=true';
+				}
+				console.log("Creating project...");
+				AV.initialize(appId, masterKey);
+				var url =AV.serverURL;
+				if (url.charAt(url.length - 1) !== "/") {
+					url += "/";
+				}
+				url += "1/" + 'functions/skeleton?appId=' + appId + "&appKey=" + masterKey + params;
+                var file = './' + appId + '.zip';
+				exec("curl '" + url + "' > " + file, function(err){
+					if(err)
+						throw err;
+					var zip = new AdmZip(file),
+					zipEntries = zip.getEntries();
+					zip.extractAllTo('./', false);
+					console.log("Create project done!");
+				});
+			});
+		});
+	});
 }
 
 if (!cmd) {
 	require(lib + '/mock').run(cloudPath);
-	exec('open http://localhost:3000/avos');
+	console.log("Please open 'http://localhost:3000/avos' in your favorite web browser.");
 } else {
+	if(cmd != 'new'){
+		if (fs.existsSync(cloudPath + 'config/global.json')) {
+			//try to initialize avoscloud sdk.
+			var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
+				encoding: 'utf-8'
+			}));
+			if(!data || !data.applicationId || !data.applicationKey)
+				throw "Can't initialize AVOS Cloud SDK,please provide config/global.json"
+			AV.initialize(data.applicationId, data.applicationKey);
+		}else{
+			throw "Can't initialize AVOS Cloud SDK,please provide config/global.json"
+		}
+	}
 	switch (cmd) {
-		case "search":
-			if (!program.args[1]) {
-				console.log("Please provide keyword to search.");
-				process.exit(1);
-			}
-			program.args.shift();
-			exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
-			break;
-		case "deploy":
-			if (program.git) {
-				deployGitCloudCode('master', 'git@github.com:avos/avoscloud-ticket.git');
-			} else {
-				deployLocalCloudCode(cloudPath);
-			}
-			break;
-		case "undeploy":
-		case "publish":
-		case "status":
-			console.log(cmd);
-			break;
-		default:
-			console.log("Invalid command: %s", cmd);
+	case "search":
+		if (!program.args[1]) {
+			console.log("Useage: avoscloud search <keyword>");
 			process.exit(1);
+		}
+		program.args.shift();
+		exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
+		break;
+	case "deploy":
+		if (program.git) {
+			deployGitCloudCode(program.revision || 'master');
+		} else {
+			deployLocalCloudCode(cloudPath);
+		}
+		break;
+	case "undeploy":
+		undeployCloudCode();
+		break;
+	case "publish":
+		publishCloudCode();
+		break;
+	case "status":
+		queryStatus();
+		break
+	case 'new':
+		createNewProject();
+		break;
+	default:
+		program.help();
 	}
 }
