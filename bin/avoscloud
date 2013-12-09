@@ -21,13 +21,12 @@ AV.serverURL = 'http://cn-stg1.avoscloud.com'
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台. \n    undeploy: 从AVOS Cloud平台清除云代码部署. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。")
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。")
 	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
-	.option('-u, --giturl', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
+	.option('-u, --giturl <url>', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
 	.option('-o, --log <log>', '部署日志，仅对从本地部署有效。')
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
-	.option('-p, --production', '指定当前命令运行在生产环境，仅对undeploy命令有效，默认为false。', parseInt)
 	.parse(process.argv);
 
 function uploadFile(localFile, applicationId, cb) {
@@ -47,7 +46,7 @@ function uploadFile(localFile, applicationId, cb) {
 			}
 			qiniu.io.put(uptoken, key, fs.readFileSync(localFile), null, function(err, ret) {
 				if (cb) {
-					cb(err, 'http://paas-files.qiniudn.com/' + (ret ? ret.key : '404.html'));
+					cb(err, 'http://paas-files.qiniudn.com/' + (ret ? ret.key : '404.html'), resp.objectId);
 				}
 			});
 		},
@@ -63,7 +62,7 @@ function deployLocalCloudCode(cloudPath) {
 	console.log("Compress cloud code files...");
 	var file = os.tmpdir() + new Date().getTime() + '.tar.gz';
 	var count = 0;
-	process.chdir(cloudPath);
+
 	fstream.Reader({
 		'root' : cloudPath,
 		'path': cloudPath,
@@ -88,7 +87,7 @@ function deployLocalCloudCode(cloudPath) {
 			console.log("Wrote compressed file " + file + ' ...');
 			//upload file to cloud code
 			console.log("Begin to upload cloud code files...");
-			uploadFile(file, AV.applicationId, function(err, url) {
+			uploadFile(file, AV.applicationId, function(err, url, fileId) {
 				if (err) {
 					console.log("Upload cloud code files failed with '%j'",  (JSON.parse(err.responseText).error));
 					process.exit(1);
@@ -98,10 +97,12 @@ function deployLocalCloudCode(cloudPath) {
 					console.log(program.log);
 					util.requestCloud('functions/deploy/command', {
 						revision: url,
+						fileId: fileId,
 						log: program.log
 					}, 'POST', {
 						success: function(resp) {
-							console.log("Congrats! Deploy cloud code successfully,the revision is: '" + resp.version + "'");
+							console.log("Congrats! Deploy cloud code successfully.");
+							queryStatus();
 						},
 						error: function(err) {
 							console.log("Sorry, try to deploy cloud code failed with '%s'", (JSON.parse(err.responseText).error));
@@ -113,15 +114,64 @@ function deployLocalCloudCode(cloudPath) {
 }
 
 function deployGitCloudCode(revision) {
+	console.log('Deploy cloud code from git repository...');
 	util.requestCloud('functions/deploy/command', {
 		url: program.giturl
 	}, 'POST', {
 		success: function(resp) {
-			console.log("Deployed cloud code from git repository successfully!");
-			console.log("Revision: %s,  Log: '%s'", resp.dev, _s.trim(resp.devLog));
+			console.log("Congrats!Deployed cloud code from git repository successfully.");
+			queryStatus();
 		},
 		error: function(err) {
 			console.log("Deployed cloud code from git repository failed with '%j'" , (JSON.parse(err.responseText).error));
+		}
+	}, true);
+}
+
+function outputStatus(status){
+	console.log('------------------------------------------------------------------------');
+	console.log("Development    version:  '" + status.dev + "'");
+	console.log("Development commit log:  '" + status.devLog + "'");
+	console.log("Production     version:  '" + status.prod + "'");
+	console.log("Production  commit log:  '" + status.prodLog + "'");
+}
+
+function publishCloudCode(){
+	console.log('Publishing cloud code to production...');
+	util.requestCloud('functions/publishFunctions', {
+	}, 'GET', {
+		success: function(resp) {
+			console.log("Published cloud code successfully. the status is :");
+			outputStatus(resp);
+		},
+		error: function(err) {
+			console.log("Published cloud code failed with '%j'" , (JSON.parse(err.responseText).error));
+		}
+	}, true);
+}
+
+function queryStatus(){
+	util.requestCloud('functions/status', {
+	}, 'GET', {
+		success: function(resp) {
+			console.log("Cloud code status is : ");
+			outputStatus(resp);
+		},
+		error: function(err) {
+			console.log("Query cloud code status failed with '%j'" , (JSON.parse(err.responseText).error));
+		}
+	}, true);
+}
+
+function undeployCloudCode(){
+	util.requestCloud('functions/undeploy/repo', {
+	}, 'POST', {
+		success: function(resp) {
+			console.log("Undeployed cloud code successfully.");
+			queryStatus();
+		},
+		error: function(err) {
+			console.log("Undeployed cloud code status failed with '%j'" , (JSON.parse(err.responseText).error));
 		}
 	}, true);
 }
@@ -132,20 +182,24 @@ var cloudPath = path.resolve(program.filepath || './');
 if (!cloudPath.match(/.*\/$/)) {
 	cloudPath = cloudPath + "/";
 }
-console.log(cloudPath);
+console.log('Cloud Code Project Root Directory:' + cloudPath);
+process.chdir(cloudPath);
 
 if (fs.existsSync(cloudPath + 'config/global.json')) {
 	//try to initialize avoscloud sdk.
 	var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
 		encoding: 'utf-8'
-	}))
+	}));
+	if(!data || !data.applicationId || !data.applicationKey)
+		throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json"
 	AV.initialize(data.applicationId, data.applicationKey);
-	AV.production = (program.production == null ? 0 : program.production);
+}else{
+	throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json"
 }
 
 if (!cmd) {
 	require(lib + '/mock').run(cloudPath);
-	exec('open http://localhost:3000/avos');
+	console.log("Please open 'http://localhost:3000/avos' in your favorite web browser.");
 } else {
 	switch (cmd) {
 	case "search":
@@ -164,9 +218,13 @@ if (!cmd) {
 		}
 		break;
 	case "undeploy":
+		undeployCloudCode();
+		break;
 	case "publish":
+		publishCloudCode();
+		break;
 	case "status":
-		console.log(cmd);
+		queryStatus();
 		break;
 	default:
 		console.log("Invalid command: %s", cmd);
