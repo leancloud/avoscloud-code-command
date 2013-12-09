@@ -68,7 +68,9 @@ curl -X POST -H 'Content-Type:application/json' \
 ## 安全性
 
 部署、发布、清除部署等命令在第一次运行的时候要求用户输入应用的master key，您可以在AVOS Cloud平台的应用设置里找到master key。
+
 输入后，本命令行工具将这个App信息记录在`~/.avoscloud_keys`文件中（0600文件权限模式）。
+
 如果您输入错误的master key或者在公共机器上运行本命令行工具，可手工删除该文件。
 
 ## CopyRight
