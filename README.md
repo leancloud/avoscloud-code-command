@@ -37,4 +37,4 @@ curl -X POST -H 'Content-Type:application/json' \
 ## CopyRight
 
 * License: [GNU LESSER GENERAL PUBLIC LICENSE](https://www.gnu.org/licenses/lgpl.html).
-* Author: Dennis Zhuang<xzhuang@avos.com>
+* Author: Dennis Zhuang（xzhuang@avos.com）
