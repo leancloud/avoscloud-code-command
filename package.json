@@ -6,6 +6,7 @@
  "dependencies": {
 	 "tar"           : "latest",
 	 "fstream"    : "latest",
+     "adm-zip"    : "latest",
 	 "commander"       : "2.1.0",
 	 "qiniu"                 : "latest",
     "qs"		                : "0.6.5",
