@@ -14,8 +14,10 @@
 * 在项目根目录运行`avoscloud`，将启动本地调试服务器。
 * 访问`http://localhost:3000/`即可访问到你的云主机代码，子路径按照你在`app.js`里配置的即可访问。
 * 访问`http://localhost:3000/avos`调试云代码函数和class hook函数等。
-* 测试函数:
 
+## curl调试
+
+* 测试函数:
 ```
 curl -X POST -H 'Content-Type:application/json' \
     -d '{ "name": "dennis"}' \
@@ -32,8 +34,7 @@ curl -X POST -H 'Content-Type:application/json' \
 ```
 其中`MyUser`是className，beforeSave指定调用`MyUser`定义的beforeSave函数，其他函数类似。
 
-## Copyright
+## CopyRight
 
-[GNU LESSER GENERAL PUBLIC LICENSE](https://www.gnu.org/licenses/lgpl.html).
-
-* Author:  dennis zhuang<xzhuang@avos.com>
+* License: [GNU LESSER GENERAL PUBLIC LICENSE](https://www.gnu.org/licenses/lgpl.html).
+* Author: Dennis Zhuang<xzhuang@avos.com>
