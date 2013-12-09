@@ -24,11 +24,12 @@ var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(
 program
 	.version(version)
 	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。")
+	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
 	.option('-u, --giturl <url>', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
 	.option('-o, --log <log>', '部署日志，仅对从本地部署有效。')
-	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
+	.option('-r, --revision <revision>', 'Git的版本号，仅对从Git仓库部署有效。')
 	.parse(process.argv);
 
 function initMasterKey(done){
@@ -307,16 +308,16 @@ if (!cmd) {
 				encoding: 'utf-8'
 			}));
 			if(!data || !data.applicationId || !data.applicationKey)
-				throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json"
+				throw "Can't initialize AVOS Cloud SDK,please provide config/global.json"
 			AV.initialize(data.applicationId, data.applicationKey);
 		}else{
-			throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json"
+			throw "Can't initialize AVOS Cloud SDK,please provide config/global.json"
 		}
 	}
 	switch (cmd) {
 	case "search":
 		if (!program.args[1]) {
-			console.log("Please provide keyword to search.");
+			console.log("Useage: avoscloud search <keyword>");
 			process.exit(1);
 		}
 		program.args.shift();
@@ -324,7 +325,7 @@ if (!cmd) {
 		break;
 	case "deploy":
 		if (program.git) {
-			deployGitCloudCode('master', 'git@github.com:avos/avoscloud-ticket.git');
+			deployGitCloudCode(program.revision || 'master');
 		} else {
 			deployLocalCloudCode(cloudPath);
 		}
@@ -342,7 +343,6 @@ if (!cmd) {
 		createNewProject();
 		break;
 	default:
-		console.log("Invalid command: %s", cmd);
-		process.exit(1);
+		program.help();
 	}
 }
