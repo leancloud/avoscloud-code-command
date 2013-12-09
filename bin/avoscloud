@@ -16,8 +16,6 @@ var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
 
-AV.serverURL = 'http://cn-stg1.avoscloud.com'
-
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
 program
 	.version(version)
@@ -94,7 +92,6 @@ function deployLocalCloudCode(cloudPath) {
 				} else {
 					console.log("Upload cloud code files successfully.Begin to deploy...");
 					//notify avoscloud platform to fetch new deployment.
-					console.log(program.log);
 					util.requestCloud('functions/deploy/command', {
 						revision: url,
 						fileId: fileId,
