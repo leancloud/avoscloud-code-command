@@ -71,7 +71,7 @@ function initMasterKey(done) {
 				var keys = JSON.parse(data);
 				var masterKey = keys[AV.applicationId];
 				if (!masterKey) {
-					writeMasterKey(data, function(masterKey) {
+					writeMasterKey(keys, function(masterKey) {
 						AV.initialize(AV.applicationId, masterKey);
 						done();
 					});

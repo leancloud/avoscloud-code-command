@@ -1,6 +1,6 @@
 {
 	"name": "avoscloud-code",
-	"version": "0.3.0-beta",
+	"version": "0.3.0-beta2",
 	"main": "./lib/cloud_code.js",
 	"description": "AVOS Cloud Code SDK.",
 	"repository": {
