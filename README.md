@@ -6,6 +6,12 @@
 sudo npm install -g avoscloud-code
 ```
 
+如果从npm安装失败，可以从Github安装：
+
+```
+sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
+```
+
 ## 更新日志
 
 * 2013-12-11 更新0.3.0-beta3，修复sendgrid 0.4.6找不到安装包的问题。
