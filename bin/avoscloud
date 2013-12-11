@@ -251,7 +251,7 @@ var cloudPath = path.resolve(program.filepath || './');
 if (!cloudPath.match(/.*\/$/)) {
 	cloudPath = cloudPath + "/";
 }
-console.log('Cloud Code Project Root Directory:' + cloudPath);
+console.log('[INFO]: Cloud Code Project Root Directory:' + cloudPath);
 process.chdir(cloudPath);
 
 
@@ -305,22 +305,30 @@ function createNewProject() {
 	});
 }
 
+function initAVOSCloudSDK() {
+	if (fs.existsSync(cloudPath + 'config/global.json')) {
+		//try to initialize avoscloud sdk.
+		var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
+			encoding: 'utf-8'
+		}));
+		if (!data || !data.applicationId || !data.applicationKey){
+			console.log("[ERROR]: Can't initialize AVOS Cloud SDK,please provide config/global.json contains app id and app key.");
+			program.help();
+		}
+		AV.initialize(data.applicationId, data.applicationKey);
+	} else {
+		console.log("[ERROR]: Can't initialize AVOS Cloud SDK.Could not find 'config/global.json'.");
+		program.help();
+	}
+}
+
 if (!cmd) {
+	initAVOSCloudSDK();
 	require(lib + '/mock').run(cloudPath);
 	console.log("请使用浏览器打开(建议使用非IE浏览器，如Chrome,Firefox等):'http://localhost:3000/avos'.");
 } else {
 	if (cmd != 'new') {
-		if (fs.existsSync(cloudPath + 'config/global.json')) {
-			//try to initialize avoscloud sdk.
-			var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
-				encoding: 'utf-8'
-			}));
-			if (!data || !data.applicationId || !data.applicationKey)
-				throw "Can't initialize AVOS Cloud SDK,please provide config/global.json"
-			AV.initialize(data.applicationId, data.applicationKey);
-		} else {
-			throw "Can't initialize AVOS Cloud SDK,please provide config/global.json"
-		}
+		initAVOSCloudSDK();
 	}
 	switch (cmd) {
 		case "search":
@@ -352,5 +360,6 @@ if (!cmd) {
 			break;
 		default:
 			program.help();
+			break;
 	}
 }
