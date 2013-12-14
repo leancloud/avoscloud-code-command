@@ -14,6 +14,7 @@ sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
 
 ## 更新日志
 
+* 2013-12-14 发布0.3.2版本，修复云代码https请求失败的Bug。
 * 2013-12-11 更新0.3.0-beta3，修复sendgrid 0.4.6找不到安装包的问题。
 * 2013-12-10 更新0.3.0-beta2，添加更多命令和本地部署功能。
 
