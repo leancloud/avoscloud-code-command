@@ -1,12 +1,12 @@
 ## 重要通知
 
-* 从0.3.0版本开始，`avoscloud-code-mock-sdk`重命名为`avoscloud-code`，安装和更新请使用下列命令：
+* 从 0.3.0 版本开始，`avoscloud-code-mock-sdk` 重命名为 `avoscloud-code`，安装和更新请使用下列命令：
 
 ```
 sudo npm install -g avoscloud-code
 ```
 
-如果从npm安装失败，可以从Github安装：
+如果从 npm 安装失败，可以从 GitHub 安装：
 
 ```
 sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
@@ -14,23 +14,23 @@ sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
 
 ## 更新日志
 
-* 2013-12-14 发布0.3.2版本，修复云代码https请求失败的Bug。
-* 2013-12-11 更新0.3.0-beta3，修复sendgrid 0.4.6找不到安装包的问题。
-* 2013-12-10 更新0.3.0-beta2，添加更多命令和本地部署功能。
+* 2013-12-14 发布 0.3.2 版本，修复云代码 HTTPS 请求失败的 bug。
+* 2013-12-11 更新 0.3.0-beta3，修复 sendgrid 0.4.6 找不到安装包的问题。
+* 2013-12-10 更新 0.3.0-beta2，添加更多命令和本地部署功能。
 
 ## 说明
 
 为了方便本地运行和调试云代码，请遵照下列步骤进行:
 
-* 要在本地调试云代码，你需要安装[node.js](http://nodejs.org)最新版本。
-* 运行命令: `sudo npm install -g avoscloud-code` 安装调试SDK。以后更新升级也请执行此命令。
-* 在项目根目录运行`avoscloud`，将启动本地调试服务器。
-* 访问[http://localhost:3000/](http://localhost:3000/)即可访问到你的云主机代码，子路径按照你在`app.js`里配置的即可访问。
-* 访问[http://localhost:3000/avos](http://localhost:3000/avos)调试云代码函数和class hook函数等。
+* 要在本地调试云代码，你需要安装 [Node.js](http://nodejs.org) 最新版本。
+* 运行命令: `sudo npm install -g avoscloud-code` 安装调试 SDK。以后更新升级也请执行此命令。
+* 在项目根目录运行 `avoscloud`，将启动本地调试服务器。
+* 访问 [http://localhost:3000/](http://localhost:3000/) 即可访问到你的云主机代码，子路径按照你在 `app.js` 里配置的即可访问。
+* 访问 [http://localhost:3000/avos](http://localhost:3000/avos) 调试云代码函数和 class hook 函数等。
 
 ## 功能说明
 
-`avoscloud -h`输出：
+`avoscloud -h` 输出：
 
 ```
  Usage: avoscloud [options] <cmd>
@@ -57,9 +57,9 @@ sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
 
 并且本工具具有代码热加载功能。修改代码后，无需重启即可以调试最新代码。
 
-## curl调试
+## cURL 调试
 
-你也可以通过curl工具来调试代码：
+你也可以通过 cURL 工具来调试代码：
 
 * 测试函数:
 ```
@@ -67,26 +67,26 @@ curl -X POST -H 'Content-Type:application/json' \
     -d '{ "name": "dennis"}' \
     http://localhost:3000/avos/hello
 ```
-其中hello是你通过`AV.Cloud.define`定义的函数名称。
+其中 hello 是你通过 `AV.Cloud.define` 定义的函数名称。
 
-* 测试beforeSave,afterSave,afterUpdate,beforeDelete/afterDelete等:
+* 测试 `beforeSave`、`afterSave`、`afterUpdate`、`beforeDelete`、`afterDelete` 等:
 
 ```
 curl -X POST -H 'Content-Type:application/json' \
      -d '{ "name": "dennis"}' \
 	 http://localhost:3000/avos/MyUser/beforeSave
 ```
-其中`MyUser`是className，beforeSave指定调用`MyUser`定义的beforeSave函数，其他函数类似。
+其中 `MyUser` 是 className，`beforeSave` 指定调用`MyUser`定义的 `beforeSave` 函数，其他函数类似。
 
 ## 安全性
 
-部署、发布、清除部署等命令在第一次运行的时候要求用户输入应用的master key，您可以在AVOS Cloud平台的应用设置里找到master key。
+部署、发布、清除部署等命令在第一次运行的时候要求用户输入应用的 master key，您可以在 AVOS Cloud 平台的应用设置里找到 master key。
 
-输入后，本命令行工具将这个App信息记录在`~/.avoscloud_keys`文件中（0600文件权限模式）。
+输入后，本命令行工具将这个App信息记录在 `~/.avoscloud_keys` 文件中（0600文件权限模式）。
 
-如果您输入错误的master key或者在公共机器上运行本命令行工具，可手工删除该文件。
+如果您输入错误的 master key 或者在公共机器上运行本命令行工具，可手工删除该文件。
 
-## CopyRight
+## Copyright
 
 * License: [GNU LESSER GENERAL PUBLIC LICENSE](https://www.gnu.org/licenses/lgpl.html).
 * Author: Dennis Zhuang（xzhuang@avos.com）
