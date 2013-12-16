@@ -1,0 +1,36 @@
+{
+	"name": "avos-express-cookie-session",
+	"version": "0.1.1",
+	"main": "./index.js",
+	"description": "AVOS Cloud Code cookie session middleware for express framework.",
+	"repository": {
+		"type": "git",
+		"url": "git@github.com:avos/CloudCodeMockSDK.git"
+	},
+	"keywords": [
+		"cloud",
+		"BaaS",
+		"avos",
+		"avoscloud",
+		"web-service"
+	],
+	"bugs": {
+		"url": "https://github.com/avos/CloudCodeMockSDK/issues"
+	},
+	"dependencies": {
+		"avoscloud-sdk"          :  "latest",
+		"cookie-signature"		: "1.0.1",
+		"buffer-crc32"			:  "0.2.1",
+		"debug"					: "0.7.4",
+		"connect"				:"2.8.8"
+	},
+	"devDependencies": {
+		"mocha":"1.9.0",
+		"expect.js ":"0.2.0"
+	},
+	"author" : {
+		"name" : "dennis zhuang",
+		"email" : "xzhuang@avos.com"
+	},
+	"license": "LGPL"
+}
