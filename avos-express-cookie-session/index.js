@@ -47,7 +47,8 @@ module.exports = function(options) {
     sessionToken = session._sessionToken;
     res.on('header', function() {
       var proto, tls, val;
-
+      delete AV.Cloud.__express_req;
+      delete AV.Cloud.__express_res;
       if (req._avos_session == null) {
         debug('clear session');
         cookie.expire = new Date(0);
@@ -82,6 +83,7 @@ module.exports = function(options) {
         return next();
       }
     } else {
+	  AV.User.logOut(true);
       return next();
     }
   };
