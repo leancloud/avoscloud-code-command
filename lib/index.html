@@ -54,7 +54,7 @@
 				 }
 			 }
 			 $.post("/avos/" + $('#functions').val(), data , function(data){
-				 $('#result').html(data);
+				 $('#result').html(JSON.stringify(data));
 			 });
 		 });
 		 $('#callHooks').click(function(e){
@@ -75,7 +75,7 @@
 				 data.id = objectId;
 			 }
 			 $.post("/avos/" + $('#classes').val() + "/" + $('#hooks').val(), data , function(data){
-				 $('#result').html(data);
+				 $('#result').html(JSON.stringify(data));
 			 });
 		 });
 	  });
