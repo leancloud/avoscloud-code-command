@@ -14,6 +14,7 @@ sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
 
 ## 更新日志
 
+* 2013-12-16 发布 0.3.3-beta 版本，支持`avos-express-cookie-session`中间件，添加调试传入用户Id功能。
 * 2013-12-14 发布 0.3.2 版本，修复云代码 HTTPS 请求失败的 bug。
 * 2013-12-11 更新 0.3.0-beta3，修复 sendgrid 0.4.6 找不到安装包的问题。
 * 2013-12-10 更新 0.3.0-beta2，添加更多命令和本地部署功能。
