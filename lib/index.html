@@ -43,9 +43,11 @@
 			 $('#result').html('');
 			 var params = $('#params').val();
 			 var data = {};
+             var uid = $('#userId1').val();
+             data.uid = uid;
 			 if(params!=null && params!=''){
 				 try{
-					data = JSON.parse(params);
+					data.params = JSON.parse(params);
 				 }catch(e){
 				 	$('#result').html("Parse JSON failed:  " + e);
 					return;
@@ -59,9 +61,11 @@
 			 $('#result').html('');
 			 var obj = $('#object').val();
 			 var data = {};
+             var uid = $('#userId2').val();
+             data.uid = uid;
 			 if(obj!=null && obj!=''){
 				 try{
-					data = JSON.parse(obj);
+					data.obj = JSON.parse(obj);
 				 }catch(e){
 				 	$('#result').html("Parse JSON failed:  " + e);
 					return;
@@ -92,6 +96,8 @@
 	  		  <br/>
 			  <p><label>选择函数</label></p>
 		  	  <p><select id="functions"></select></p>
+			  <p><label>登录用户的Object Id（模拟登录用户，可为空）</label></p>
+		  	  <p><input id="userId1" name="userId1"></input></p>
 			  <p><label>传入JSON格式参数（可为空）</label></p>
 		  	  <p><textarea id='params' rows="10" cols="100"></textarea></p>
 		  	  <p><button type="button" id="callFuncs">执行</button></p>
@@ -103,6 +109,8 @@
     	  	  <p><select id="classes"></select></p>
     		  <p><label>选择函数</label></p>
   		  <p><select id="hooks"></select></p>
+		  <p><label>登录用户的Object Id（模拟登录用户，可为空）</label></p>
+	  	  <p><input id="userId2" name="userId2"></input></p>
   		  <p><label>填写已经存在对象的objectId</label></p>
     	  <p><input type="text" id="objectId"></input></p>
   		  <p><label>或者传入JSON格式的对象</label></p>
