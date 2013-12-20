@@ -1,0 +1,29 @@
+{
+	"name": "avos-express-https-redirect",
+	"version": "0.1.0",
+	"main": "./index.js",
+	"description": "AVOS Cloud Code https redirect middleware for express framework.",
+	"repository": {
+		"type": "git",
+		"url": "git@github.com:avos/CloudCodeMockSDK.git"
+	},
+	"keywords": [
+		"cloud",
+		"BaaS",
+		"avos",
+		"avoscloud",
+		"web-service"
+	],
+	"bugs": {
+		"url": "https://github.com/avos/CloudCodeMockSDK/issues"
+	},
+	"devDependencies": {
+		"mocha":"1.9.0",
+		"expect.js ":"0.2.0"
+	},
+	"author" : {
+		"name" : "dennis zhuang",
+		"email" : "xzhuang@avos.com"
+	},
+	"license": "LGPL"
+}
