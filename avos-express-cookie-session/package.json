@@ -1,6 +1,6 @@
 {
 	"name": "avos-express-cookie-session",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"main": "./index.js",
 	"description": "AVOS Cloud Code cookie session middleware for express framework.",
 	"repository": {

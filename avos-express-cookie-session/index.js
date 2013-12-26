@@ -45,7 +45,7 @@ module.exports = function(options) {
     session = req._avos_session;
     uid = session._uid;
     sessionToken = session._sessionToken;
-    res.on('header', function() {
+    res.once('header', function() {
       var proto, tls, val;
       delete AV.Cloud.__express_req;
       delete AV.Cloud.__express_res;
