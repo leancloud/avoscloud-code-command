@@ -14,6 +14,7 @@ sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
 
 ## 更新日志
 
+* 2013-01-23 发布0.3.5版本，修复status命令并添加iconv-lite模块。
 * 2013-12-20 发布0.3.4版本，修复监控文件变更的listener过多导致的内存泄露。
 * 2013-12-20 发布0.3.3版本，支持`avos-express-https-redirect`中间件
 * 2013-12-16 发布 0.3.3-beta 版本，支持`avos-express-cookie-session`中间件，添加调试传入用户Id功能。
