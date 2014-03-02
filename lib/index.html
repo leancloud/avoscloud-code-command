@@ -4,96 +4,113 @@
 	  <script type="text/javascript" src="http://cdn.staticfile.org/underscore.js/1.5.2/underscore-min.js"></script>
 	  <link rel="stylesheet" href="http://cdn.staticfile.org/twitter-bootstrap/2.3.2/css/bootstrap.min.css" type="text/css" media="screen" />
 	  <script type="text/javascript" charset="utf-8">
-	  $( document ).ready(function(){
-		  //load options
-		 $("#classes").change(function(event){
-			 var className = $(this).val();
-			 if(className!=null && className!=''){
+	$( document ).ready(function(){
+	    $(window).onerror= function(msg, url, line){
+			$('#result').html(msg);
+        };
+		//load options
+		$("#classes").change(function(event){
+			var className = $(this).val();
+			if(className!=null && className!=''){
 				$('#hooks').find('option').remove().end();
 			 	$.get("/avos/functions?className=" + className, function(data){
-					 _.each(data, function(name){
-						 $('#hooks')
-								  .append($("<option></option>")
-								  .attr("value",name)
-								  .text(name));
-							  });
+					_.each(data, function(name){
+						$('#hooks')
+							.append($("<option></option>")
+									.attr("value",name)
+									.text(name));
+					});
 				});
 		 	}
-		 });
-		 $.get("/avos/functions", function(data){
-			 _.each(data, function(name){
-				 $('#functions')
-				          .append($("<option></option>")
-				          .attr("value",name)
-				          .text(name));
-			 });
-		 });
-		 $.get("/avos/classes", function(data){
-			 _.each(data, function(name){
-				 $('#classes')
-				          .append($("<option></option>")
-				          .attr("value",name)
-				          .text(name));
-			 });
-			 $("#classes").trigger('change');
-		 });
+		});
+		$.get("/avos/functions", function(data){
+			_.each(data, function(name){
+				$('#functions')
+				    .append($("<option></option>")
+							.attr("value",name)
+							.text(name));
+			});
+		});
+		$.get("/avos/classes", function(data){
+			_.each(data, function(name){
+				$('#classes')
+				    .append($("<option></option>")
+							.attr("value",name)
+							.text(name));
+			});
+			$("#classes").trigger('change');
+		});
 
-		 //events
-		 $('#callFuncs').click(function(e){
-			 $('#result').html('');
-			 var params = $('#params').val();
-			 var data = {};
-             var uid = $('#userId1').val();
-             data.uid = uid;
-			 if(params!=null && params!=''){
-				 try{
+        function parseJSON(s){
+			try{
+				return JSON.stringify(eval( '('+ s + ')'));
+			}catch (e){
+				$('#result').html(e.message);
+				return null;
+			}
+        }
+
+		//events
+		$('#callFuncs').click(function(e){
+			$('#result').html('');
+            var objStr = $('#params').val();
+            if (objStr == null || objStr.trim() == '')
+				objStr = '{}';
+			var params = parseJSON(objStr);
+            if(params == null)
+				return;
+			var data = {};
+            var uid = $('#userId1').val();
+            data.uid = uid;
+			if(params!=null && params!=''){
+				try{
 					data.params = JSON.parse(params);
-				 }catch(e){
+				}catch(e){
 				 	$('#result').html("Parse JSON failed:  " + e);
 					return;
-				 }
-			 }
-			 $.post("/avos/" + $('#functions').val(), data , function(data){
-				 $('#result').html(JSON.stringify(data));
-			 });
-		 });
-		 $('#callHooks').click(function(e){
-			 $('#result').html('');
-			 var obj = $('#object').val();
-			 var data = {};
-             var uid = $('#userId2').val();
-             data.uid = uid;
-			 if(obj!=null && obj!=''){
-				 try{
+				}
+			}
+			$.post("/avos/" + $('#functions').val(), data , function(data){
+				$('#result').html(JSON.stringify(data));
+			});
+		});
+		$('#callHooks').click(function(e){
+			$('#result').html('');
+            var objStr = $('#object').val();
+            if (objStr == null || objStr.trim() == '')
+				objStr = '{}';
+			var obj = parseJSON(objStr);
+            if(obj == null)
+                return;
+			var data = {};
+            var uid = $('#userId2').val();
+            data.uid = uid;
+			if(obj!=null && obj!=''){
+				try{
 					data.obj = JSON.parse(obj);
-				 }catch(e){
+				}catch(e){
 				 	$('#result').html("Parse JSON failed:  " + e);
 					return;
-				 }
-			 }else{
-				 var objectId = $('#objectId').val();
-				 data.id = objectId;
-			 }
-			 $.post("/avos/" + $('#classes').val() + "/" + $('#hooks').val(), data , function(data){
-				 $('#result').html(JSON.stringify(data));
-			 });
-		 });
-	  });
+				}
+			}else{
+				var objectId = $('#objectId').val();
+				data.id = objectId;
+			}
+			$.post("/avos/" + $('#classes').val() + "/" + $('#hooks').val(), data , function(data){
+				$('#result').html(JSON.stringify(data));
+			});
+		});
+	});
 	  </script>
   </head>
   <body>
-	  <br/>
-	   <br/>
-	  <div class='text-center'>
-		  	<p><h3><span class="label label-info" id='result'></span></h3></p>
+	  <div class='alert alert-info' style='text-align:center'>
+		  	<p><h3><span id='result'></span></h3></p>
 	  </div>
-	   <br/>
-	    <br/>
 	  <div class="container-fluid">
 	    <div class="row-fluid">
 	      <div class="span6 text-center">
 		  	  <p><h4>测试AV.Cloud.define的函数</h4></p>
-	  		  <br/>
 			  <p><label>选择函数</label></p>
 		  	  <p><select id="functions"></select></p>
 			  <p><label>登录用户的Object Id（模拟登录用户，可为空）</label></p>
@@ -104,7 +121,6 @@
 	      </div>
 	      <div class="span6 text-center">
   	    	<p><h4>测试Class Hooks（beforeSave,afterSave等）</h4></p>
-  			<br/>
     		  <p><label>选择Class</label></p>
     	  	  <p><select id="classes"></select></p>
     		  <p><label>选择函数</label></p>
