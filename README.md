@@ -14,6 +14,7 @@ sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
 
 ## 更新日志
 
+* 2013-03-05 发布0.3.7版本，修复httpRequst无法post JSON数据的Bug。
 * 2013-03-02 发布0.3.6版本，调试界面的JSON数据自动stringify，可以直接填写对象的literal表示，改进调试UI。
 * 2013-01-23 发布0.3.5版本，修复status命令并添加iconv-lite模块。
 * 2013-12-20 发布0.3.4版本，修复监控文件变更的listener过多导致的内存泄露。
