@@ -1,4 +1,4 @@
-<html>
+<strong><em><html>
   <head>
 	  <script type="text/javascript" src="http://cdn.staticfile.org/jquery/2.0.3/jquery.min.js"></script>
 	  <script type="text/javascript" src="http://cdn.staticfile.org/underscore.js/1.5.2/underscore-min.js"></script>
@@ -57,8 +57,6 @@
             if (objStr == null || objStr.trim() == '')
 				objStr = '{}';
 			var params = parseJSON(objStr);
-            if(params == null)
-				return;
 			var data = {};
             var uid = $('#userId1').val();
             data.uid = uid;
@@ -80,12 +78,10 @@
             if (objStr == null || objStr.trim() == '')
 				objStr = '{}';
 			var obj = parseJSON(objStr);
-            if(obj == null)
-                return;
 			var data = {};
             var uid = $('#userId2').val();
             data.uid = uid;
-			if(obj!=null && obj!=''){
+			if(objStr.trim() != '{}') {
 				try{
 					data.obj = JSON.parse(obj);
 				}catch(e){
@@ -144,3 +140,4 @@
 	</footer>
   </body>
 </html>
+</em></strong>
