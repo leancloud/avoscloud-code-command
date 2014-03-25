@@ -9,7 +9,7 @@ sudo npm install -g avoscloud-code
 如果从 npm 安装失败，可以从 GitHub 安装：
 
 ```
-sudo npm install -g  git+https://github.com/avos/CloudCodeMockSDK
+sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
 ```
 
 ## 更新日志
