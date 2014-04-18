@@ -13,11 +13,10 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
 ```
 
 ## 更新日志
-* 2013-03-19 发布0.4.0版本，修复httpRequest中文截断问题。
+
+* 2014-04-18 发布0.4.1版本，加入async依赖。
+* 2014-03-19 发布0.4.0版本，修复httpRequest中文截断问题。
 * 2013-03-19 发布0.3.9版本，修复无法测试已有对象，感谢用户反馈。
-* 2013-03-05 发布0.3.8版本，在请求头部加入content-length值。
-* 2013-03-05 发布0.3.7版本，修复httpRequst无法post JSON数据的Bug。
-* 2013-03-02 发布0.3.6版本，调试界面的JSON数据自动stringify，可以直接填写对象的literal表示，改进调试UI。
 
 ## 说明
 

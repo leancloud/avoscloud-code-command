@@ -1,6 +1,6 @@
 {
 	"name": "avoscloud-code",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"main": "./lib/cloud_code.js",
 	"description": "AVOS Cloud Code SDK.",
 	"repository": {
@@ -36,6 +36,7 @@
 		"cron"						: "latest",
 		"moment"					: "2.0.0",
 		"express"					: "3.4.0",
+		"async"                     : "latest",
 		"express-ejs-layouts"		: "0.3.1",
 		"weibo"						: "0.6.9",
 		"node-qiniu"				: "6.1.0",
