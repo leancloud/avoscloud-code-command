@@ -294,8 +294,11 @@ function sendStats(cmd){
 			device: {
 				sdk_version: version,
 				os_version: (os.platform() + ' ' + os.arch() + ' ' + os.release()),
+				device_id: getDeviceId(),
+				app_version: version,
+				device_model: os.platform(),
+				os: 'ios'
 			},
-			device_id: getDeviceId(),
 			events: {
 				event: [{"du":1,"name":cmd,"ts": timestamp}],
 				"launch":{"date": timestamp, "sessionId": sessionId},"terminate":{"activities":[],"duration":1,"sessionId": sessionId}
