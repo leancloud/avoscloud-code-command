@@ -28,12 +28,13 @@ if (!tmpdir.match(/.*\/$/)) {
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。")
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。\n    logs: 查看云代码日志。")
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
 	.option('-u, --giturl <url>', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
 	.option('-o, --log <log>', '部署日志，仅对从本地部署有效。')
+	.option('-n, --lines <lines>', '查看多少行最新的云代码日志，默认10')
 	.option('-r, --revision <revision>', 'Git的版本号，仅对从Git仓库部署有效。')
 	.parse(process.argv);
 
@@ -256,8 +257,6 @@ if (!cloudPath.match(/.*\/$/)) {
 console.log('[INFO]: Cloud Code Project Root Directory:' + cloudPath);
 process.chdir(cloudPath);
 
-
-
 var rl = null;
 
 function input(info, cb) {
@@ -270,6 +269,33 @@ function input(info, cb) {
 		cb(answer);
 	});
 }
+
+
+function sendStats(){
+};
+
+function outputLogs(resp){
+	if(resp){
+		resp.results.forEach(function(log){
+			console.log("[%s] [%s] -- %s:  %s", log.createdAt, (log.production == 1 ? 'production':'development'), log.level, log.content);
+		});
+    }
+}
+
+function viewCloudLog(limit){
+    var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (program.lines || 10);
+	initMasterKey(function() {
+		util.requestCloud(url , {}, 'GET', {
+			success: function(resp) {
+				console.log("Cloud code logs: ");
+				outputLogs(resp);
+			},
+			error: function(err) {
+				console.log("Query cloud code logs failed with '%j'", (JSON.parse(err.responseText).error));
+			}
+		}, true);
+	});
+};
 
 function createNewProject() {
 	console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置->应用key'里找到。")
@@ -324,6 +350,8 @@ function initAVOSCloudSDK() {
 	}
 }
 
+sendStats(cmd);
+
 if (!cmd) {
 	initAVOSCloudSDK();
 	require(lib + '/mock').run(cloudPath);
@@ -356,9 +384,12 @@ if (!cmd) {
 		break;
 	case "status":
 		queryStatus();
-		break
+		break;
 	case 'new':
 		createNewProject();
+		break;
+    case 'logs':
+        viewCloudLog();
 		break;
 	default:
 		program.help();
