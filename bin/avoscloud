@@ -270,8 +270,41 @@ function input(info, cb) {
 	});
 }
 
+function getDeviceId() {
+	var home = process.env['HOME'];
+	if (!home)
+		throw "Could not find user home directory";
+	var deviceIdFile = home + '/.avoscloud_device_id'
+	var exists = fs.existsSync(deviceIdFile);
+	if(exists){
+		return fs.readFileSync(deviceIdFile, { encoding: 'utf-8'});
+	}else{
+		var deviceId = util.guid();
+		fs.writeFileSync(deviceIdFile, deviceId, { encoding: 'utf-8'});
+		return deviceId;
+	}
+};
 
-function sendStats(){
+function sendStats(cmd){
+	try{
+		var sessionId = util.guid();
+		var timestamp = new Date().getTime();
+		var data = {
+			appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
+			device: {
+				sdk_version: version,
+				os_version: (os.platform() + ' ' + os.arch() + ' ' + os.release()),
+			},
+			device_id: getDeviceId(),
+			events: {
+				event: [{"du":1,"name":cmd,"ts": timestamp}],
+				"launch":{"date": timestamp, "sessionId": sessionId},"terminate":{"activities":[],"duration":1,"sessionId": sessionId}
+			}
+		};
+		util.ajax('POST', 'https://cn.avoscloud.com/1/stats/collect', JSON.stringify(data), function(resp){ }, function(err){}, 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs', 'nrit4mhmqzm1euc3n3k9fv3w0wo72v1bdic6tfrl2usxix3e');
+	}catch(err){
+		//ignore
+	}
 };
 
 function outputLogs(resp){
