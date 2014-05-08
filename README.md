@@ -14,6 +14,7 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
 
 ## 更新日志
 
+* 2014-05-08 发布0.4.2版本，加入logs命令用于查看云代码日志。添加 -n选项设置日志行数。
 * 2014-04-18 发布0.4.1版本，加入async依赖。
 * 2014-03-19 发布0.4.0版本，修复httpRequest中文截断问题。
 * 2013-03-19 发布0.3.9版本，修复无法测试已有对象，感谢用户反馈。
