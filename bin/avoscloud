@@ -15,10 +15,8 @@ var program = require('commander');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
-var readline = require('readline');
 var AdmZip = require('adm-zip');
-
-//AV.serverURL = 'http://cn-stg1.avoscloud.com';
+var promptly = require('promptly');
 
 var tmpdir = os.tmpdir();
 if (!tmpdir.match(/.*\/$/)) {
@@ -28,15 +26,26 @@ if (!tmpdir.match(/.*\/$/)) {
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。\n    logs: 查看云代码日志。")
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。\n    logs: 查看云代码日志。\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用。")
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
 	.option('-u, --giturl <url>', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
-	.option('-o, --log <log>', '部署日志，仅对从本地部署有效。')
-	.option('-n, --lines <lines>', '查看多少行最新的云代码日志，默认10')
+	.option('-o, --log <log>', '本次部署的提交日志，仅对从本地部署有效。')
+	.option('-n, --lines <lines>', '查看多少行最新的云代码日志，默认10行。', 10)
+	.option('-t, --tailf', '自动刷新云代码日志，结合 logs 命令使用。', 1)
 	.option('-r, --revision <revision>', 'Git的版本号，仅对从Git仓库部署有效。')
 	.parse(process.argv);
+
+function deleteMasterKeys(){
+	var home = process.env['HOME'];
+	if (!home)
+		throw "Could not find user home directory";
+	var avoscloudKeysFile = home + '/.avoscloud_keys'
+	console.log("删除 " + avoscloudKeysFile + " ...");
+	fs.truncateSync(avoscloudKeysFile,0);
+	console.log("Clear done!");
+}
 
 function initMasterKey(done) {
 	var home = process.env['HOME'];
@@ -45,23 +54,18 @@ function initMasterKey(done) {
 	var avoscloudKeysFile = home + '/.avoscloud_keys'
 	fs.exists(avoscloudKeysFile, function(exists) {
 		writeMasterKey = function(data, cb) {
-			var rl = readline.createInterface({
-				input: process.stdin,
-				output: process.stdout
-			});
-			rl.question("请输入应用的Master Key(可从开发者平台的应用设置里找到):", function(answer) {
-				if (!answer || answer.trim() == '')
-					throw "无效的master key."
-				data = data || {}
+			promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function (err, answer) {
+			    if (!answer || answer.trim() == '')
+								throw "无效的master key."
+			    data = data || {}
 				data[AV.applicationId] = answer;
 				//file mode is 0600
 				fs.writeFile(avoscloudKeysFile, JSON.stringify(data), {
-					mode: 384
+						mode: 384
 				}, function(err) {
 					if (err)
 						throw err;
 					cb(answer);
-					rl.close();
 				});
 			});
 		};
@@ -69,6 +73,9 @@ function initMasterKey(done) {
 			fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
 				if (err)
 					throw err;
+				if(data.trim() == ''){
+					data = '{}';
+				}
 				var keys = JSON.parse(data);
 				var masterKey = keys[AV.applicationId];
 				if (!masterKey) {
@@ -257,17 +264,15 @@ if (!cloudPath.match(/.*\/$/)) {
 console.log('[INFO]: Cloud Code Project Root Directory:' + cloudPath);
 process.chdir(cloudPath);
 
-var rl = null;
-
-function input(info, cb) {
-	if (!rl)
-		rl = readline.createInterface({
-			input: process.stdin,
-			output: process.stdout
-		});
-	rl.question(info, function(answer) {
-		cb(answer);
-	});
+function input(info, cb, password) {
+	var pcb = function(err, anwser){
+			cb(anwser);
+	};
+	if(password){
+		promptly.password(info,pcb);
+	}else{
+		promptly.prompt(info,pcb);
+	}	
 }
 
 function getDeviceId() {
@@ -311,20 +316,36 @@ function sendStats(cmd){
 };
 
 function outputLogs(resp){
-	if(resp){
-		resp.results.forEach(function(log){
+	if(resp && resp.results.length > 0){
+		resp.results.reverse().forEach(function(log){
 			console.log("[%s] [%s] -- %s:  %s", log.createdAt, (log.production == 1 ? 'production':'development'), log.level, log.content);
 		});
     }
 }
 
-function viewCloudLog(limit){
+function viewCloudLog(lastLogUpdatedTime){
     var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (program.lines || 10);
+	if(lastLogUpdatedTime){
+		var where = {
+			createdAt: {
+				"$gt": {
+					"__type":"Date",
+					"iso": lastLogUpdatedTime
+				}
+			}
+		}
+		url += '&where=' + encodeURIComponent(JSON.stringify(where));
+	}
 	initMasterKey(function() {
 		util.requestCloud(url , {}, 'GET', {
 			success: function(resp) {
-				console.log("Cloud code logs: ");
+				if(resp.results.length > 0){
+				    lastLogUpdatedTime = resp.results[0].createdAt;
+				}				 	
 				outputLogs(resp);
+				if(program.tailf){
+					setTimeout(function(){ viewCloudLog(lastLogUpdatedTime);}, 500);
+				}
 			},
 			error: function(err) {
 				console.log("Query cloud code logs failed with '%j'", (JSON.parse(err.responseText).error));
@@ -334,15 +355,14 @@ function viewCloudLog(limit){
 };
 
 function createNewProject() {
-	console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置->应用key'里找到。")
-	input("请输入应用的Application Id:  ", function(appId) {
+	console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。")
+	input("请输入应用的 Application Id:  ", function(appId) {
 		if (!appId || appId.trim() == '')
 			throw "无效的application id."
 		input("请输入应用的Master Key: ", function(masterKey) {
 			if (!masterKey || masterKey.trim() == '')
 				throw "无效的master key."
-			input("选择您的应用类型(标准版或者web主机版): [standard(S) or web(W)]", function(type) {
-				rl.close();
+			input("选择您的应用类型(标准版或者 web 主机版): [standard(S) or web(W)]", function(type) {
 				type = type || 'S'
 				var params = '';
 				if (type.toUpperCase() == 'W' || type.toUpperCase() == 'WEB') {
@@ -365,7 +385,7 @@ function createNewProject() {
 					console.log("Create project done!");
 				});
 			});
-		});
+		}, true);
 	});
 }
 
@@ -426,6 +446,9 @@ if (!cmd) {
 		break;
     case 'logs':
         viewCloudLog();
+		break;
+	case "clear":
+		deleteMasterKeys();
 		break;
 	default:
 		program.help();

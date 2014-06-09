@@ -14,6 +14,7 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
 
 ## 更新日志
 
+* 2014-05-09 发布0.4.3版本，修复logs命令输出日志顺序错误，并加入 -t 选项，可以自动刷新云代码日志。添加 clear 命令用于删除 app id 等本地缓存。
 * 2014-05-08 发布0.4.2版本，加入logs命令用于查看云代码日志。添加 -n选项设置日志行数。
 * 2014-04-18 发布0.4.1版本，加入async依赖。
 * 2014-03-19 发布0.4.0版本，修复httpRequest中文截断问题。
@@ -43,6 +44,8 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
     search <keyword>: 根据关键字查询开发文档.
     publish: 发布开发环境代码到生产环境。
     new: 创建云代码项目。
+    logs: 查看云代码日志。
+    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用。
 
   Options:
 
@@ -53,6 +56,8 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
     -u, --giturl <url>         所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.
     -l, --local                使用本地代码部署云代码，该选项是默认选中。
     -o, --log <log>            部署日志，仅对从本地部署有效。
+    -n, --lines <lines>        查看多少行最新的云代码日志，默认10行。
+    -t, --tailf                自动刷新云代码日志，结合 logs 命令使用。
     -r, --revision <revision>  Git的版本号，仅对从Git仓库部署有效。
 ```
 
