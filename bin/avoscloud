@@ -324,7 +324,7 @@ function outputLogs(resp){
 }
 
 function viewCloudLog(lastLogUpdatedTime){
-    var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (program.lines || 10);
+    var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (lastLogUpdatedTime ? 1000 : (program.lines || 10));
 	if(lastLogUpdatedTime){
 		var where = {
 			createdAt: {
