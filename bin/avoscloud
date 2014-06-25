@@ -414,7 +414,7 @@ function importFile(f, realPath){
 	if(stats.isFile()){
 		util.checksumFile(realPath ,function(err, checksum){
 			if(err){
-				return console.error('Upload ' + f + ' fails with error: %j', err);
+				return console.error('Upload ' + realPath + ' fails with error: %j', err);
 			}
 			uploadFile(realPath, {
 				key: util.guid(),
@@ -426,9 +426,9 @@ function importFile(f, realPath){
 				}
 			}, function(err, url){
 				if(err){
-					console.error('Upload ' + f + ' fails with error: %j', err);
+					console.error('Upload ' + realPath + ' fails with error: %j', err);
 				}else{
-					console.log('Upload ' + f + ' successfully.');
+					console.log('Upload ' + realPath + ' successfully as: ' + url);
 				}
 			});
 		});
