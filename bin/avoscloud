@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * AVOS Cloud command-line tool
+ * Author: dennis zhuang<xzhuang@avoscloud.com>
+ * Project: https://github.com/avoscloud/CloudCodeMockSDK
+ * Created by : Emacs JavaScript Mode
+ */
+
 var path = require('path');
 var fs = require('fs');
 var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
@@ -17,16 +24,17 @@ var qiniu = require('qiniu');
 var util = require(lib + '/util');
 var AdmZip = require('adm-zip');
 var promptly = require('promptly');
+var mime = require('mime');
 
 var tmpdir = os.tmpdir();
 if (!tmpdir.match(/.*\/$/)) {
-	tmpdir = tmpdir + "/";
+	tmpdir = tmpdir + path.sep;
 }
 
-var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
+var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), ".." + path.sep + "package.json"))).version;
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。\n    logs: 查看云代码日志。\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用。")
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。\n    logs: 查看云代码日志。\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用。\n    upload <file-or-directory> 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。")
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
 	.option('-u, --giturl <url>', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
@@ -51,17 +59,17 @@ function initMasterKey(done) {
 	var home = process.env['HOME'];
 	if (!home)
 		throw "Could not find user home directory";
-	var avoscloudKeysFile = home + '/.avoscloud_keys'
+	var avoscloudKeysFile = home + path.sep + '.avoscloud_keys'
 	fs.exists(avoscloudKeysFile, function(exists) {
 		writeMasterKey = function(data, cb) {
 			promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function (err, answer) {
 			    if (!answer || answer.trim() == '')
-								throw "无效的master key."
+					throw "无效的master key."
 			    data = data || {}
 				data[AV.applicationId] = answer;
 				//file mode is 0600
 				fs.writeFile(avoscloudKeysFile, JSON.stringify(data), {
-						mode: 384
+					mode: 384
 				}, function(err) {
 					if (err)
 						throw err;
@@ -100,24 +108,28 @@ function initMasterKey(done) {
 	});
 }
 
-function uploadFile(localFile, applicationId, cb) {
-	var key = util.guid() + '.tar.gz';
-	util.requestCloud("qiniu", {
-		key: key,
-		name: localFile,
-		mime_type: 'application/x-gzip, application/octet-stream'
-	}, 'POST', {
+function bucketDomain(bucket){
+	if(bucket == 'paas_files')
+		return 'paas-files';
+	else
+		return 'ac-' + bucket;
+}
+
+function uploadFile(localFile, props, cb) {
+	util.requestCloud("qiniu", props, 'POST', {
 		success: function(resp) {
 			var uptoken = resp.token;
+			var bucket = resp.bucket;
+			var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
 			if (!uptoken) {
 				if (cb) {
 					cb(JSON.parse(resp.responseText).error);
 					return
 				}
 			}
-			qiniu.io.put(uptoken, key, fs.readFileSync(localFile), null, function(err, ret) {
+			qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
 				if (cb) {
-					cb(err, 'http://paas-files.qiniudn.com/' + (ret ? ret.key : '404.html'), resp.objectId);
+					cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), resp.objectId);
 				}
 			});
 		},
@@ -151,7 +163,7 @@ function deployLocalCloudCode(cloudPath) {
 				});
 			}
 		}).pipe(tar.Pack({
-			path: '/'
+			path: '.'
 		}))
 			.pipe(zlib.Gzip())
 			.pipe(fstream.Writer({
@@ -161,7 +173,12 @@ function deployLocalCloudCode(cloudPath) {
 				console.log("Wrote compressed file " + file + ' ...');
 				//upload file to cloud code
 				console.log("Begin to upload cloud code files...");
-				uploadFile(file, AV.applicationId, function(err, url, fileId) {
+				var key = util.guid() + '.tar.gz';
+				uploadFile(file, {
+					key: key,
+					name: file,
+					mime_type: 'application/x-gzip, application/octet-stream'
+				}, function(err, url, fileId) {
 					if (err) {
 						console.log("Upload cloud code files failed with '%j'", (JSON.parse(err.responseText).error));
 						process.exit(1);
@@ -256,30 +273,30 @@ function undeployCloudCode() {
 }
 
 var cmd = program.args[0];
-var cloudPath = path.resolve(program.filepath || './');
+var cloudPath = path.resolve(program.filepath || '.');
 
 if (!cloudPath.match(/.*\/$/)) {
-	cloudPath = cloudPath + "/";
+	cloudPath = cloudPath + path.sep;
 }
 console.log('[INFO]: Cloud Code Project Root Directory:' + cloudPath);
 process.chdir(cloudPath);
 
 function input(info, cb, password) {
 	var pcb = function(err, anwser){
-			cb(anwser);
+		cb(anwser);
 	};
 	if(password){
 		promptly.password(info,pcb);
 	}else{
 		promptly.prompt(info,pcb);
-	}	
+	}
 }
 
 function getDeviceId() {
 	var home = process.env['HOME'];
 	if (!home)
 		throw "Could not find user home directory";
-	var deviceIdFile = home + '/.avoscloud_device_id'
+	var deviceIdFile = home + path.sep + '.avoscloud_device_id'
 	var exists = fs.existsSync(deviceIdFile);
 	if(exists){
 		return fs.readFileSync(deviceIdFile, { encoding: 'utf-8'});
@@ -341,7 +358,7 @@ function viewCloudLog(lastLogUpdatedTime){
 			success: function(resp) {
 				if(resp.results.length > 0){
 				    lastLogUpdatedTime = resp.results[0].createdAt;
-				}				 	
+				}
 				outputLogs(resp);
 				if(program.tailf){
 					setTimeout(function(){ viewCloudLog(lastLogUpdatedTime);}, 500);
@@ -354,6 +371,9 @@ function viewCloudLog(lastLogUpdatedTime){
 	});
 };
 
+/**
+ *Creaet a new avoscloud cloud code project.
+ */
 function createNewProject() {
 	console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。")
 	input("请输入应用的 Application Id:  ", function(appId) {
@@ -381,7 +401,7 @@ function createNewProject() {
 						throw err;
 					var zip = new AdmZip(file),
 					zipEntries = zip.getEntries();
-					zip.extractAllTo('./', false);
+					zip.extractAllTo('.', false);
 					console.log("Create project done!");
 				});
 			});
@@ -389,19 +409,70 @@ function createNewProject() {
 	});
 }
 
+function importFile(f, realPath){
+	var stats = fs.statSync(realPath);
+	if(stats.isFile()){
+		util.checksumFile(realPath ,function(err, checksum){
+			if(err){
+				return console.error('Upload ' + realPath + ' fails with error: %j', err);
+			}
+			uploadFile(realPath, {
+				key: util.guid(),
+				name: path.basename(realPath),
+				mime_type: mime.lookup(realPath),
+				metaData: {
+					size: stats.size,
+					_checksum: checksum
+				}
+			}, function(err, url){
+				if(err){
+					console.error('Upload ' + realPath + ' fails with error: %j', err);
+				}else{
+					console.log('Upload ' + realPath + ' successfully as: ' + url);
+				}
+			});
+		});
+	}else if (stats.isDirectory()){
+		fs.readdir(realPath, function(err, files){
+			if(err)
+				return console.error("Read directory " + realPath + " fails with error %j", err);
+			console.log("Begin to upload files in directory " + realPath);
+			files.forEach(function(subFile){
+				importFile(subFile, realPath + path.sep + subFile);
+			});
+		});
+	}else {
+		console.error(f + ' is not file or directory, ignore ……');
+	}
+}
+
+/**
+ * import files to avoscloud.
+ */
+function importFiles(files){
+	files.forEach(function(f){
+		var realPath = path.resolve(f);
+		if(fs.existsSync(realPath)){
+			importFile(f, realPath);
+		} else {
+			console.error(f + " is not exists, ignore ……");
+		}
+	});
+}
+
 function initAVOSCloudSDK() {
-	if (fs.existsSync(cloudPath + 'config/global.json')) {
+	if (fs.existsSync(cloudPath + 'config' + path.sep + 'global.json')) {
 		//try to initialize avoscloud sdk.
-		var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
+		var data = JSON.parse(fs.readFileSync(cloudPath + 'config' + path.sep + 'global.json', {
 			encoding: 'utf-8'
 		}));
 		if (!data || !data.applicationId || !data.applicationKey){
-			console.log("[ERROR]: Can't initialize AVOS Cloud SDK,please provide config/global.json contains app id and app key.");
+			console.error("[ERROR]: Can't initialize AVOS Cloud SDK,please provide config/global.json contains app id and app key.");
 			program.help();
 		}
 		AV.initialize(data.applicationId, data.applicationKey);
 	} else {
-		console.log("[ERROR]: Can't initialize AVOS Cloud SDK.Could not find 'config/global.json'.");
+		console.error("[ERROR]: Can't initialize AVOS Cloud SDK.Could not find 'config/global.json'.");
 		program.help();
 	}
 }
@@ -429,6 +500,8 @@ if (!cmd) {
 		if (program.git) {
 			deployGitCloudCode(program.revision || 'master');
 		} else {
+			if(path.resolve(cloudPath) != path.resolve('.'))
+				throw "'avoscloud deploy' must be run in a cloud code project directory.";
 			deployLocalCloudCode(cloudPath);
 		}
 		break;
@@ -449,6 +522,14 @@ if (!cmd) {
 		break;
 	case "clear":
 		deleteMasterKeys();
+		break;
+	case "upload":
+		if (!program.args[1]) {
+			console.log("Useage: avoscloud upload <file-or-directory>");
+			process.exit(1);
+		}
+		program.args.shift();
+		importFiles(program.args);
 		break;
 	default:
 		program.help();

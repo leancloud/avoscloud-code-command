@@ -1,6 +1,6 @@
 {
 	"name": "avoscloud-code",
-	"version": "0.4.5",
+	"version": "0.4.6",
 	"main": "./lib/cloud_code.js",
 	"description": "AVOS Cloud Code SDK.",
 	"repository": {
@@ -27,6 +27,7 @@
 		"cookie-signature"   : "1.0.1",
 		"buffer-crc32"        :  "0.2.1",
 		"debug"               : "0.7.4",
+		"mime"                : "1.2.11",
 		"avos-express-cookie-session" : "latest",
         "iconv-lite"                          : "0.2.11",
 		"avos-express-https-redirect" : "latest",
