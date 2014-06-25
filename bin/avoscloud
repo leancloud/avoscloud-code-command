@@ -411,7 +411,18 @@ function createNewProject() {
 function importFile(f, realPath){
 	var stats = fs.statSync(realPath);
 	if(stats.isFile()){
-
+		uploadFile(realPath, {
+			key: util.guid(),
+			name: f,
+			mime_type: 'image/png',
+			metaData: {}
+		}, function(err, url){
+			if(err){
+				console.error('Upload ' + f + ' fails with error: %j', err);
+			}else{
+				console.log('Upload ' + f + ' successfully.');
+			}
+		});
 	}else if (stats.isDirectory()){
 
 	}else {
@@ -426,7 +437,7 @@ function importFiles(files){
 	files.forEach(function(f){
 		var realPath = path.resolve(f);
 		if(fs.existsSync(realPath)){
-
+			importFile(f, realPath);
 		} else {
 			console.error(f + " is not exists, ignore ……");
 		}
@@ -503,6 +514,7 @@ if (!cmd) {
 		}
 		program.args.shift();
 		importFiles(program.args);
+		break;
 	default:
 		program.help();
 		break;
