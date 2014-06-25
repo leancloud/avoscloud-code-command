@@ -24,16 +24,17 @@ var qiniu = require('qiniu');
 var util = require(lib + '/util');
 var AdmZip = require('adm-zip');
 var promptly = require('promptly');
+var mime = require('mime');
 
 var tmpdir = os.tmpdir();
 if (!tmpdir.match(/.*\/$/)) {
-	tmpdir = tmpdir + "/";
+	tmpdir = tmpdir + path.sep;
 }
 
-var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "../package.json"))).version;
+var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), ".." + path.sep + "package.json"))).version;
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。\n    logs: 查看云代码日志。\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用。\n    import <file-or-directory> 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。")
+	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到AVOS Cloud平台开发环境. \n    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境. \n    status: 查询当前部署状态.\n    search <keyword>: 根据关键字查询开发文档.\n    publish: 发布开发环境代码到生产环境。 \n    new: 创建云代码项目。\n    logs: 查看云代码日志。\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用。\n    upload <file-or-directory> 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。")
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。')
 	.option('-u, --giturl <url>', '所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.')
@@ -58,7 +59,7 @@ function initMasterKey(done) {
 	var home = process.env['HOME'];
 	if (!home)
 		throw "Could not find user home directory";
-	var avoscloudKeysFile = home + '/.avoscloud_keys'
+	var avoscloudKeysFile = home + path.sep + '.avoscloud_keys'
 	fs.exists(avoscloudKeysFile, function(exists) {
 		writeMasterKey = function(data, cb) {
 			promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function (err, answer) {
@@ -272,10 +273,10 @@ function undeployCloudCode() {
 }
 
 var cmd = program.args[0];
-var cloudPath = path.resolve(program.filepath || './');
+var cloudPath = path.resolve(program.filepath || '.');
 
 if (!cloudPath.match(/.*\/$/)) {
-	cloudPath = cloudPath + "/";
+	cloudPath = cloudPath + path.sep;
 }
 console.log('[INFO]: Cloud Code Project Root Directory:' + cloudPath);
 process.chdir(cloudPath);
@@ -295,7 +296,7 @@ function getDeviceId() {
 	var home = process.env['HOME'];
 	if (!home)
 		throw "Could not find user home directory";
-	var deviceIdFile = home + '/.avoscloud_device_id'
+	var deviceIdFile = home + path.sep + '.avoscloud_device_id'
 	var exists = fs.existsSync(deviceIdFile);
 	if(exists){
 		return fs.readFileSync(deviceIdFile, { encoding: 'utf-8'});
@@ -400,7 +401,7 @@ function createNewProject() {
 						throw err;
 					var zip = new AdmZip(file),
 					zipEntries = zip.getEntries();
-					zip.extractAllTo('./', false);
+					zip.extractAllTo('.', false);
 					console.log("Create project done!");
 				});
 			});
@@ -411,20 +412,35 @@ function createNewProject() {
 function importFile(f, realPath){
 	var stats = fs.statSync(realPath);
 	if(stats.isFile()){
-		uploadFile(realPath, {
-			key: util.guid(),
-			name: f,
-			mime_type: 'image/png',
-			metaData: {}
-		}, function(err, url){
+		util.checksumFile(realPath ,function(err, checksum){
 			if(err){
-				console.error('Upload ' + f + ' fails with error: %j', err);
-			}else{
-				console.log('Upload ' + f + ' successfully.');
+				return console.error('Upload ' + f + ' fails with error: %j', err);
 			}
+			uploadFile(realPath, {
+				key: util.guid(),
+				name: path.basename(realPath),
+				mime_type: mime.lookup(realPath),
+				metaData: {
+					size: stats.size,
+					_checksum: checksum
+				}
+			}, function(err, url){
+				if(err){
+					console.error('Upload ' + f + ' fails with error: %j', err);
+				}else{
+					console.log('Upload ' + f + ' successfully.');
+				}
+			});
 		});
 	}else if (stats.isDirectory()){
-
+		fs.readdir(realPath, function(err, files){
+			if(err)
+				return console.error("Read directory " + realPath + " fails with error %j", err);
+			console.log("Begin to upload files in directory " + realPath);
+			files.forEach(function(subFile){
+				importFile(subFile, realPath + path.sep + subFile);
+			});
+		});
 	}else {
 		console.error(f + ' is not file or directory, ignore ……');
 	}
@@ -445,18 +461,18 @@ function importFiles(files){
 }
 
 function initAVOSCloudSDK() {
-	if (fs.existsSync(cloudPath + 'config/global.json')) {
+	if (fs.existsSync(cloudPath + 'config' + path.sep + 'global.json')) {
 		//try to initialize avoscloud sdk.
-		var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
+		var data = JSON.parse(fs.readFileSync(cloudPath + 'config' + path.sep + 'global.json', {
 			encoding: 'utf-8'
 		}));
 		if (!data || !data.applicationId || !data.applicationKey){
-			console.log("[ERROR]: Can't initialize AVOS Cloud SDK,please provide config/global.json contains app id and app key.");
+			console.error("[ERROR]: Can't initialize AVOS Cloud SDK,please provide config/global.json contains app id and app key.");
 			program.help();
 		}
 		AV.initialize(data.applicationId, data.applicationKey);
 	} else {
-		console.log("[ERROR]: Can't initialize AVOS Cloud SDK.Could not find 'config/global.json'.");
+		console.error("[ERROR]: Can't initialize AVOS Cloud SDK.Could not find 'config/global.json'.");
 		program.help();
 	}
 }
@@ -507,9 +523,9 @@ if (!cmd) {
 	case "clear":
 		deleteMasterKeys();
 		break;
-	case "import":
+	case "upload":
 		if (!program.args[1]) {
-			console.log("Useage: avoscloud import <file-or-directory>");
+			console.log("Useage: avoscloud upload <file-or-directory>");
 			process.exit(1);
 		}
 		program.args.shift();

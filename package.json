@@ -27,6 +27,7 @@
 		"cookie-signature"   : "1.0.1",
 		"buffer-crc32"        :  "0.2.1",
 		"debug"               : "0.7.4",
+		"mime"                : "1.2.11",
 		"avos-express-cookie-session" : "latest",
         "iconv-lite"                          : "0.2.11",
 		"avos-express-https-redirect" : "latest",
