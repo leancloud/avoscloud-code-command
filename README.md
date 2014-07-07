@@ -1,3 +1,5 @@
+# `avoscloud-code`
+
 ## 重要通知
 
 * 从 0.3.0 版本开始，`avoscloud-code-mock-sdk` 重命名为 `avoscloud-code`，安装和更新请使用下列命令：
@@ -14,11 +16,11 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
 
 ## 更新日志
 
-* 2014-06-25 发布0.4.6，增加`upload`命令，用于批量上传文件到 AVOS Cloud 平台。
-* 2014-05-11 发布0.4.5版本，解决包版本冲突问题。
-* 2014-05-09 发布0.4.4版本，修复logs命令输出日志顺序错误，并加入 -t 选项，可以自动刷新云代码日志。添加 clear 命令用于删除 app id 等本地缓存。
-* 2014-05-08 发布0.4.2版本，加入logs命令用于查看云代码日志。添加 -n选项设置日志行数。
-* 2014-04-18 发布0.4.1版本，加入async依赖。
+* 2014-06-25 发布 0.4.6，增加 `upload` 命令，用于批量上传文件到 AVOS Cloud 平台。
+* 2014-05-11 发布 0.4.5 版本，解决包版本冲突问题。
+* 2014-05-09 发布 0.4.4 版本，修复 `logs` 命令输出日志顺序错误，并加入 `-t` 选项，可以自动刷新云代码日志。添加 `clear` 命令用于删除 app id 等本地缓存。
+* 2014-05-08 发布 0.4.2 版本，加入 `logs` 命令用于查看云代码日志。添加 `-n` 选项设置日志行数。
+* 2014-04-18 发布 0.4.1 版本，加入 async 依赖。
 
 ## 说明
 
@@ -38,8 +40,8 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
  Usage: avoscloud [options] <cmd>
 
   Valid commands:
-    deploy: 部署云代码到AVOS Cloud平台开发环境.
-    undeploy: 从AVOS Cloud平台清除云代码部署，包括生产环境和开发环境.
+    deploy: 部署云代码到 AVOS Cloud 平台开发环境.
+    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境.
     status: 查询当前部署状态.
     search <keyword>: 根据关键字查询开发文档.
     publish: 发布开发环境代码到生产环境。
@@ -52,13 +54,13 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
     -h, --help                 output usage information
     -V, --version              output the version number
     -f,--filepath <path>       本地云代码项目根路径，默认是当前目录。
-    -g, --git                  使用定义在管理平台的Git仓库或者-u指定的Git仓库部署云代码，默认使用本地代码部署。
-    -u, --giturl <url>         所要部署的Git仓库地址，必须是Git协议URL，仅在使用Git部署-g选项的时候有效.
+    -g, --git                  使用定义在管理平台的 Git 仓库或者 -u 指定的 Git 仓库部署云代码，默认使用本地代码部署。
+    -u, --giturl <url>         所要部署的 Git 仓库地址，必须是 Git 协议 URL，仅在使用 Git 部署 -g 选项的时候有效.
     -l, --local                使用本地代码部署云代码，该选项是默认选中。
     -o, --log <log>            部署日志，仅对从本地部署有效。
-    -n, --lines <lines>        查看多少行最新的云代码日志，默认10行。
+    -n, --lines <lines>        查看多少行最新的云代码日志，默认 10 行。
     -t, --tailf                自动刷新云代码日志，结合 logs 命令使用。
-    -r, --revision <revision>  Git的版本号，仅对从Git仓库部署有效。
+    -r, --revision <revision>  Git 的版本号，仅对从 Git 仓库部署有效。
 ```
 
 并且本工具具有代码热加载功能。修改代码后，无需重启即可以调试最新代码。
