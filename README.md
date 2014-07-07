@@ -71,7 +71,7 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
 
 * 测试函数:
 ```
-curl -X POST -H 'Content-Type:application/json' \
+$ curl -X POST -H 'Content-Type:application/json' \
     -d '{ "name": "dennis"}' \
     http://localhost:3000/avos/hello
 ```
@@ -80,7 +80,7 @@ curl -X POST -H 'Content-Type:application/json' \
 * 测试 `beforeSave`、`afterSave`、`afterUpdate`、`beforeDelete`、`afterDelete` 等:
 
 ```
-curl -X POST -H 'Content-Type:application/json' \
+$ curl -X POST -H 'Content-Type:application/json' \
      -d '{ "name": "dennis"}' \
 	 http://localhost:3000/avos/MyUser/beforeSave
 ```
