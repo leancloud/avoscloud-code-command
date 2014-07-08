@@ -89,11 +89,11 @@ function initMasterKey(done) {
 				if (!masterKey) {
 					writeMasterKey(keys, function(masterKey) {
 						AV.initialize(AV.applicationId, masterKey);
-						done();
+						done(masterKey);
 					});
 				} else {
 					AV.initialize(AV.applicationId, masterKey);
-					done();
+					done(masterKey);
 				}
 			});
 		}
@@ -102,7 +102,7 @@ function initMasterKey(done) {
 		} else {
 			writeMasterKey(null, function(masterKey) {
 				AV.initialize(AV.applicationId, masterKey);
-				done();
+				done(masterKey);
 			});
 		}
 	});
@@ -460,29 +460,40 @@ function importFiles(files){
 	});
 }
 
-function initAVOSCloudSDK() {
-	if (fs.existsSync(cloudPath + 'config' + path.sep + 'global.json')) {
-		//try to initialize avoscloud sdk.
-		var data = JSON.parse(fs.readFileSync(cloudPath + 'config' + path.sep + 'global.json', {
-			encoding: 'utf-8'
-		}));
-		if (!data || !data.applicationId || !data.applicationKey){
-			console.error("[ERROR]: Can't initialize AVOS Cloud SDK, please provide config/global.json contains app id and app key.");
+function initAVOSCloudSDK(done) {
+	initMasterKey(function(masterKey){
+		if (fs.existsSync(cloudPath + 'config' + path.sep + 'global.json')) {
+			//try to initialize avoscloud sdk.
+			var data = JSON.parse(fs.readFileSync(cloudPath + 'config' + path.sep + 'global.json', {
+				encoding: 'utf-8'
+			}));
+			if (!data || !data.applicationId || !data.applicationKey){
+				console.error("[ERROR]: Can't initialize AVOS Cloud SDK, please provide config/global.json contains app id and app key.");
+				program.help();
+			}
+			if(masterKey){
+				AV._initialize(data.applicationId, data.applicationKey, masterKey);
+				AV.Cloud.useMasterKey();
+			}else {
+				AV.initialize(data.applicationId, data.applicationKey);
+			}
+			if(done)
+				done(masterKey);
+		} else {
+			console.error("[ERROR]: Can't initialize AVOS Cloud SDK.Could not find 'config/global.json'.");
 			program.help();
+			process.exit(1);
 		}
-		AV.initialize(data.applicationId, data.applicationKey);
-	} else {
-		console.error("[ERROR]: Can't initialize AVOS Cloud SDK.Could not find 'config/global.json'.");
-		program.help();
-	}
+	});
 }
 
 sendStats(cmd);
 
 if (!cmd) {
-	initAVOSCloudSDK();
-	require(lib + '/mock').run(cloudPath);
-	console.log("请使用浏览器打开 http://localhost:3000/avos");
+	initAVOSCloudSDK(function(masterKey){
+		require(lib + '/mock').run(cloudPath, masterKey);
+		console.log("请使用浏览器打开 http://localhost:3000/avos");
+	});
 } else {
 	if (cmd != 'new') {
 		initAVOSCloudSDK();
