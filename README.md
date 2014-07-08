@@ -16,11 +16,10 @@ sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
 
 ## 更新日志
 
+* 2014-07-08 发布 0.4.7，默认使用 Master Key 初始化 SDK，修复`X-AVOSCloud-Session-Token`调用云代码不生效的Bug。
 * 2014-06-25 发布 0.4.6，增加 `upload` 命令，用于批量上传文件到 AVOS Cloud 平台。
 * 2014-05-11 发布 0.4.5 版本，解决包版本冲突问题。
 * 2014-05-09 发布 0.4.4 版本，修复 `logs` 命令输出日志顺序错误，并加入 `-t` 选项，可以自动刷新云代码日志。添加 `clear` 命令用于删除 app id 等本地缓存。
-* 2014-05-08 发布 0.4.2 版本，加入 `logs` 命令用于查看云代码日志。添加 `-n` 选项设置日志行数。
-* 2014-04-18 发布 0.4.1 版本，加入 async 依赖。
 
 ## 说明
 
