@@ -36,13 +36,13 @@ program
 	.version(version)
 	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到 AVOS Cloud 平台开发环境\n    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境\n    status: 查询当前部署状态\n    search <keyword>: 根据关键字查询开发文档\n    publish: 发布开发环境代码到生产环境\n    new: 创建云代码项目\n    logs: 查看云代码日志\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用\n    upload <file-or-directory> 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。")
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
-	.option('-g, --git', '使用定义在管理平台的 Git 仓库或者 -u 指定的 Git 仓库部署云代码，默认使用本地代码部署。')
-	.option('-u, --giturl <url>', '所要部署的 Git 仓库地址，必须是 Git 协议 URL，仅在使用 Git 部署 -g 选项的时候有效。')
+	.option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')
+	.option('-u, --giturl <url>', '所要部署的 git 仓库地址，必须是 git 协议 URL，仅在使用 git 部署 -g 选项的时候有效。')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
 	.option('-o, --log <log>', '本次部署的提交日志，仅对从本地部署有效。')
 	.option('-n, --lines <lines>', '查看多少行最新的云代码日志，默认 10 行。', 10)
 	.option('-t, --tailf', '自动刷新云代码日志，结合 logs 命令使用。', 1)
-	.option('-r, --revision <revision>', 'Git 的版本号，仅对从 Git 仓库部署有效。')
+	.option('-r, --revision <revision>', 'git 的版本号，仅对从 git 仓库部署有效。')
 	.parse(process.argv);
 
 function deleteMasterKeys(){
@@ -62,9 +62,9 @@ function initMasterKey(done) {
 	var avoscloudKeysFile = home + path.sep + '.avoscloud_keys'
 	fs.exists(avoscloudKeysFile, function(exists) {
 		writeMasterKey = function(data, cb) {
-			promptly.password('请输入应用的 master key (可从开发者平台的应用设置里找到): ', function (err, answer) {
+			promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function (err, answer) {
 			    if (!answer || answer.trim() == '')
-					throw "无效的 master key."
+					throw "无效的 Master Key"
 			    data = data || {}
 				data[AV.applicationId] = answer;
 				//file mode is 0600
@@ -183,7 +183,7 @@ function deployLocalCloudCode(cloudPath) {
 						console.log("Upload cloud code files failed with '%j'", (JSON.parse(err.responseText).error));
 						process.exit(1);
 					} else {
-						console.log("Upload cloud code files successfully.Begin to deploy...");
+						console.log("Upload cloud code files successfully. Begin to deploy...");
 						//notify avoscloud platform to fetch new deployment.
 						util.requestCloud('functions/deploy/command', {
 							revision: url,
@@ -211,7 +211,7 @@ function deployGitCloudCode(revision) {
 			url: program.giturl
 		}, 'POST', {
 			success: function(resp) {
-				console.log("Congrats!Deployed cloud code from git repository successfully.");
+				console.log("Congrats! Deploy cloud code from git repository successfully.");
 				queryStatus();
 			},
 			error: function(err) {
@@ -234,7 +234,7 @@ function publishCloudCode() {
 		console.log('Publishing cloud code to production...');
 		util.requestCloud('functions/publishFunctions', {}, 'GET', {
 			success: function(resp) {
-				console.log("Published cloud code successfully. the status is :");
+				console.log("Published cloud code successfully. the status is: ");
 				outputStatus(resp);
 			},
 			error: function(err) {
@@ -248,7 +248,7 @@ function queryStatus() {
 	initMasterKey(function() {
 		util.requestCloud('functions/status', {}, 'GET', {
 			success: function(resp) {
-				console.log("Cloud code status is : ");
+				console.log("Cloud code status is: ");
 				outputStatus(resp);
 			},
 			error: function(err) {
@@ -278,7 +278,7 @@ var cloudPath = path.resolve(program.filepath || '.');
 if (!cloudPath.match(/.*\/$/)) {
 	cloudPath = cloudPath + path.sep;
 }
-console.log('[INFO]: Cloud Code Project Root Directory:' + cloudPath);
+console.log('[INFO]: Cloud Code Project Root Directory: ' + cloudPath);
 process.chdir(cloudPath);
 
 function input(info, cb, password) {
@@ -376,13 +376,13 @@ function viewCloudLog(lastLogUpdatedTime){
  */
 function createNewProject() {
 	console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。")
-	input("请输入应用的 Application Id:  ", function(appId) {
+	input("请输入应用的 Application ID:  ", function(appId) {
 		if (!appId || appId.trim() == '')
-			throw "无效的application id."
-		input("请输入应用的Master Key: ", function(masterKey) {
+			throw "无效的 Application ID"
+		input("请输入应用的 Master Key: ", function(masterKey) {
 			if (!masterKey || masterKey.trim() == '')
-				throw "无效的master key."
-			input("选择您的应用类型(标准版或者 web 主机版): [standard(S) or web(W)]", function(type) {
+				throw "无效的 Master Key"
+			input("选择您的应用类型（标准版或者 web 主机版）: [standard(S) or web(W)]", function(type) {
 				type = type || 'S'
 				var params = '';
 				if (type.toUpperCase() == 'W' || type.toUpperCase() == 'WEB') {
@@ -402,7 +402,7 @@ function createNewProject() {
 					var zip = new AdmZip(file),
 					zipEntries = zip.getEntries();
 					zip.extractAllTo('.', false);
-					console.log("Create project done!");
+					console.log("Project created!");
 				});
 			});
 		}, true);
@@ -442,7 +442,7 @@ function importFile(f, realPath){
 			});
 		});
 	}else {
-		console.error(f + ' is not file or directory, ignore ……');
+		console.error(f + ' is not file or directory, ignoring...');
 	}
 }
 
@@ -455,7 +455,7 @@ function importFiles(files){
 		if(fs.existsSync(realPath)){
 			importFile(f, realPath);
 		} else {
-			console.error(f + " is not exists, ignore ……");
+			console.error(f + " not existed, ignoring...");
 		}
 	});
 }
@@ -467,7 +467,7 @@ function initAVOSCloudSDK() {
 			encoding: 'utf-8'
 		}));
 		if (!data || !data.applicationId || !data.applicationKey){
-			console.error("[ERROR]: Can't initialize AVOS Cloud SDK,please provide config/global.json contains app id and app key.");
+			console.error("[ERROR]: Can't initialize AVOS Cloud SDK, please provide config/global.json contains app id and app key.");
 			program.help();
 		}
 		AV.initialize(data.applicationId, data.applicationKey);
@@ -482,7 +482,7 @@ sendStats(cmd);
 if (!cmd) {
 	initAVOSCloudSDK();
 	require(lib + '/mock').run(cloudPath);
-	console.log("请使用浏览器打开(建议使用非IE浏览器，如Chrome,Firefox等):'http://localhost:3000/avos'.");
+	console.log("请使用浏览器打开 http://localhost:3000/avos");
 } else {
 	if (cmd != 'new') {
 		initAVOSCloudSDK();
