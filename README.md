@@ -11,15 +11,14 @@ sudo npm install -g avoscloud-code
 如果从 npm 安装失败，可以从 GitHub 安装：
 
 ```
-sudo npm install -g  git+https://github.com/avoscloud/CloudCodeMockSDK
+sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 ```
 
 ## 更新日志
 
+* 2014-08-15 发布 0.4.8，移除`-u`选项，支持云代码 2.0 自定义库功能，添加`AV.Cloud.onVerfied`函数。
 * 2014-07-08 发布 0.4.7，默认使用 Master Key 初始化 SDK，修复`X-AVOSCloud-Session-Token`调用云代码不生效的Bug。
 * 2014-06-25 发布 0.4.6，增加 `upload` 命令，用于批量上传文件到 AVOS Cloud 平台。
-* 2014-05-11 发布 0.4.5 版本，解决包版本冲突问题。
-* 2014-05-09 发布 0.4.4 版本，修复 `logs` 命令输出日志顺序错误，并加入 `-t` 选项，可以自动刷新云代码日志。添加 `clear` 命令用于删除 app id 等本地缓存。
 
 ## 说明
 
