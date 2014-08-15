@@ -37,7 +37,6 @@ program
 	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到 AVOS Cloud 平台开发环境\n    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境\n    status: 查询当前部署状态\n    search <keyword>: 根据关键字查询开发文档\n    publish: 发布开发环境代码到生产环境\n    new: 创建云代码项目\n    logs: 查看云代码日志\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用\n    upload <file-or-directory> 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。")
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')
-	.option('-u, --giturl <url>', '所要部署的 git 仓库地址，必须是 git 协议 URL，仅在使用 git 部署 -g 选项的时候有效。')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
 	.option('-o, --log <log>', '本次部署的提交日志，仅对从本地部署有效。')
 	.option('-n, --lines <lines>', '查看多少行最新的云代码日志，默认 10 行。', 10)
