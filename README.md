@@ -16,8 +16,8 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 
 ## 更新日志
 
-* 2014-08-15 发布 0.4.8，移除`-u`选项，支持云代码 2.0 自定义库功能，添加`AV.Cloud.onVerfied`函数。
-* 2014-07-08 发布 0.4.7，默认使用 Master Key 初始化 SDK，修复`X-AVOSCloud-Session-Token`调用云代码不生效的Bug。
+* 2014-08-15 发布 0.4.8，移除`-u`选项，支持云代码 2.0 自定义库功能，添加 `AV.Cloud.onVerfied` 函数。
+* 2014-07-08 发布 0.4.7，默认使用 Master Key 初始化 SDK，修复 `X-AVOSCloud-Session-Token` 调用云代码不生效的 bug。
 * 2014-06-25 发布 0.4.6，增加 `upload` 命令，用于批量上传文件到 AVOS Cloud 平台。
 
 ## 说明
@@ -25,10 +25,10 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 为了方便本地运行和调试云代码，请遵照下列步骤进行:
 
 * 要在本地调试云代码，你需要安装 [Node.js](http://nodejs.org) 最新版本。
-* 运行命令: `sudo npm install -g avoscloud-code` 安装调试 SDK。以后更新升级也请执行此命令。
+* 运行命令：`sudo npm install -g avoscloud-code` 安装调试 SDK。以后更新升级也请执行此命令。
 * 在项目根目录运行 `avoscloud`，将启动本地调试服务器。
-* 访问 [http://localhost:3000/](http://localhost:3000/) 即可访问到你的云主机代码，子路径按照你在 `app.js` 里配置的即可访问。
-* 访问 [http://localhost:3000/avos](http://localhost:3000/avos) 调试云代码函数和 class hook 函数等。
+* 访问 [localhost:3000](http://localhost:3000/) 即可访问到你的云主机代码，子路径按照你在 `app.js` 里配置的即可访问。
+* 访问 [localhost:3000/avos](http://localhost:3000/avos) 调试云代码函数和 class hook 函数等。
 
 ## 功能说明
 
@@ -82,13 +82,13 @@ curl -X POST -H 'Content-Type:application/json' \
      -d '{ "name": "dennis"}' \
 	 http://localhost:3000/avos/MyUser/beforeSave
 ```
-其中 `MyUser` 是 className，`beforeSave` 指定调用`MyUser`定义的 `beforeSave` 函数，其他函数类似。
+其中 `MyUser` 是 className，`beforeSave` 指定调用 `MyUser` 定义的 `beforeSave` 函数，其他函数类似。
 
 ## 安全性
 
 部署、发布、清除部署等命令在第一次运行的时候要求用户输入应用的 master key，您可以在 AVOS Cloud 平台的应用设置里找到 master key。
 
-输入后，本命令行工具将这个App信息记录在 `~/.avoscloud_keys` 文件中（0600文件权限模式）。
+输入后，本命令行工具将这个应用信息记录在 `~/.avoscloud_keys` 文件中（0600 文件权限模式）。
 
 如果您输入错误的 master key 或者在公共机器上运行本命令行工具，可手工删除该文件。
 
