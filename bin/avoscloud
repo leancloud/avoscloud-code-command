@@ -59,7 +59,7 @@ function deleteMasterKeys(){
 }
 
 function initMasterKey(done) {
-	var home = process.env['HOME'];
+	var home = getUserHome();
 	if (!home)
 		throw "Could not find user home directory";
 	var avoscloudKeysFile = home + path.sep + '.avoscloud_keys'
@@ -308,7 +308,7 @@ function input(info, cb, password) {
 }
 
 function getDeviceId() {
-	var home = process.env['HOME'];
+	var home = getUserHome();
 	if (!home)
 		throw "Could not find user home directory";
 	var deviceIdFile = home + path.sep + '.avoscloud_device_id'
