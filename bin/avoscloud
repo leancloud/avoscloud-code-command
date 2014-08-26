@@ -44,8 +44,12 @@ program
 	.option('-r, --revision <revision>', 'git 的版本号，仅对从 git 仓库部署有效。')
 	.parse(process.argv);
 
+function getUserHome() {
+  return process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+}
+
 function deleteMasterKeys(){
-	var home = process.env['HOME'];
+	var home = getUserHome();
 	if (!home)
 		throw "Could not find user home directory";
 	var avoscloudKeysFile = home + '/.avoscloud_keys'
