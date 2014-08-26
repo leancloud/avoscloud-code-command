@@ -399,7 +399,7 @@ function createNewProject() {
 				}
 				url += "1/" + 'functions/skeleton?appId=' + appId + "&appKey=" + masterKey + params;
 				var file = tmpdir + appId + '.zip';
-				exec("curl '" + url + "' > " + file, function(err) {
+				exec("curl -k '" + url + "' > " + file, function(err) {
 					if (err)
 						throw err;
 					var zip = new AdmZip(file),
