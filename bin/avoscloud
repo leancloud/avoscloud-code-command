@@ -284,6 +284,18 @@ if (!cloudPath.match(/.*\/$/)) {
 console.log('[INFO]: Cloud Code Project Root Directory: ' + cloudPath);
 process.chdir(cloudPath);
 
+if (fs.existsSync(cloudPath + 'config/global.json')) {
+	//try to initialize avoscloud sdk.
+	var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
+		encoding: 'utf-8'
+	}));
+	if(!data || !data.applicationId || !data.applicationKey)
+		throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json"
+	AV.initialize(data.applicationId, data.applicationKey);
+}else{
+	throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json";
+}
+
 function input(info, cb, password) {
 	var pcb = function(err, anwser){
 		cb(anwser);
@@ -419,8 +431,9 @@ function importFile(f, realPath){
 			if(err){
 				return console.error('Upload ' + realPath + ' fails with error: %j', err);
 			}
+			var extname = path.extname(realPath) != '.' ? path.extname(realPath) : '';
 			uploadFile(realPath, {
-				key: util.guid(),
+				key: util.guid() + extname,
 				name: path.basename(realPath),
 				mime_type: mime.lookup(realPath),
 				metaData: {
