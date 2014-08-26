@@ -16,7 +16,8 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 
 ## 更新日志
 
-* 2014-08-15 发布 0.4.8，移除`-u`选项，支持云代码 2.0 自定义库功能，添加 `AV.Cloud.onVerfied` 函数。
+* 2014-08-26 发布 0.4.8，修复在 windows 系统无法运行的 Bug。
+* 2014-08-15 发布 0.4.8-beta，移除`-u`选项，支持云代码 2.0 自定义库功能，添加 `AV.Cloud.onVerfied` 函数。
 * 2014-07-08 发布 0.4.7，默认使用 Master Key 初始化 SDK，修复 `X-AVOSCloud-Session-Token` 调用云代码不生效的 bug。
 * 2014-06-25 发布 0.4.6，增加 `upload` 命令，用于批量上传文件到 AVOS Cloud 平台。
 
