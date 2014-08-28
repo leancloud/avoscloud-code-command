@@ -45,7 +45,7 @@ program
 	.parse(process.argv);
 
 function getUserHome() {
-  return process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+	return process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 }
 
 function deleteMasterKeys(){
@@ -284,18 +284,6 @@ if (!cloudPath.match(/.*\/$/)) {
 console.log('[INFO]: Cloud Code Project Root Directory: ' + cloudPath);
 process.chdir(cloudPath);
 
-if (fs.existsSync(cloudPath + 'config/global.json')) {
-	//try to initialize avoscloud sdk.
-	var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
-		encoding: 'utf-8'
-	}));
-	if(!data || !data.applicationId || !data.applicationKey)
-		throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json"
-	AV.initialize(data.applicationId, data.applicationKey);
-}else{
-	throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json";
-}
-
 function input(info, cb, password) {
 	var pcb = function(err, anwser){
 		cb(anwser);
@@ -477,6 +465,17 @@ function importFiles(files){
 }
 
 function initAVOSCloudSDK(done) {
+	if (fs.existsSync(cloudPath + 'config/global.json')) {
+		//try to initialize avoscloud sdk.
+		var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
+			encoding: 'utf-8'
+		}));
+		if(!data || !data.applicationId || !data.applicationKey)
+			throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json"
+		AV.initialize(data.applicationId, data.applicationKey);
+	}else{
+		throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json";
+	}
 	initMasterKey(function(masterKey){
 		if (fs.existsSync(cloudPath + 'config' + path.sep + 'global.json')) {
 			//try to initialize avoscloud sdk.
