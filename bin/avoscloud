@@ -161,7 +161,7 @@ function deployLocalCloudCode(cloudPath) {
 					return true;
 				}
 				var filePath = path.normalize(this.path);
-				return _.find(['cloud', 'public', 'config'], function(folder) {
+				return _.find(['cloud', 'public', 'config', 'package.json'], function(folder) {
 					return _s.startsWith(filePath, cloudPath + folder);
 				});
 			}
