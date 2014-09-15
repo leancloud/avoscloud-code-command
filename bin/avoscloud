@@ -25,6 +25,12 @@ var util = require(lib + '/util');
 var AdmZip = require('adm-zip');
 var promptly = require('promptly');
 var mime = require('mime');
+var async = require('async');
+
+//set qiniu timeout
+qiniu.conf.RPC_TIMEOUT = 3600000;
+
+importFileBatchSize = 20;
 
 var tmpdir = os.tmpdir();
 if (!tmpdir.match(/.*\/$/)) {
@@ -118,9 +124,29 @@ function bucketDomain(bucket){
 		return 'ac-' + bucket;
 }
 
-function uploadFile(localFile, props, cb) {
+function destroyFile(objectId){
+	if(!objectId || objectId == '')
+		return;
+	try{
+		var file = new AV.File();
+		file.id = objectId
+		file.destroy();
+	}catch(e){
+		//ignore
+	}
+}
+
+function uploadFile(localFile, props, cb, retry, retries) {
+	if(retries && retries > 3){
+		console.warn("Faild to upload " + localFile + " after retrying 3 times...give up.");
+		if (cb) {
+			cb(err);
+		}
+		return;
+	}
 	util.requestCloud("qiniu", props, 'POST', {
 		success: function(resp) {
+			var objectId = resp.objectId
 			var uptoken = resp.token;
 			var bucket = resp.bucket;
 			var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
@@ -132,13 +158,19 @@ function uploadFile(localFile, props, cb) {
 			}
 			qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
 				if (cb) {
-					cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), resp.objectId);
+					cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), objectId);
 				}
 			});
 		},
 		error: function(err) {
-			if (cb) {
-				cb(err);
+			if(retry){
+				if(!retries)
+					retries = 0;
+				uploadFile(localFile, props, cb, retry, retries + 1);
+			}else{
+				if (cb) {
+					cb(err);
+				}
 			}
 		}
 	});
@@ -184,6 +216,7 @@ function deployLocalCloudCode(cloudPath) {
 				}, function(err, url, fileId) {
 					if (err) {
 						console.log("Upload cloud code files failed with '%j'", (JSON.parse(err.responseText).error));
+						destroyFile(fileId);
 						process.exit(1);
 					} else {
 						console.log("Upload cloud code files successfully. Begin to deploy...");
@@ -202,7 +235,7 @@ function deployLocalCloudCode(cloudPath) {
 							}
 						}, true);
 					}
-				});
+				}, false);
 			});
 	});
 }
@@ -412,12 +445,12 @@ function createNewProject() {
 	});
 }
 
-function importFile(f, realPath){
+function importFile(f, realPath, cb){
 	var stats = fs.statSync(realPath);
 	if(stats.isFile()){
 		util.checksumFile(realPath ,function(err, checksum){
 			if(err){
-				return console.error('Upload ' + realPath + ' fails with error: %j', err);
+				return cb("Check sum for file " + realPath + " failed.");
 			}
 			var extname = path.extname(realPath) != '.' ? path.extname(realPath) : '';
 			uploadFile(realPath, {
@@ -428,40 +461,48 @@ function importFile(f, realPath){
 					size: stats.size,
 					_checksum: checksum
 				}
-			}, function(err, url){
+			}, function(err, url, objectId){
 				if(err){
-					console.error('Upload ' + realPath + ' fails with error: %j', err);
+					destroyFile(objectId);
+					cb('Upload ' + realPath + ' fails with error: %j', err);
 				}else{
 					console.log('Upload ' + realPath + ' successfully as: ' + url);
+					cb();
 				}
-			});
+			}, true);
 		});
 	}else if (stats.isDirectory()){
 		fs.readdir(realPath, function(err, files){
 			if(err)
-				return console.error("Read directory " + realPath + " fails with error %j", err);
+				return cb("Read directory " + realPath + " fails with error:" + err);
 			console.log("Begin to upload files in directory " + realPath);
-			files.forEach(function(subFile){
-				importFile(subFile, realPath + path.sep + subFile);
-			});
+			async.eachLimit(files, importFileBatchSize, function(subFile, cb){
+				//pass in the eachLimit callback
+				importFile(subFile, realPath + path.sep + subFile, cb);
+			}, function(err){
+				if(err)
+					return cb(err);
+				//calling parent callback.
+				cb();
+            });
 		});
 	}else {
-		console.error(f + ' is not file or directory, ignoring...');
+		cb(f + ' is not file or directory, ignoring...');
 	}
 }
 
 /**
  * import files to avoscloud.
  */
-function importFiles(files){
-	files.forEach(function(f){
+function importFiles(files, cb){
+	async.eachLimit(files, importFileBatchSize, function(f, cb){
 		var realPath = path.resolve(f);
 		if(fs.existsSync(realPath)){
-			importFile(f, realPath);
+			importFile(f, realPath, cb);
 		} else {
-			console.error(f + " not existed, ignoring...");
+			cb(f + " not existed, ignoring...");
 		}
-	});
+	}, cb);
 }
 
 function initAVOSCloudSDK(done) {
@@ -555,7 +596,10 @@ if (!cmd) {
 			process.exit(1);
 		}
 		program.args.shift();
-		importFiles(program.args);
+		importFiles(program.args, function(err){
+			if(err)
+				console.log(err);
+		});
 		break;
 	default:
 		program.help();
