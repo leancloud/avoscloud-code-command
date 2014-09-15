@@ -125,11 +125,11 @@ function bucketDomain(bucket){
 }
 
 function destroyFile(objectId){
-	if(!objectId || objectId == '')
+	if(!objectId || objectId === '')
 		return;
 	try{
 		var file = new AV.File();
-		file.id = objectId
+		file.id = objectId;
 		file.destroy();
 	}catch(e){
 		//ignore
@@ -450,7 +450,7 @@ function importFile(f, realPath, cb){
 	if(stats.isFile()){
 		util.checksumFile(realPath ,function(err, checksum){
 			if(err){
-				return cb("Check sum for file " + realPath + " failed.");
+				return cb("Check sum for file " + realPath + " failed with error:" + err);
 			}
 			var extname = path.extname(realPath) != '.' ? path.extname(realPath) : '';
 			uploadFile(realPath, {
