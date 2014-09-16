@@ -15,6 +15,7 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 ```
 
 ## 更新日志
+* 2014-09-16 发布 0.4.9-RC3，upload 命令文件上传更稳定。
 * 2014-08-26 发布 0.4.9-RC2，支持本地部署上传 package.json。
 * 2014-08-26 发布 0.4.9-RC1，修复 new 命令。
 * 2014-08-26 发布 0.4.9-beta，修复在 windows 系统无法运行的 Bug，为上传文件添加后缀。
