@@ -58,7 +58,7 @@ program
            "rm <app>: 移除一个应用。")
 	.option('-f, --filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')
-	.option('-p, --project <app>', '命令运行在指定应用上')
+	.option('-p, --project <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
 	.option('-o, --log <log>', '本次部署的提交日志，仅对从本地部署有效。')
 	.option('-n, --lines <lines>', '查看多少行最新的云代码日志，默认 10 行。', 10)
@@ -725,6 +725,7 @@ if (!CMD) {
 	});
 } else {
 	if (CMD != 'new') {
+		logProjectHome();
 		initAVOSCloudSDK();
 	}
 	switch (CMD) {
