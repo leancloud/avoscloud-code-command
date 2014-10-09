@@ -582,7 +582,7 @@ function createConfigIfNessary(){
 		return;
 	fs.mkdirSync(configDir);
 	//append it to .gitignore
-	fs.appendFileSync(path.join(CLOUD_PATH, ".gitignore"), ".avoscloud/");
+	fs.appendFileSync(path.join(CLOUD_PATH, ".gitignore"), ".avoscloud/\n");
 }
 
 function readAppsSync(){
