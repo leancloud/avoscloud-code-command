@@ -5,7 +5,7 @@
     "description": "AVOS Cloud Code SDK.",
     "repository": {
         "type": "git",
-        "url": "git@github.com:avos/CloudCodeMockSDK.git"
+        "url": "git@github.com:avoscloud/avoscloud-code-command.git"
     },
     "keywords": [
         "cloud",
@@ -15,7 +15,7 @@
         "web-service"
     ],
     "bugs": {
-        "url": "https://github.com/avos/CloudCodeMockSDK/issues"
+        "url": "https://github.com/avoscloud/avoscloud-code-command/issues"
     },
     "dependencies": {
         "tar": "0.1.19",
