@@ -770,6 +770,7 @@ if (!CMD) {
 		deleteMasterKeys();
 		break;
 	case "upload":
+		logProjectHome();
 		if (!program.args[1]) {
 			console.log("Usage: avoscloud upload <文件或目录>");
 			process.exit(1);
