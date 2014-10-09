@@ -335,7 +335,7 @@ function undeployCloudCode() {
 //Retrieves command-line arguments.
 var cmd = program.args[0];
 var cloudPath = path.resolve(program.filepath || '.');
-var specialApp = program.app;
+var specialApp = program.project;
 
 if (!cloudPath.match(/.*\/$/)) {
 	cloudPath = cloudPath + path.sep;
