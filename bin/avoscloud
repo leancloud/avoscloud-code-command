@@ -22,6 +22,7 @@ var program = require('commander');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
+var sprintf = require("sprintf-js").sprintf;
 var AdmZip = require('adm-zip');
 var promptly = require('promptly');
 var mime = require('mime');
@@ -31,11 +32,11 @@ var color = require('cli-color');
 //set qiniu timeout
 qiniu.conf.RPC_TIMEOUT = 3600000;
 
-importFileBatchSize = 20;
+IMPORT_FILE_BATCH_SIZE = 20;
 
-var tmpdir = os.tmpdir();
-if (!tmpdir.match(/.*\/$/)) {
-	tmpdir = tmpdir + path.sep;
+var TMP_DIR = os.tmpdir();
+if (!TMP_DIR.match(/.*\/$/)) {
+	TMP_DIR = TMP_DIR + path.sep;
 }
 
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), ".." + path.sep + "package.json"))).version;
@@ -199,7 +200,7 @@ function uploadFile(localFile, props, cb, retry, retries) {
 function deployLocalCloudCode(cloudPath) {
 	initMasterKey(function() {
 		console.log("Compress cloud code files...");
-		var file = path.join(tmpdir , new Date().getTime() + '.tar.gz');
+		var file = path.join(TMP_DIR , new Date().getTime() + '.tar.gz');
 		var count = 0;
 
 		fstream.Reader({
@@ -454,7 +455,7 @@ function createNewProject() {
 					url += "/";
 				}
 				url += "1/" + 'functions/skeleton?appId=' + appId + "&appKey=" + masterKey + params;
-				var file = path.join(tmpdir , appId + '.zip');
+				var file = path.join(TMP_DIR , appId + '.zip');
 				AV.Cloud.httpRequest({
 					url: url,
 					timeout: 15000,
@@ -510,7 +511,7 @@ function importFile(f, realPath, cb){
 			if(err)
 				return cb("Read directory " + realPath + " failed with error:" + err);
 			console.log("Begin to upload files in directory " + realPath);
-			async.eachLimit(files, importFileBatchSize, function(subFile, cb){
+			async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(subFile, cb){
 				//pass in the eachLimit callback
 				importFile(subFile, realPath + path.sep + subFile, cb);
 			}, function(err){
@@ -529,7 +530,7 @@ function importFile(f, realPath, cb){
  * import files to avoscloud.
  */
 function importFiles(files, cb){
-	async.eachLimit(files, importFileBatchSize, function(f, cb){
+	async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(f, cb){
 		var realPath = path.resolve(f);
 		if(fs.existsSync(realPath)){
 			importFile(f, realPath, cb);
@@ -659,11 +660,17 @@ function appStatus(list){
 	var apps = readAppsSync();
 	var currApp = readCurrAppSync();
 	if(list){
+		var maxNameLength = 0;
 		for(var name in apps){
+			if(name.length > maxNameLength)
+				maxNameLength = name.length;
+		}
+		for(var name in apps){
+			var formatedName = sprintf('%-' + maxNameLength + 's', name);
 			if(name == currApp){
-				console.log(color.green("* " + name + " " + apps[name]));
+				console.log(color.green("* " + formatedName + " " + apps[name]));
 			}else{
-				console.log("  " + name + " " + apps[name]);
+				console.log("  " + formatedName + " " + apps[name]);
 			}
 		}
 	}else{
@@ -734,10 +741,12 @@ if (!cmd) {
 		});
 		break;
 	case "app":
+		//app <list>
 		var list = program.args[1] == 'list';
 		appStatus(list);
 		break;
 	case "add":
+		// add <name> <app id>
 		var name = program.args[1];
 		var appId = program.args[2];
 		if(!name)
@@ -747,12 +756,14 @@ if (!cmd) {
 		addApp(name, appId);
 		break;
 	case "rm":
+		//rm <name>
 		var name = program.args[1];
 		if(!name)
 			throw "Usage: avoscloud rm <name>";
 		removeApp(name);
 		break;
 	case "checkout":
+		//checkout <name>
 		var name = program.args[1];
 		if(!name)
 			throw "Usage: avoscloud checkout <name>";
