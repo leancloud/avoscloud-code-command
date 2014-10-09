@@ -744,13 +744,13 @@ function logProjectHome() {
 sendStats(CMD);
 
 if (!CMD) {
+    logProjectHome();
     initAVOSCloudSDK(function(masterKey) {
         require(lib + '/mock').run(CLOUD_PATH, AV);
         console.log("请使用浏览器打开 http://localhost:3000/avos");
     });
 } else {
     if (CMD != 'new') {
-        logProjectHome();
         initAVOSCloudSDK();
     }
     switch (CMD) {
