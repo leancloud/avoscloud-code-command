@@ -54,7 +54,7 @@ program
         "clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用\n    " +
         "upload <file-or-directory>: 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。\n    " +
         "app [list]:  显示当前应用，deploy、status 等命令运行在当前应用上，如果加上 list ，则显示所有的应用信息。\n    " +
-        "checkout <app>: 切换到一个应用，deploy、status 等命令将运行在该应用上。。\n    " +
+        "checkout <app>: 切换到一个应用，deploy、status 等命令将运行在该应用上。\n    " +
         "add <app>: 添加一个应用。\n    " +
         "rm <app>: 移除一个应用。")
     .option('-f, --filepath <path>', '本地云代码项目根路径，默认是当前目录。')
