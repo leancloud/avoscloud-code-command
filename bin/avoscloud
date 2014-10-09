@@ -26,6 +26,7 @@ var AdmZip = require('adm-zip');
 var promptly = require('promptly');
 var mime = require('mime');
 var async = require('async');
+var color = require('cli-color');
 
 //set qiniu timeout
 qiniu.conf.RPC_TIMEOUT = 3600000;
@@ -40,9 +41,23 @@ if (!tmpdir.match(/.*\/$/)) {
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), ".." + path.sep + "package.json"))).version;
 program
 	.version(version)
-	.usage("[选项] <命令> \n\n  有效的命令列表包括: \n    deploy: 部署云代码到 AVOS Cloud 平台开发环境\n    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境\n    status: 查询当前部署状态\n    search <keyword>: 根据关键字查询开发文档\n    publish: 发布开发环境代码到生产环境\n    new: 创建云代码项目\n    logs: 查看云代码日志\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用\n    upload <file-or-directory> 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。")
-	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
+	.usage("[选项] <命令> \n\n  有效的命令列表包括: \n    " +
+           "deploy: 部署云代码到 AVOS Cloud 平台开发环境\n    " +
+           "undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境\n    " +
+           "status: 查询当前部署状态\n    " +
+           "search <keyword>: 根据关键字查询开发文档\n    " +
+           "publish: 发布开发环境代码到生产环境\n    " +
+           "new: 创建云代码项目\n    " +
+           "logs: 查看云代码日志\n    " +
+           "clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用\n    " +
+           "upload <file-or-directory>: 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。\n    " +
+           "app [list]:  显示当前应用，deploy、status 等命令运行在当前应用上，如果加上 list ，则显示所有的应用信息。\n    " +
+           "checkout <app>: 切换到一个应用，deploy、status 等命令将运行在该应用上。。\n    " +
+           "add <app>: 添加一个应用。\n    " +
+           "rm <app>: 移除一个应用。")
+	.option('-f, --filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')
+	.option('-p, --project <app>', '命令运行在指定应用上')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
 	.option('-o, --log <log>', '本次部署的提交日志，仅对从本地部署有效。')
 	.option('-n, --lines <lines>', '查看多少行最新的云代码日志，默认 10 行。', 10)
@@ -314,6 +329,7 @@ function undeployCloudCode() {
 	});
 }
 
+//Retrieves command and cloudPath from command-line arguments
 var cmd = program.args[0];
 var cloudPath = path.resolve(program.filepath || '.');
 
@@ -562,6 +578,103 @@ function initAVOSCloudSDK(done) {
 	});
 }
 
+//Application managment
+var currApp = program.app;
+
+function createConfigIfNessary(){
+	var configDir = path.join(cloudPath, ".avoscloud");
+	if(fs.existsSync(configDir))
+		return;
+	fs.mkdirSync(configDir);
+	//append it to .gitignore
+	fs.appendFileSync(path.join(cloudPath, ".gitignore"), ".avoscloud/");
+}
+
+function readAppsSync(){
+	var appsFile = path.join(cloudPath, '.avoscloud/apps.json');
+	if(fs.existsSync(appsFile)){
+		return require(appsFile);
+	}else{
+		//if apps.json is not exists, tried to read from config/global.json as master app
+		var appConfig =  require(path.join(cloudPath, 'config/global.json'));
+		if(fs.existsSync(appConfig))
+			return { master: appConfig.applicationId };
+	}
+	return {};
+}
+
+function readCurrAppSync(){
+	var currAppFile =  path.join(cloudPath, '.avoscloud/curr_app');
+	if(fs.existsSync(currAppFile)){
+		var name = fs.readFileSync(currAppFile, 'utf-8').trim();
+		if(name === '')
+			return null;
+		return name;
+	}
+	else
+		return null;
+}
+
+function writeCurrAppSync(name){
+	createConfigIfNessary();
+	fs.writeFileSync(path.join(cloudPath, '.avoscloud/curr_app'), name, {mode: 384, encoding: 'utf-8'});
+}
+
+function writeAppsSync(apps){
+	createConfigIfNessary();
+	var appsFile = path.join(cloudPath, '.avoscloud/apps.json');
+	fs.writeFileSync(appsFile, JSON.stringify(apps), { encoding: 'utf-8', mode: 384});
+}
+
+function addApp(name, appId){
+	if(!/\w+/.test(name))
+		throw "Invalid app name.";
+	if(!/[a-zA-Z0-9]+/.test(appId))
+		throw "Invalid app id.";
+	var apps = readAppsSync();
+	if(apps[name])
+		throw "The app '" + name + "' is already exists.";
+	apps[name] = appId;
+	writeAppsSync(apps);
+	console.log("Added a new app: %s -- %s", name, appId);
+}
+
+function removeApp(name){
+	var apps = readAppsSync();
+	if(apps[name])
+		delete apps[name];
+	writeAppsSync(apps);
+	console.log("Removed app: %s", name);
+}
+
+function checkoutApp(name){
+	var apps = readAppsSync();
+	if(!apps[name])
+		throw "The app '" + name + "' is not exists.";
+	writeCurrAppSync(name);
+	console.log("Switced to app " + name);
+}
+
+function appStatus(list){
+	var apps = readAppsSync();
+	var currApp = readCurrAppSync();
+	if(list){
+		for(var name in apps){
+			if(name == currApp){
+				console.log(color.green("* " + name + " " + apps[name]));
+			}else{
+				console.log("  " + name + " " + apps[name]);
+			}
+		}
+	}else{
+		if(currApp && apps[currApp]){
+			console.log(color.green("* " + currApp + " " + apps[currApp]));
+		} else {
+			console.warn("You are not in a app.Please checkout <app>");
+		}
+	}
+}
+
 sendStats(cmd);
 
 if (!cmd) {
@@ -576,7 +689,7 @@ if (!cmd) {
 	switch (cmd) {
 	case "search":
 		if (!program.args[1]) {
-			console.log("Useage: avoscloud search <关键字>");
+			console.log("Usage: avoscloud search <关键字>");
 			process.exit(1);
 		}
 		program.args.shift();
@@ -611,7 +724,7 @@ if (!cmd) {
 		break;
 	case "upload":
 		if (!program.args[1]) {
-			console.log("Useage: avoscloud upload <文件或目录>");
+			console.log("Usage: avoscloud upload <文件或目录>");
 			process.exit(1);
 		}
 		program.args.shift();
@@ -619,6 +732,31 @@ if (!cmd) {
 			if(err)
 				console.log(err);
 		});
+		break;
+	case "app":
+		var list = program.args[1] == 'list';
+		appStatus(list);
+		break;
+	case "add":
+		var name = program.args[1];
+		var appId = program.args[2];
+		if(!name)
+			throw "Usage: avoscloud add <name> <app id>";
+		if(!appId)
+			throw "Usage: avoscloud add <name> <app id>";
+		addApp(name, appId);
+		break;
+	case "rm":
+		var name = program.args[1];
+		if(!name)
+			throw "Usage: avoscloud rm <name>";
+		removeApp(name);
+		break;
+	case "checkout":
+		var name = program.args[1];
+		if(!name)
+			throw "Usage: avoscloud checkout <name>";
+		checkoutApp(name);
 		break;
 	default:
 		program.help();

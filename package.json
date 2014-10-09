@@ -19,6 +19,7 @@
 	},
 	"dependencies": {
 		"tar"           : "0.1.19",
+		"cli-color"    :  "0.3.2",
 		"fstream"    : "0.1.25",
 		"adm-zip"    : "0.4.4",
 		"commander"       : "2.2.0",
