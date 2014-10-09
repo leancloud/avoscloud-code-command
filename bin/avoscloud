@@ -333,15 +333,14 @@ function undeployCloudCode() {
 }
 
 //Retrieves command-line arguments.
-var cmd = program.args[0];
-var cloudPath = path.resolve(program.filepath || '.');
-var specialApp = program.project;
+var CMD = program.args[0];
+var CLOUD_PATH = path.resolve(program.filepath || '.');
 
-if (!cloudPath.match(/.*\/$/)) {
-	cloudPath = cloudPath + path.sep;
+if (!CLOUD_PATH.match(/.*\/$/)) {
+	CLOUD_PATH = CLOUD_PATH + path.sep;
 }
 
-process.chdir(cloudPath);
+process.chdir(CLOUD_PATH);
 
 function input(info, cb, password) {
 	var pcb = function(err, anwser){
@@ -547,8 +546,8 @@ function initAVOSCloudSDK(done) {
 	var currApp = getCurrApp();
 	var appId = getAppId(currApp);
 	if(currApp == null || currApp === '' || appId == null || appId === '')
-		throw "Can't find a valid app to execute command '" + cmd + "'.";
-	var globalConfig = path.join(cloudPath, 'config/global.json');
+		throw "Can't find a valid app to execute command '" + CMD + "'.";
+	var globalConfig = path.join(CLOUD_PATH, 'config/global.json');
 	if (fs.existsSync(globalConfig)) {
 		//try to initialize avoscloud sdk with config/gloabl.json
 		var data = JSON.parse(fs.readFileSync(globalConfig, {
@@ -578,30 +577,30 @@ function initAVOSCloudSDK(done) {
 }
 
 function createConfigIfNessary(){
-	var configDir = path.join(cloudPath, ".avoscloud");
+	var configDir = path.join(CLOUD_PATH, ".avoscloud");
 	if(fs.existsSync(configDir))
 		return;
 	fs.mkdirSync(configDir);
 	//append it to .gitignore
-	fs.appendFileSync(path.join(cloudPath, ".gitignore"), ".avoscloud/");
+	fs.appendFileSync(path.join(CLOUD_PATH, ".gitignore"), ".avoscloud/");
 }
 
 function readAppsSync(){
-	var appsFile = path.join(cloudPath, '.avoscloud/apps.json');
+	var appsFile = path.join(CLOUD_PATH, '.avoscloud/apps.json');
 	if(fs.existsSync(appsFile)){
 		var apps =  require(appsFile);
 		if(apps && Object.keys(apps).length >0 )
 			return apps;
 	}
 	//if apps.json is not exists, tried to read from config/global.json as current app
-	var appConfig =  path.join(cloudPath, 'config/global.json');
+	var appConfig =  path.join(CLOUD_PATH, 'config/global.json');
 	if(fs.existsSync(appConfig))
 		return { 'origin': require(appConfig).applicationId };
 	return {};
 }
 
 function readCurrAppSync(){
-	var currAppFile =  path.join(cloudPath, '.avoscloud/curr_app');
+	var currAppFile =  path.join(CLOUD_PATH, '.avoscloud/curr_app');
 	if(fs.existsSync(currAppFile)){
 		var name = fs.readFileSync(currAppFile, 'utf-8').trim();
 		if(name === '')
@@ -614,12 +613,12 @@ function readCurrAppSync(){
 
 function writeCurrAppSync(name){
 	createConfigIfNessary();
-	fs.writeFileSync(path.join(cloudPath, '.avoscloud/curr_app'), name, {mode: 384, encoding: 'utf-8'});
+	fs.writeFileSync(path.join(CLOUD_PATH, '.avoscloud/curr_app'), name, {mode: 384, encoding: 'utf-8'});
 }
 
 function writeAppsSync(apps){
 	createConfigIfNessary();
-	var appsFile = path.join(cloudPath, '.avoscloud/apps.json');
+	var appsFile = path.join(CLOUD_PATH, '.avoscloud/apps.json');
 	fs.writeFileSync(appsFile, JSON.stringify(apps), { encoding: 'utf-8', mode: 384});
 }
 
@@ -682,8 +681,8 @@ function getAppId(name){
 	var apps = readAppsSync();
 	if(apps[name])
 		return apps[name];
-	if(name == 'origin' && fs.existsSync(path.join(cloudPath, 'config/global.json'))){
-		return require(path.join(cloudPath, 'config/global.json')).applicationId;
+	if(name == 'origin' && fs.existsSync(path.join(CLOUD_PATH, 'config/global.json'))){
+		return require(path.join(CLOUD_PATH, 'config/global.json')).applicationId;
 	}
 	return null;
 }
@@ -695,7 +694,7 @@ function getAppId(name){
 * 3. else return null.
 */
 function getCurrApp(){
-	var currApp = specialApp || readCurrAppSync();
+	var currApp = program.project || readCurrAppSync();
 	var apps = readAppsSync();
 	//if the app is removed, ignore it.
 	if(!apps[currApp])
@@ -708,7 +707,7 @@ function getCurrApp(){
 }
 
 function logProjectHome(){
-	console.log('[INFO]: Cloud Code Project Home Directory: ' + color.green(cloudPath));
+	console.log('[INFO]: Cloud Code Project Home Directory: ' + color.green(CLOUD_PATH));
 	var apps = readAppsSync();
 	var currApp = getCurrApp();
 	if(apps[currApp])
@@ -717,18 +716,18 @@ function logProjectHome(){
 		console.warn('[INFO]: You are not in a app.Please checkout <app>');
 }
 
-sendStats(cmd);
+sendStats(CMD);
 
-if (!cmd) {
+if (!CMD) {
 	initAVOSCloudSDK(function(masterKey){
-		require(lib + '/mock').run(cloudPath, masterKey);
+		require(lib + '/mock').run(CLOUD_PATH, AV);
 		console.log("请使用浏览器打开 http://localhost:3000/avos");
 	});
 } else {
-	if (cmd != 'new') {
+	if (CMD != 'new') {
 		initAVOSCloudSDK();
 	}
-	switch (cmd) {
+	switch (CMD) {
 	case "search":
 		if (!program.args[1]) {
 			console.log("Usage: avoscloud search <关键字>");
@@ -742,9 +741,9 @@ if (!cmd) {
 		if (program.git) {
 			deployGitCloudCode(program.revision || 'master');
 		} else {
-			if(path.resolve(cloudPath) != path.resolve('.'))
+			if(path.resolve(CLOUD_PATH) != path.resolve('.'))
 				throw "'avoscloud deploy' must be run in a cloud code project directory.";
-			deployLocalCloudCode(cloudPath);
+			deployLocalCloudCode(CLOUD_PATH);
 		}
 		break;
 	case "undeploy":
