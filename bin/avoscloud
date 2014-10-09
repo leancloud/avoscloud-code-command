@@ -3,7 +3,7 @@
 /**
  * AVOS Cloud command-line tool
  * Author: dennis zhuang<xzhuang@avoscloud.com>
- * Project: https://github.com/avoscloud/CloudCodeMockSDK
+ * Project: https://github.com/avoscloud/avoscloud-code-command
  * Created by : Emacs JavaScript Mode
  */
 
@@ -40,7 +40,7 @@ if (!tmpdir.match(/.*\/$/)) {
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), ".." + path.sep + "package.json"))).version;
 program
 	.version(version)
-	.usage("[options] <cmd> \n\n  Valid commands: \n    deploy: 部署云代码到 AVOS Cloud 平台开发环境\n    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境\n    status: 查询当前部署状态\n    search <keyword>: 根据关键字查询开发文档\n    publish: 发布开发环境代码到生产环境\n    new: 创建云代码项目\n    logs: 查看云代码日志\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用\n    upload <file-or-directory> 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。")
+	.usage("[选项] <命令> \n\n  有效的命令列表包括: \n    deploy: 部署云代码到 AVOS Cloud 平台开发环境\n    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境\n    status: 查询当前部署状态\n    search <keyword>: 根据关键字查询开发文档\n    publish: 发布开发环境代码到生产环境\n    new: 创建云代码项目\n    logs: 查看云代码日志\n    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用\n    upload <file-or-directory> 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。")
 	.option('-f,--filepath <path>', '本地云代码项目根路径，默认是当前目录。')
 	.option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')
 	.option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
@@ -50,15 +50,19 @@ program
 	.option('-r, --revision <revision>', 'git 的版本号，仅对从 git 仓库部署有效。')
 	.parse(process.argv);
 
+/**
+ * Tried to get user's home directory by environment variable.
+ */
 function getUserHome() {
-	return process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+	var home = process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH;
+	if (!home)
+		throw "Could not find user home directory";
+	return home;
 }
 
 function deleteMasterKeys(){
 	var home = getUserHome();
-	if (!home)
-		throw "Could not find user home directory";
-	var avoscloudKeysFile = home + '/.avoscloud_keys'
+	var avoscloudKeysFile = path.join(home, '.avoscloud_keys')
 	console.log("删除 " + avoscloudKeysFile + " ...");
 	fs.truncateSync(avoscloudKeysFile,0);
 	console.log("Clear done!");
@@ -66,11 +70,9 @@ function deleteMasterKeys(){
 
 function initMasterKey(done) {
 	var home = getUserHome();
-	if (!home)
-		throw "Could not find user home directory";
-	var avoscloudKeysFile = home + path.sep + '.avoscloud_keys'
+	var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
 	fs.exists(avoscloudKeysFile, function(exists) {
-		writeMasterKey = function(data, cb) {
+		var writeMasterKey = function(data, cb) {
 			promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function (err, answer) {
 			    if (!answer || answer.trim() == '')
 					throw "无效的 Master Key"
@@ -86,17 +88,17 @@ function initMasterKey(done) {
 				});
 			});
 		};
-		readMasterKey = function() {
+		var readMasterKey = function() {
 			fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
 				if (err)
 					throw err;
 				if(data.trim() == ''){
 					data = '{}';
 				}
-				var keys = JSON.parse(data);
-				var masterKey = keys[AV.applicationId];
+				var data = JSON.parse(data);
+				var masterKey = data[AV.applicationId];
 				if (!masterKey) {
-					writeMasterKey(keys, function(masterKey) {
+					writeMasterKey(data, function(masterKey) {
 						AV.initialize(AV.applicationId, masterKey);
 						done(masterKey);
 					});
@@ -109,7 +111,7 @@ function initMasterKey(done) {
 		if (exists) {
 			readMasterKey();
 		} else {
-			writeMasterKey(null, function(masterKey) {
+			writeMasterKey({}, function(masterKey) {
 				AV.initialize(AV.applicationId, masterKey);
 				done(masterKey);
 			});
@@ -118,6 +120,7 @@ function initMasterKey(done) {
 }
 
 function bucketDomain(bucket){
+	//special bucket for old projects.
 	if(bucket == 'paas_files')
 		return 'paas-files';
 	else
@@ -125,11 +128,11 @@ function bucketDomain(bucket){
 }
 
 function destroyFile(objectId){
-	if(!objectId || objectId === '')
+	if(!objectId || objectId.trim() === '')
 		return;
 	try{
 		var file = new AV.File();
-		file.id = objectId;
+		file.id = objectId.trim();
 		file.destroy();
 	}catch(e){
 		//ignore
@@ -137,8 +140,9 @@ function destroyFile(objectId){
 }
 
 function uploadFile(localFile, props, cb, retry, retries) {
+	//Retried too many times, report error.
 	if(retries && retries > 3){
-		console.warn("Faild to upload " + localFile + " after retrying 3 times...give up.");
+		console.warn("Faild to upload a file after retrying 3 times...give up : " + localFile);
 		if (cb) {
 			cb(err);
 		}
@@ -149,13 +153,13 @@ function uploadFile(localFile, props, cb, retry, retries) {
 			var objectId = resp.objectId
 			var uptoken = resp.token;
 			var bucket = resp.bucket;
-			var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
 			if (!uptoken) {
 				if (cb) {
 					cb(JSON.parse(resp.responseText).error);
 					return
 				}
 			}
+			var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
 			qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
 				if (cb) {
 					cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), objectId);
@@ -163,8 +167,9 @@ function uploadFile(localFile, props, cb, retry, retries) {
 			});
 		},
 		error: function(err) {
+			//mabye retry to upload it
 			if(retry){
-				if(!retries)
+				if(retries == null)
 					retries = 0;
 				uploadFile(localFile, props, cb, retry, retries + 1);
 			}else{
@@ -179,7 +184,7 @@ function uploadFile(localFile, props, cb, retry, retries) {
 function deployLocalCloudCode(cloudPath) {
 	initMasterKey(function() {
 		console.log("Compress cloud code files...");
-		var file = tmpdir + new Date().getTime() + '.tar.gz';
+		var file = path.join(tmpdir , new Date().getTime() + '.tar.gz');
 		var count = 0;
 
 		fstream.Reader({
@@ -193,6 +198,7 @@ function deployLocalCloudCode(cloudPath) {
 					return true;
 				}
 				var filePath = path.normalize(this.path);
+				//only compress legal files and directories.
 				return _.find(['cloud', 'public', 'config', 'package.json'], function(folder) {
 					return _s.startsWith(filePath, cloudPath + folder);
 				});
@@ -215,7 +221,7 @@ function deployLocalCloudCode(cloudPath) {
 					mime_type: 'application/x-gzip, application/octet-stream'
 				}, function(err, url, fileId) {
 					if (err) {
-						console.log("Upload cloud code files failed with '%j'", (JSON.parse(err.responseText).error));
+						console.error("Upload cloud code files failed with '%j'", err.responseText);
 						destroyFile(fileId);
 						process.exit(1);
 					} else {
@@ -231,7 +237,7 @@ function deployLocalCloudCode(cloudPath) {
 								queryStatus();
 							},
 							error: function(err) {
-								console.log("Sorry, try to deploy cloud code failed with '%s'", (JSON.parse(err.responseText).error));
+								console.log("Sorry, try to deploy cloud code failed with '%s'", err.responseText);
 							}
 						}, true);
 					}
@@ -251,7 +257,7 @@ function deployGitCloudCode(revision) {
 				queryStatus();
 			},
 			error: function(err) {
-				console.log("Deployed cloud code from git repository failed with '%j'", (JSON.parse(err.responseText).error));
+				console.log("Deployed cloud code from git repository failed with '%j'", err.responseText);
 			}
 		}, true);
 	});
@@ -259,10 +265,10 @@ function deployGitCloudCode(revision) {
 
 function outputStatus(status) {
 	console.log('------------------------------------------------------------------------');
-	console.log("Development    version:  '" + status.dev + "'");
-	console.log("Development commit log:  '" + status.devLog + "'");
-	console.log("Production     version:  '" + status.prod + "'");
-	console.log("Production  commit log:  '" + status.prodLog + "'");
+	console.log("Development       version: '" + status.dev + "'");
+	console.log("Development commit log: '" + status.devLog + "'");
+	console.log("Production           version: '" + status.prod + "'");
+	console.log("Production     commit log: '" + status.prodLog + "'");
 }
 
 function publishCloudCode() {
@@ -270,11 +276,11 @@ function publishCloudCode() {
 		console.log('Publishing cloud code to production...');
 		util.requestCloud('functions/publishFunctions', {}, 'GET', {
 			success: function(resp) {
-				console.log("Published cloud code successfully. the status is: ");
+				console.log("Published cloud code successfully. Current status is: ");
 				outputStatus(resp);
 			},
 			error: function(err) {
-				console.log("Published cloud code failed with '%j'", (JSON.parse(err.responseText).error));
+				console.log("Published cloud code failed with '%j'", err.responseText);
 			}
 		}, true);
 	});
@@ -288,7 +294,7 @@ function queryStatus() {
 				outputStatus(resp);
 			},
 			error: function(err) {
-				console.log("Query cloud code status failed with '%j'", (JSON.parse(err.responseText).error));
+				console.log("Query cloud code status failed with '%j'", err.responseText);
 			}
 		}, true);
 	});
@@ -302,7 +308,7 @@ function undeployCloudCode() {
 				queryStatus();
 			},
 			error: function(err) {
-				console.log("Undeployed cloud code status failed with '%j'", (JSON.parse(err.responseText).error));
+				console.log("Undeployed cloud code status failed with '%j'", err.responseText);
 			}
 		}, true);
 	});
@@ -314,7 +320,7 @@ var cloudPath = path.resolve(program.filepath || '.');
 if (!cloudPath.match(/.*\/$/)) {
 	cloudPath = cloudPath + path.sep;
 }
-console.log('[INFO]: Cloud Code Project Root Directory: ' + cloudPath);
+console.log('[INFO]: Cloud Code Project Home Directory: ' + cloudPath);
 process.chdir(cloudPath);
 
 function input(info, cb, password) {
@@ -327,11 +333,11 @@ function input(info, cb, password) {
 		promptly.prompt(info,pcb);
 	}
 }
-
+/**
+ *Generate device uuid for statistics.
+ */
 function getDeviceId() {
 	var home = getUserHome();
-	if (!home)
-		throw "Could not find user home directory";
 	var deviceIdFile = home + path.sep + '.avoscloud_device_id'
 	var exists = fs.existsSync(deviceIdFile);
 	if(exists){
@@ -397,11 +403,12 @@ function viewCloudLog(lastLogUpdatedTime){
 				}
 				outputLogs(resp);
 				if(program.tailf){
+					//fetch log every 500 milliseconds.
 					setTimeout(function(){ viewCloudLog(lastLogUpdatedTime);}, 500);
 				}
 			},
 			error: function(err) {
-				console.log("Query cloud code logs failed with '%j'", (JSON.parse(err.responseText).error));
+				console.log("Queried cloud code logs failed with '%j'", err.responseText);
 			}
 		}, true);
 	});
@@ -431,14 +438,25 @@ function createNewProject() {
 					url += "/";
 				}
 				url += "1/" + 'functions/skeleton?appId=' + appId + "&appKey=" + masterKey + params;
-				var file = tmpdir + appId + '.zip';
-				exec("curl -k '" + url + "' > " + file, function(err) {
-					if (err)
-						throw err;
-					var zip = new AdmZip(file),
-					zipEntries = zip.getEntries();
-					zip.extractAllTo('.', false);
-					console.log("Project created!");
+				var file = path.join(tmpdir , appId + '.zip');
+				AV.Cloud.httpRequest({
+					url: url,
+					timeout: 15000,
+					success: function(httpResp){
+						fs.writeFile(file,httpResp.buffer, 'binary', function(err){
+							if(err){
+								console.log("Created a new project failed with %j", err);
+								return;
+							}
+							var zip = new AdmZip(file),
+							zipEntries = zip.getEntries();
+							zip.extractAllTo('.', false);
+							console.log("Project created!");
+						});
+					},
+					error: function(httpResp){
+						console.log("Created a new project failed with %j", httpResp.text);
+					}
 				});
 			});
 		}, true);
@@ -466,7 +484,7 @@ function importFile(f, realPath, cb){
 					destroyFile(objectId);
 					cb('Upload ' + realPath + ' fails with error: %j', err);
 				}else{
-					console.log('Upload ' + realPath + ' successfully as: ' + url);
+					console.log('Uploads ' + realPath + ' successfully at: ' + url);
 					cb();
 				}
 			}, true);
@@ -474,7 +492,7 @@ function importFile(f, realPath, cb){
 	}else if (stats.isDirectory()){
 		fs.readdir(realPath, function(err, files){
 			if(err)
-				return cb("Read directory " + realPath + " fails with error:" + err);
+				return cb("Read directory " + realPath + " failed with error:" + err);
 			console.log("Begin to upload files in directory " + realPath);
 			async.eachLimit(files, importFileBatchSize, function(subFile, cb){
 				//pass in the eachLimit callback
@@ -500,27 +518,28 @@ function importFiles(files, cb){
 		if(fs.existsSync(realPath)){
 			importFile(f, realPath, cb);
 		} else {
-			cb(f + " not existed, ignoring...");
+			cb(f + " is not exists, ignores it...");
 		}
 	}, cb);
 }
 
 function initAVOSCloudSDK(done) {
-	if (fs.existsSync(cloudPath + 'config/global.json')) {
+	var globalConfig = path.join(cloudPath, 'config/global.json');
+	if (fs.existsSync(globalConfig)) {
 		//try to initialize avoscloud sdk.
-		var data = JSON.parse(fs.readFileSync(cloudPath + 'config/global.json', {
+		var data = JSON.parse(fs.readFileSync(globalConfig, {
 			encoding: 'utf-8'
 		}));
 		if(!data || !data.applicationId || !data.applicationKey)
-			throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json"
+			throw "Can't initialize AVOS Cloud SDK,please provide config/global.json"
 		AV.initialize(data.applicationId, data.applicationKey);
 	}else{
-		throw "Can't initialize AVOS Cloud SDK,plase provide config/global.json";
+		throw "Can't initialize AVOS Cloud SDK,please provide config/global.json";
 	}
 	initMasterKey(function(masterKey){
-		if (fs.existsSync(cloudPath + 'config' + path.sep + 'global.json')) {
+		if (fs.existsSync(globalConfig)) {
 			//try to initialize avoscloud sdk.
-			var data = JSON.parse(fs.readFileSync(cloudPath + 'config' + path.sep + 'global.json', {
+			var data = JSON.parse(fs.readFileSync(globalConfig, {
 				encoding: 'utf-8'
 			}));
 			if (!data || !data.applicationId || !data.applicationKey){
@@ -557,7 +576,7 @@ if (!cmd) {
 	switch (cmd) {
 	case "search":
 		if (!program.args[1]) {
-			console.log("Useage: avoscloud search <keyword>");
+			console.log("Useage: avoscloud search <关键字>");
 			process.exit(1);
 		}
 		program.args.shift();
@@ -592,7 +611,7 @@ if (!cmd) {
 		break;
 	case "upload":
 		if (!program.args[1]) {
-			console.log("Useage: avoscloud upload <file-or-directory>");
+			console.log("Useage: avoscloud upload <文件或目录>");
 			process.exit(1);
 		}
 		program.args.shift();
