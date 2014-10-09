@@ -19,6 +19,7 @@
     },
     "dependencies": {
         "tar": "0.1.19",
+        "request": "2.45.0",
         "cli-color": "0.3.2",
         "sprintf-js": "0.0.7",
         "fstream": "0.1.25",
