@@ -650,6 +650,7 @@ function addApp(name, appId) {
     apps[name] = appId;
     writeAppsSync(apps);
     console.log("Added a new app: %s -- %s", name, appId);
+    process.exit(0);
 }
 
 function removeApp(name) {
@@ -658,6 +659,7 @@ function removeApp(name) {
         delete apps[name];
     writeAppsSync(apps);
     console.log("Removed app: %s", name);
+    process.exit(0);
 }
 
 function checkoutApp(name) {
@@ -666,6 +668,7 @@ function checkoutApp(name) {
         throw "The app '" + name + "' is not exists.";
     writeCurrAppSync(name);
     console.log("Switced to app " + name);
+    process.exit(0);
 }
 
 function appStatus(list) {
@@ -692,6 +695,7 @@ function appStatus(list) {
             console.warn("You are not in a app.Please checkout <app>");
         }
     }
+    process.exit(0);
 }
 
 function getAppId(name) {
