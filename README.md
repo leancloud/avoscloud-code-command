@@ -70,6 +70,10 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 
 并且本工具具有代码热加载功能。修改代码后，无需重启即可以调试最新代码。
 
+## 使用指南
+
+参考 [云代码命令行工具使用详解](https://cn.avoscloud.com/docs/cloud_code_commandline.html)
+
 ## cURL 调试
 
 你也可以通过 cURL 工具来调试代码：
@@ -99,7 +103,7 @@ curl -X POST -H 'Content-Type:application/json' \
 
 如果您输入错误的 master key 或者在公共机器上运行本命令行工具，可手工删除该文件。
 
-## Copyright
+## CopyRight
 
 * License: [GNU LGPL](https://www.gnu.org/licenses/lgpl.html).
 * Author: Dennis Zhuang（xzhuang@avoscloud.com）
