@@ -742,9 +742,6 @@ if (!CMD) {
         console.log("请使用浏览器打开 http://localhost:3000/avos");
     });
 } else {
-    if (CMD != 'new') {
-        initAVOSCloudSDK();
-    }
     switch (CMD) {
         case "search":
             if (!program.args[1]) {
@@ -755,6 +752,7 @@ if (!CMD) {
             exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
             break;
         case "deploy":
+            initAVOSCloudSDK();
             logProjectHome();
             if (program.git) {
                 deployGitCloudCode(program.revision || 'master');
@@ -764,15 +762,18 @@ if (!CMD) {
                 deployLocalCloudCode(CLOUD_PATH);
             }
             break;
-        case "undeploy":
+        case "undeploy"
+            initAVOSCloudSDK();
             logProjectHome();
             undeployCloudCode();
             break;
         case "publish":
+            initAVOSCloudSDK();
             logProjectHome();
             publishCloudCode();
             break;
         case "status":
+            initAVOSCloudSDK();
             logProjectHome();
             queryStatus();
             break;
@@ -780,6 +781,7 @@ if (!CMD) {
             createNewProject();
             break;
         case 'logs':
+            initAVOSCloudSDK();
             logProjectHome();
             viewCloudLog();
             break;
@@ -787,6 +789,7 @@ if (!CMD) {
             deleteMasterKeys();
             break;
         case "upload":
+            initAVOSCloudSDK();
             logProjectHome();
             if (!program.args[1]) {
                 console.log("Usage: avoscloud upload <文件或目录>");
