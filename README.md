@@ -2,7 +2,7 @@
 
 ## 重要通知
 
-* 从 0.3.0 版本开始，`avoscloud-code-mock-sdk` 重命名为 `avoscloud-code`，安装和更新请使用下列命令：
+安装和更新请使用下列命令：
 
 ```
 sudo npm install -g avoscloud-code
@@ -15,11 +15,9 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 ```
 
 ## 更新日志
+* 2014-10-10 发布 0.4.9 正式版本，支持多项目部署，重构代码，提升稳定性。
 * 2014-09-16 发布 0.4.9-RC3，upload 命令文件上传更稳定。
 * 2014-08-26 发布 0.4.9-RC2，支持本地部署上传 package.json。
-* 2014-08-26 发布 0.4.9-RC1，修复 new 命令。
-* 2014-08-26 发布 0.4.9-beta，修复在 windows 系统无法运行的 Bug，为上传文件添加后缀。
-* 2014-08-15 发布 0.4.8-beta，移除`-u`选项，支持云代码 2.0 自定义库功能，添加 `AV.Cloud.onVerfied` 函数。
 
 ## 说明
 
@@ -36,30 +34,35 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 `avoscloud -h` 输出：
 
 ```
- Usage: avoscloud [options] <cmd>
+  Usage: avoscloud [选项] <命令>
 
-  Valid commands:
-    deploy: 部署云代码到 AVOS Cloud 平台开发环境.
-    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境.
-    status: 查询当前部署状态.
-    search <keyword>: 根据关键字查询开发文档.
-    publish: 发布开发环境代码到生产环境。
-    new: 创建云代码项目。
-    logs: 查看云代码日志。
-    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用。
+  有效的命令列表包括:
+    deploy: 部署云代码到 AVOS Cloud 平台开发环境
+    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境
+    status: 查询当前部署状态
+    search <keyword>: 根据关键字查询开发文档
+    publish: 发布开发环境代码到生产环境
+    new: 创建云代码项目
+    logs: 查看云代码日志
+    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用
+    upload <file-or-directory>: 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。
+    app [list]:  显示当前应用，deploy、status 等命令运行在当前应用上，如果加上 list ，则显示所有的应用信息。
+    checkout <app>: 切换到一个应用，deploy、status 等命令将运行在该应用上。
+    add <app>: 添加一个应用。
+    rm <app>: 移除一个应用。
 
   Options:
 
     -h, --help                 output usage information
     -V, --version              output the version number
-    -f,--filepath <path>       本地云代码项目根路径，默认是当前目录。
-    -g, --git                  使用定义在管理平台的 Git 仓库或者 -u 指定的 Git 仓库部署云代码，默认使用本地代码部署。
-    -u, --giturl <url>         所要部署的 Git 仓库地址，必须是 Git 协议 URL，仅在使用 Git 部署 -g 选项的时候有效.
+    -f, --filepath <path>      本地云代码项目根路径，默认是当前目录。
+    -g, --git                  使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。
+    -p, --project <app>        命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。
     -l, --local                使用本地代码部署云代码，该选项是默认选中。
-    -o, --log <log>            部署日志，仅对从本地部署有效。
+    -o, --log <log>            本次部署的提交日志，仅对从本地部署有效。
     -n, --lines <lines>        查看多少行最新的云代码日志，默认 10 行。
     -t, --tailf                自动刷新云代码日志，结合 logs 命令使用。
-    -r, --revision <revision>  Git 的版本号，仅对从 Git 仓库部署有效。
+    -r, --revision <revision>  git 的版本号，仅对从 git 仓库部署有效。
 ```
 
 并且本工具具有代码热加载功能。修改代码后，无需重启即可以调试最新代码。
