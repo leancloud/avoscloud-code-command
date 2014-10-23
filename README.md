@@ -22,6 +22,14 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 * 2014-09-16 发布 0.4.9-RC3，upload 命令文件上传更稳定。
 * 2014-08-26 发布 0.4.9-RC2，支持本地部署上传 package.json。
 
+## US 节点
+
+请下载 [avoscloud-code-0.5.0.tgz]()，执行下列指令安装：
+
+```
+sudo npm install -g avoscloud-code-0.5.0.tgz
+```
+
 ## 说明
 
 为了方便本地运行和调试云代码，请遵照下列步骤进行:
