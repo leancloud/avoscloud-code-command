@@ -344,15 +344,15 @@ if (!CLOUD_PATH.match(/.*\/$/)) {
 process.chdir(CLOUD_PATH);
 
 function input(info, cb, password) {
-        var pcb = function(err, anwser) {
-            cb(anwser);
-        };
-        if (password) {
-            promptly.password(info, pcb);
-        } else {
-            promptly.prompt(info, pcb);
-        }
+    var pcb = function(err, anwser) {
+        cb(anwser);
+    };
+    if (password) {
+        promptly.password(info, pcb);
+    } else {
+        promptly.prompt(info, pcb);
     }
+}
     /**
      *Generate device uuid for statistics.
      */
@@ -457,13 +457,13 @@ function viewCloudLog(lastLogUpdatedTime) {
  */
 function createNewProject() {
     console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。")
-    input("请输入应用的 Application ID:  ", function(appId) {
+    input("请输入应用的 Application ID: ", function(appId) {
         if (!appId || appId.trim() == '')
             throw "无效的 Application ID"
         input("请输入应用的 Master Key: ", function(masterKey) {
             if (!masterKey || masterKey.trim() == '')
                 throw "无效的 Master Key"
-            input("选择您的应用类型（标准版或者 web 主机版）: [standard(S) or web(W)]", function(type) {
+            input("选择您的应用类型（标准版或者 web 主机版）: [standard(S) or web(W)] ", function(type) {
                 type = type || 'S'
                 var params = '';
                 if (type.toUpperCase() == 'W' || type.toUpperCase() == 'WEB') {
