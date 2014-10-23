@@ -24,7 +24,7 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 
 ## US 节点
 
-请下载 [avoscloud-code-0.5.0.tgz]()，执行下列指令安装：
+请下载 [avoscloud-code-0.5.0.tgz](https://github.com/leancloud/avoscloud-code-command/raw/master/us/avoscloud-code-0.5.0.tgz)，执行下列指令安装：
 
 ```
 sudo npm install -g avoscloud-code-0.5.0.tgz
