@@ -1,73 +1,76 @@
 {
-	"name": "avoscloud-code",
-	"version": "0.4.9-RC2",
-	"main": "./lib/cloud_code.js",
-	"description": "AVOS Cloud Code SDK.",
-	"repository": {
-		"type": "git",
-		"url": "git@github.com:avos/CloudCodeMockSDK.git"
-	},
-	"keywords": [
-		"cloud",
-		"BaaS",
-		"avos",
-		"avoscloud",
-		"web-service"
-	],
-	"bugs": {
-		"url": "https://github.com/avos/CloudCodeMockSDK/issues"
-	},
-	"dependencies": {
-		"tar"           : "0.1.19",
-		"fstream"    : "0.1.25",
-		"adm-zip"    : "0.4.4",
-		"commander"       : "2.2.0",
-		"qiniu"                 : "6.1.3",
-		"qs"		                : "0.6.5",
-		"cookie-signature"   : "1.0.1",
-		"buffer-crc32"        :  "0.2.1",
-		"debug"               : "0.7.4",
-		"mime"                : "1.2.11",
-		"avos-express-cookie-session" : "latest",
-        "iconv-lite"                          : "0.2.11",
-		"avos-express-https-redirect" : "latest",
-		"avoscloud-sdk"				: "latest",
-		"underscore"				: "1.5.2",
-		"underscore.string"		    : "2.3.3",
-		"cron"						: "latest",
-		"moment"					: "2.0.0",
-		"express"					: "3.4.0",
-		"async"                    : "0.9.0",
-		"express-ejs-layouts"		: "0.3.1",
-		"weibo"						: "0.6.9",
-		"node-qiniu"				: "6.1.0",
-		"mailgun"					: "0.4.2",
-		"mandrill"					: "0.1.0",
-		"xml2js"                   : "0.4.4",
-		"stripe"					: "2.6.3",
-		"sendgrid"					: "0.4.5",
-		"rekuire"					: "0.1.3",
-		"ejs"						: "0.8.4",
-		"jade"  					: "0.26.0",
-		"avos-lock"                : "latest",
-		"promptly"                 : "0.2.0"
-	},
+    "name": "avoscloud-code",
+    "version": "0.5.0",
+    "main": "./lib/cloud_code.js",
+    "description": "AVOS Cloud Code SDK.",
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:avoscloud/avoscloud-code-command.git"
+    },
+    "keywords": [
+        "cloud",
+        "BaaS",
+        "avos",
+        "avoscloud",
+        "web-service"
+    ],
+    "bugs": {
+        "url": "https://github.com/avoscloud/avoscloud-code-command/issues"
+    },
+    "dependencies": {
+        "tar": "0.1.19",
+        "request": "2.45.0",
+        "cli-color": "0.3.2",
+        "sprintf-js": "0.0.7",
+        "fstream": "0.1.25",
+        "adm-zip": "0.4.4",
+        "commander": "2.2.0",
+        "qiniu": "6.1.5",
+        "qs": "0.6.5",
+        "cookie-signature": "1.0.1",
+        "buffer-crc32": "0.2.1",
+        "debug": "0.7.4",
+        "mime": "1.2.11",
+        "avos-express-cookie-session": "latest",
+        "iconv-lite": "0.2.11",
+        "avos-express-https-redirect": "latest",
+        "avoscloud-sdk": "latest",
+        "underscore": "1.6.0",
+        "underscore.string": "2.3.3",
+        "cron": "latest",
+        "moment": "2.7.0",
+        "express": "3.4.0",
+        "async": "0.9.0",
+        "express-ejs-layouts": "0.3.1",
+        "weibo": "0.6.9",
+        "node-qiniu": "6.1.6",
+        "mailgun": "0.4.2",
+        "mandrill": "0.1.0",
+        "xml2js": "0.4.4",
+        "stripe": "2.5.0",
+        "sendgrid": "1.0.5",
+        "rekuire": "0.1.3",
+        "ejs": "0.8.4",
+        "jade": "0.26.0",
+        "avos-lock": "latest",
+        "promptly": "0.2.0"
+    },
 
-	"bin": {
-		"avoscloud" : "./bin/avoscloud"
-	},
+    "bin": {
+        "avoscloud": "./bin/avoscloud"
+    },
 
-	"engines": [
-		"node >= 0.10.0"
-	],
+    "engines": [
+        "node >= 0.10.0"
+    ],
 
-	"devDependencies": {
-		"mocha":"1.9.0",
-		"expect.js ":"0.2.0"
-	},
-	"author" : {
-		"name" : "dennis zhuang",
-		"email" : "xzhuang@avos.com"
-	},
-	"license": "LGPL"
+    "devDependencies": {
+        "mocha": "1.9.0",
+        "expect.js ": "0.2.0"
+    },
+    "author": {
+        "name": "dennis zhuang",
+        "email": "xzhuang@avos.com"
+    },
+    "license": "LGPL"
 }

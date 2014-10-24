@@ -2,7 +2,7 @@
 
 ## 重要通知
 
-* 从 0.3.0 版本开始，`avoscloud-code-mock-sdk` 重命名为 `avoscloud-code`，安装和更新请使用下列命令：
+安装和更新请使用下列命令：
 
 ```
 sudo npm install -g avoscloud-code
@@ -15,10 +15,20 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 ```
 
 ## 更新日志
+
+详情查看 [changelog.md](https://github.com/avoscloud/avoscloud-code-command/blob/master/changelog.md)
+
+* 2014-10-10 发布 0.5.0 正式版本，支持多项目部署，重构代码，提升稳定性。
+* 2014-09-16 发布 0.4.9-RC3，upload 命令文件上传更稳定。
 * 2014-08-26 发布 0.4.9-RC2，支持本地部署上传 package.json。
-* 2014-08-26 发布 0.4.9-RC1，修复 new 命令。
-* 2014-08-26 发布 0.4.9-beta，修复在 windows 系统无法运行的 Bug，为上传文件添加后缀。
-* 2014-08-15 发布 0.4.8-beta，移除`-u`选项，支持云代码 2.0 自定义库功能，添加 `AV.Cloud.onVerfied` 函数。
+
+## US 节点
+
+请下载 [avoscloud-code-0.5.0.tgz](https://github.com/leancloud/avoscloud-code-command/raw/master/us/avoscloud-code-0.5.0.tgz)，执行下列指令安装：
+
+```
+sudo npm install -g avoscloud-code-0.5.0.tgz
+```
 
 ## 说明
 
@@ -35,33 +45,53 @@ sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
 `avoscloud -h` 输出：
 
 ```
- Usage: avoscloud [options] <cmd>
+  Usage: avoscloud [选项] <命令>
 
-  Valid commands:
-    deploy: 部署云代码到 AVOS Cloud 平台开发环境.
-    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境.
-    status: 查询当前部署状态.
-    search <keyword>: 根据关键字查询开发文档.
-    publish: 发布开发环境代码到生产环境。
-    new: 创建云代码项目。
-    logs: 查看云代码日志。
-    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用。
+  有效的命令列表包括:
+    deploy: 部署云代码到 AVOS Cloud 平台开发环境
+    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境
+    status: 查询当前部署状态
+    search <keyword>: 根据关键字查询开发文档
+    publish: 发布开发环境代码到生产环境
+    new: 创建云代码项目
+    logs: 查看云代码日志
+    clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用
+    upload <file-or-directory>: 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。
+    app [list]:  显示当前应用，deploy、status 等命令运行在当前应用上，如果加上 list ，则显示所有的应用信息。
+    checkout <app>: 切换到一个应用，deploy、status 等命令将运行在该应用上。
+    add <app>: 添加一个应用。
+    rm <app>: 移除一个应用。
 
   Options:
 
     -h, --help                 output usage information
     -V, --version              output the version number
-    -f,--filepath <path>       本地云代码项目根路径，默认是当前目录。
-    -g, --git                  使用定义在管理平台的 Git 仓库或者 -u 指定的 Git 仓库部署云代码，默认使用本地代码部署。
-    -u, --giturl <url>         所要部署的 Git 仓库地址，必须是 Git 协议 URL，仅在使用 Git 部署 -g 选项的时候有效.
+    -f, --filepath <path>      本地云代码项目根路径，默认是当前目录。
+    -g, --git                  使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。
+    -p, --project <app>        命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。
     -l, --local                使用本地代码部署云代码，该选项是默认选中。
-    -o, --log <log>            部署日志，仅对从本地部署有效。
+    -o, --log <log>            本次部署的提交日志，仅对从本地部署有效。
     -n, --lines <lines>        查看多少行最新的云代码日志，默认 10 行。
     -t, --tailf                自动刷新云代码日志，结合 logs 命令使用。
-    -r, --revision <revision>  Git 的版本号，仅对从 Git 仓库部署有效。
+    -r, --revision <revision>  git 的版本号，仅对从 git 仓库部署有效。
 ```
 
 并且本工具具有代码热加载功能。修改代码后，无需重启即可以调试最新代码。
+
+## Bash Completion
+
+下载 [avoscloud_completion.sh](https://github.com/avoscloud/avoscloud-code-command/blob/master/avoscloud_completion.sh) 保存到某个目录，例如保存为 `~/.avoscloud_completion.sh`，然后在 `.bashrc` 或者 `.bash_profile` 文件中添加：
+
+```
+source ~/.avoscloud_completion.sh
+```
+
+重启终端 bash，或者重新加载 profile 文件，就可以让 avoscloud 命令拥有自动完成功能。
+
+
+## 使用指南
+
+参考 [云代码命令行工具使用详解](https://cn.avoscloud.com/docs/cloud_code_commandline.html)
 
 ## cURL 调试
 
@@ -92,7 +122,7 @@ curl -X POST -H 'Content-Type:application/json' \
 
 如果您输入错误的 master key 或者在公共机器上运行本命令行工具，可手工删除该文件。
 
-## Copyright
+## CopyRight
 
 * License: [GNU LGPL](https://www.gnu.org/licenses/lgpl.html).
 * Author: Dennis Zhuang（xzhuang@avoscloud.com）
