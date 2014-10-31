@@ -11,12 +11,12 @@ sudo npm install -g avoscloud-code
 如果从 npm 安装失败，可以从 GitHub 安装：
 
 ```
-sudo npm install -g  git+https://github.com/avoscloud/avoscloud-code-command
+sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 ```
 
 ## 更新日志
 
-详情查看 [changelog.md](https://github.com/avoscloud/avoscloud-code-command/blob/master/changelog.md)
+详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
 
 * 2014-10-10 发布 0.5.0 正式版本，支持多项目部署，重构代码，提升稳定性。
 * 2014-09-16 发布 0.4.9-RC3，upload 命令文件上传更稳定。
@@ -91,7 +91,7 @@ source ~/.avoscloud_completion.sh
 
 ## 使用指南
 
-参考 [云代码命令行工具使用详解](https://cn.avoscloud.com/docs/cloud_code_commandline.html)
+参考 [云代码命令行工具使用详解](http://leancloud.cn/docs/cloud_code_commandline.html)
 
 ## cURL 调试
 
