@@ -86,7 +86,7 @@ sudo npm install -g avoscloud-code-0.5.0.tgz
 source ~/.avoscloud_completion.sh
 ```
 
-重启终端 bash，或者重新加载 profile 文件，就可以让 avoscloud 命令拥有自动完成功能。
+重启终端 bash，或者重新加载 profile 文件，就可以让 `avoscloud` 命令拥有自动完成功能。
 
 
 ## 使用指南
@@ -116,7 +116,7 @@ curl -X POST -H 'Content-Type:application/json' \
 
 ## 安全性
 
-部署、发布、清除部署等命令在第一次运行的时候要求用户输入应用的 master key，您可以在 AVOS Cloud 平台的应用设置里找到 master key。
+部署、发布、清除部署等命令在第一次运行的时候要求用户输入应用的 master key，您可以在 LeanCloud 平台的应用设置里找到 master key。
 
 输入后，本命令行工具将这个应用信息记录在 `~/.avoscloud_keys` 文件中（0600 文件权限模式）。
 
