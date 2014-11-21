@@ -731,10 +731,12 @@ function logProjectHome() {
     console.log('[INFO]: Cloud Code Project Home Directory: ' + color.green(CLOUD_PATH));
     var apps = readAppsSync();
     var currApp = getCurrApp();
-    if (apps[currApp])
+    if (apps[currApp]) {
         console.log('[INFO]: Current App: %s', color.red(currApp + ' ' + getAppId(currApp)));
-    else
+    } else {
         console.warn('[INFO]: You are not in a app.Please checkout <app>');
+        process.exit(1);
+    }
 }
 
 sendStats(CMD);
