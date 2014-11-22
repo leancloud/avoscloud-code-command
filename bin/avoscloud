@@ -65,6 +65,7 @@ program
     .option('-n, --lines <lines>', '查看多少行最新的云代码日志，默认 10 行。', 10)
     .option('-t, --tailf', '自动刷新云代码日志，结合 logs 命令使用。', 1)
     .option('-r, --revision <revision>', 'git 的版本号，仅对从 git 仓库部署有效。')
+    .option('-P, --port <port>', '指定本地调试的端口，默认 3000。', 3000)
     .parse(process.argv);
 
 /**
@@ -742,8 +743,8 @@ sendStats(CMD);
 if (!CMD) {
     logProjectHome();
     initAVOSCloudSDK(function(masterKey) {
-        require(lib + '/mock').run(CLOUD_PATH, AV);
-        console.log("请使用浏览器打开 http://localhost:3000/avos");
+        require(lib + '/mock').run(CLOUD_PATH, AV, program.port);
+        console.log("请使用浏览器打开 http://localhost:" + program.port + "/avos");
     });
 } else {
     switch (CMD) {
