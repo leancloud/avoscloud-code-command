@@ -14,6 +14,7 @@ var exec = require('child_process').exec;
 var fstream = require('fstream'),
     tar = require('tar'),
     zlib = require('zlib');
+var archiver = require('archiver');
 var os = require('os');
 var request = require('request');
 var _s = require('underscore.string'),
@@ -203,65 +204,54 @@ function uploadFile(localFile, props, cb, retry, retries) {
 function deployLocalCloudCode(cloudPath) {
     initMasterKey(function() {
         console.log("Compress cloud code files...");
-        var file = path.join(TMP_DIR, new Date().getTime() + '.tar.gz');
-        var count = 0;
+        var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
+        var output = fs.createWriteStream(file);
+        var archive = archiver('zip');
 
-        fstream.Reader({
-                'root': cloudPath,
-                'path': cloudPath,
-                'type': 'Directory',
-                filter: function() {
-                    count++;
-                    if (count == 1) {
-                        //the root folder.
-                        return true;
-                    }
-                    var filePath = path.normalize(this.path);
-                    //only compress legal files and directories.
-                    return _.find(['cloud', 'public', 'config', 'package.json'], function(folder) {
-                        return _s.startsWith(filePath, cloudPath + folder);
-                    });
+        output.on('close', function() {
+            console.log("Wrote compressed file " + file + ' ...');
+            //upload file to cloud code
+            console.log("Begin to upload cloud code files...");
+            var key = util.guid() + '.zip';
+            uploadFile(file, {
+                key: key,
+                name: file,
+                mime_type: 'application/zip, application/octet-stream'
+            }, function(err, url, fileId) {
+                if (err) {
+                    console.error("Upload cloud code files failed with '%j'", err.responseText);
+                    destroyFile(fileId);
+                    process.exit(1);
+                } else {
+                    console.log("Upload cloud code files successfully. Begin to deploy...");
+                    //notify avoscloud platform to fetch new deployment.
+                    util.requestCloud('functions/deploy/command', {
+                        revision: url,
+                        fileId: fileId,
+                        log: program.log
+                    }, 'POST', {
+                        success: function(resp) {
+                            console.log("Congrats! Deploy cloud code successfully.");
+                            queryStatus();
+                        },
+                        error: function(err) {
+                            console.log("Sorry, try to deploy cloud code failed with '%s'", err.responseText);
+                        }
+                    }, true);
                 }
-            }).pipe(tar.Pack({
-                path: '.'
-            }))
-            .pipe(zlib.Gzip())
-            .pipe(fstream.Writer({
-                'path': file
-            }))
-            .on('close', function() {
-                console.log("Wrote compressed file " + file + ' ...');
-                //upload file to cloud code
-                console.log("Begin to upload cloud code files...");
-                var key = util.guid() + '.tar.gz';
-                uploadFile(file, {
-                    key: key,
-                    name: file,
-                    mime_type: 'application/x-gzip, application/octet-stream'
-                }, function(err, url, fileId) {
-                    if (err) {
-                        console.error("Upload cloud code files failed with '%j'", err.responseText);
-                        destroyFile(fileId);
-                        process.exit(1);
-                    } else {
-                        console.log("Upload cloud code files successfully. Begin to deploy...");
-                        //notify avoscloud platform to fetch new deployment.
-                        util.requestCloud('functions/deploy/command', {
-                            revision: url,
-                            fileId: fileId,
-                            log: program.log
-                        }, 'POST', {
-                            success: function(resp) {
-                                console.log("Congrats! Deploy cloud code successfully.");
-                                queryStatus();
-                            },
-                            error: function(err) {
-                                console.log("Sorry, try to deploy cloud code failed with '%s'", err.responseText);
-                            }
-                        }, true);
-                    }
-                }, false);
-            });
+            }, false);
+        });
+
+        archive.on('error', function(err) {
+            console.error("Compress cloud code files failed with '%s'", err);
+            process.exit(1);
+        });
+
+        archive.pipe(output);
+        archive.bulk([
+          { src: ['package.json', 'cloud/**', 'config/**', 'public/**']}
+        ]);
+        archive.finalize();
     });
 }
 
