@@ -689,17 +689,21 @@ function appStatus(list) {
     process.exit(0);
 }
 function queryLatestVersion(){
-	util.ajax('GET','https://raw.githubusercontent.com/leancloud/avoscloud-code-command/master/latest.version',{},
-		function(resp){
-			try{
-				var latestVersion = resp.version;
-				if(parseFloat(latestVersion) > parseFloat(version)){
-					console.warn("[WARN] 发现新版本 %s, 您可以通过下列命令升级： sudo npm install -g avoscloud-code", latestVersion);
-				}
-			}catch(err){
-				//ignore
-			}
-		});
+	try{
+		util.ajax('GET','https://raw.githubusercontent.com/leancloud/avoscloud-code-command/master/latest.version',{},
+				  function(resp){
+					  try{
+						  var latestVersion = resp.version;
+						  if(parseFloat(latestVersion) > parseFloat(version)){
+							  console.warn("[WARN] 发现新版本 %s, 您可以通过下列命令升级： sudo npm install -g avoscloud-code", latestVersion);
+						  }
+					  }catch(err){
+						  //ignore
+					  }
+				  });
+	}catch(err){
+		//ignore
+	}
 }
 
 function getAppId(name) {
