@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "adm-zip": "0.4.4",
-    "archiver": "^0.13.0",
+    "archiver": "0.13.0",
     "async": "0.9.0",
     "avos-express-cookie-session": "latest",
     "avos-express-https-redirect": "latest",
