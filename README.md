@@ -18,9 +18,9 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
 
+* 2014-12-03 发布 0.5.1 正式版本，修复 windows 新建项目部署失败 Bug、增加新版本检测等。
 * 2014-10-10 发布 0.5.0 正式版本，支持多项目部署，重构代码，提升稳定性。
 * 2014-09-16 发布 0.4.9-RC3，upload 命令文件上传更稳定。
-* 2014-08-26 发布 0.4.9-RC2，支持本地部署上传 package.json。
 
 ## US 节点
 
