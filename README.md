@@ -18,7 +18,7 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
 
-* 2014-12-26 发布 0.5.2 正式版本，修复 webHosting user 串号问题，增加 req.AV.user 对象。
+* 2014-12-26 发布 0.5.2 正式版本，修复 webHosting user 串号问题，增加 req.AV.user 对象，使用 nodemon 监视文件变更自动热加载。
 * 2014-12-03 发布 0.5.1 正式版本，修复 windows 新建项目部署失败 Bug、增加新版本检测等。
 * 2014-10-10 发布 0.5.0 正式版本，支持多项目部署，重构代码，提升稳定性。
 * 2014-09-16 发布 0.4.9-RC3，upload 命令文件上传更稳定。
