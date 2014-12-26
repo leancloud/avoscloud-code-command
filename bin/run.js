@@ -49,6 +49,10 @@ function exitWith(err) {
     process.exit(1);
 }
 
+process.once('SIGUSR2', function () {
+    process.exit(0);
+});
+
 /**
  * Tried to get user's home directory by environment variable.
  */
