@@ -39,7 +39,7 @@ if(CMD) {
          "watch": [
              "public/",
              "cloud/",
-             "config",
+             "config/",
          ],
        "ext": "js json",
        "script": runjs,
