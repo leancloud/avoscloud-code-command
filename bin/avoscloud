@@ -11,6 +11,7 @@ var nodemon = require('nodemon'),
   commander = require('./commander'),
   path = require('path'),
   fs = require('fs'),
+  color = require('cli-color'),
   childProcess = require('child_process');
 
 var program = commander.parse_args(process.argv);
@@ -45,6 +46,7 @@ if(CMD) {
        "script": runjs,
        "args": args
     };
+    console.log(color.green('提示：您可以敲入 rs 命令并回车来重启本进程'));
     nodemon(monconfig);
     nodemon.on('restart', function (files) {
         console.log('[INFO]: avoscloud restarted due to: ', files);
