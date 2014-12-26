@@ -1,3 +1,7 @@
+## v0.5.2
+* 修复 webHosting user 在并发请求时信息串号的问题。
+* webHosting req 参数增加 user 对象（req.AV.user）。
+
 ## v0.5.1
 * 修复新建项目在 windows 系统上的权限问题，导致部署失败。
 * 增加新版本检测功能
