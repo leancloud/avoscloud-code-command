@@ -43,7 +43,7 @@ if(CMD) {
          ],
        "ext": "js json",
        "script": runjs,
-       "args": process.argv.slice(2)
+       "args": args
     };
     nodemon(monconfig);
     nodemon.on('restart', function (files) {
