@@ -1,3 +1,6 @@
+## v0.5.3
+* 修正新版本查询 Bug。
+
 ## v0.5.2
 * 修复 webHosting user 在并发请求时信息串号的问题。
 * webHosting req 参数增加 user 对象（req.AV.user）。
