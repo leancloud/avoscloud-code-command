@@ -676,7 +676,7 @@ function queryLatestVersion(){
 				  function(resp){
 					  try{
 						  var latestVersion = resp.version;
-						  if(parseFloat(latestVersion) > parseFloat(version)){
+						  if(latestVersion.localeCompare(version) > 0){
 							  console.warn("[WARN] 发现新版本 %s, 您可以通过下列命令升级： sudo npm install -g avoscloud-code", latestVersion);
 						  }
 					  }catch(err){
