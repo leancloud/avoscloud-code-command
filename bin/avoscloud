@@ -47,6 +47,6 @@ if(CMD) {
     };
     nodemon(monconfig);
     nodemon.on('restart', function (files) {
-        console.log('avoscloud restarted due to: ', files);
+        console.log('[INFO]: avoscloud restarted due to: ', files);
     });
 }

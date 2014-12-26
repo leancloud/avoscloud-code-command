@@ -45,7 +45,7 @@ var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(
 var program = commander.parse_args(process.argv);
 
 function exitWith(err) {
-    console.error(err);
+    console.error('[ERROR]: ' + err);
     process.exit(1);
 }
 
