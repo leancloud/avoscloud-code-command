@@ -10,6 +10,7 @@
 var nodemon = require('nodemon'),
   commander = require('./commander'),
   path = require('path'),
+  fs = require('fs'),
   childProcess = require('child_process');
 
 var program = commander.parse_args(process.argv);
@@ -24,8 +25,10 @@ if (!CLOUD_PATH.match(/.*\/$/)) {
 process.chdir(CLOUD_PATH);
 var args = process.argv.slice(2);
 
+var runjs = path.join(path.dirname(fs.realpathSync(__filename)), 'run.js');
+
 if(CMD) {
-    args.unshift('run.js');
+    args.unshift(runjs);
     childProcess.spawn('node', args ,{stdio: 'inherit'});
 } else {
     var monconfig = {
@@ -39,7 +42,7 @@ if(CMD) {
              "config",
          ],
        "ext": "js json",
-       "script": "run.js",
+       "script": runjs,
        "args": process.argv.slice(2)
     };
     nodemon(monconfig);

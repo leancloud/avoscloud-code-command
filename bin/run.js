@@ -44,13 +44,18 @@ if (!TMP_DIR.match(/.*\/$/)) {
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "..", "package.json"))).version;
 var program = commander.parse_args(process.argv);
 
+function exitWith(err) {
+    console.error(err);
+    process.exit(1);
+}
+
 /**
  * Tried to get user's home directory by environment variable.
  */
 function getUserHome() {
     var home = process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH;
     if (!home)
-        throw "Could not find user home directory";
+        return exitWith("Could not find user home directory");
     return home;
 }
 
@@ -70,7 +75,7 @@ function initMasterKey(done) {
         var writeMasterKey = function(data, cb) {
             promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
                 if (!answer || answer.trim() == '')
-                    throw "无效的 Master Key"
+                    return exitWith("无效的 Master Key");
                 data = data || {}
                 data[appId] = answer;
                 //file mode is 0600
@@ -78,7 +83,7 @@ function initMasterKey(done) {
                     mode: 384
                 }, function(err) {
                     if (err)
-                        throw err;
+                        return exitWith(err);
                     cb(answer);
                 });
             });
@@ -86,7 +91,7 @@ function initMasterKey(done) {
         var readMasterKey = function() {
             fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
                 if (err)
-                    throw err;
+                    return exitWith(err);
                 if (data.trim() == '') {
                     data = '{}';
                 }
@@ -425,10 +430,12 @@ function createNewProject() {
     console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。")
     input("请输入应用的 Application ID: ", function(appId) {
         if (!appId || appId.trim() == '')
-            throw "无效的 Application ID"
+            return exitWith("无效的 Application ID");
+
         input("请输入应用的 Master Key: ", function(masterKey) {
             if (!masterKey || masterKey.trim() == '')
-                throw "无效的 Master Key"
+                return exitWith("无效的 Master Key");
+
             input("选择您的应用类型（标准版或者 web 主机版）: [standard(S) or web(W)] ", function(type) {
                 type = type || 'S'
                 var params = '';
@@ -522,7 +529,7 @@ function initAVOSCloudSDK(done) {
     var currApp = getCurrApp();
     var appId = getAppId(currApp);
     if (currApp == null || currApp === '' || appId == null || appId === '')
-        throw "Can't find a valid app to execute command '" + CMD + "'.";
+         return exitWith("当前目录找不到有效的 LeanCloud 云代码应用运行 '" + CMD + "' 命令。");
     var globalConfig = path.join(CLOUD_PATH, 'config/global.json');
     if (fs.existsSync(globalConfig)) {
         //try to initialize avoscloud sdk with config/gloabl.json
@@ -607,12 +614,12 @@ function writeAppsSync(apps) {
 
 function addApp(name, appId) {
     if (!/\w+/.test(name))
-        throw "Invalid app name.";
+        return exitWith("Invalid app name.");
     if (!/[a-zA-Z0-9]+/.test(appId))
-        throw "Invalid app id.";
+        return exitWith("Invalid app id.");
     var apps = readAppsSync();
     if (apps[name])
-        throw "The app '" + name + "' is already exists.";
+         return exitWith("The app '" + name + "' is already exists.");
     apps[name] = appId;
     writeAppsSync(apps);
     console.log("Added a new app: %s -- %s", name, appId);
@@ -631,7 +638,7 @@ function removeApp(name) {
 function checkoutApp(name) {
     var apps = readAppsSync();
     if (!apps[name])
-        throw "The app '" + name + "' is not exists.";
+        return exitWith("The app '" + name + "' is not exists.");
     writeCurrAppSync(name);
     console.log("Switced to app " + name);
     process.exit(0);
@@ -750,7 +757,7 @@ if (!CMD) {
                 deployGitCloudCode(program.revision || 'master');
             } else {
                 if (path.resolve(CLOUD_PATH) != path.resolve('.'))
-                    throw "'avoscloud deploy' must be run in a cloud code project directory.";
+                    return exitWith("'avoscloud deploy' must be run in a cloud code project directory.");
                 deployLocalCloudCode(CLOUD_PATH);
             }
             break;
@@ -803,23 +810,23 @@ if (!CMD) {
             var name = program.args[1];
             var appId = program.args[2];
             if (!name)
-                throw "Usage: avoscloud add <name> <app id>";
+                return exitWith("Usage: avoscloud add <name> <app id>");
             if (!appId)
-                throw "Usage: avoscloud add <name> <app id>";
+                return exitWith("Usage: avoscloud add <name> <app id>");
             addApp(name, appId);
             break;
         case "rm":
             //rm <name>
             var name = program.args[1];
             if (!name)
-                throw "Usage: avoscloud rm <name>";
+                return exitWith("Usage: avoscloud rm <name>");
             removeApp(name);
             break;
         case "checkout":
             //checkout <name>
             var name = program.args[1];
             if (!name)
-                throw "Usage: avoscloud checkout <name>";
+                 return exitWith("Usage: avoscloud checkout <name>");
             checkoutApp(name);
             break;
         default:
