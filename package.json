@@ -1,6 +1,6 @@
 {
   "name": "avoscloud-code",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "main": "./lib/cloud_code.js",
   "description": "AVOS Cloud Code SDK.",
   "repository": {
@@ -54,7 +54,8 @@
     "underscore.string": "2.3.3",
     "weibo": "0.6.9",
     "xml2js": "0.4.4",
-    "nodemon": "1.3.0-5"
+    "nodemon": "1.3.0-5",
+    "cli-table": "0.3.1"
   },
   "bin": {
     "avoscloud": "./bin/avoscloud"

@@ -20,7 +20,8 @@ exports.parse_args = function(argv){
           "app [list]:  显示当前应用，deploy、status 等命令运行在当前应用上，如果加上 list ，则显示所有的应用信息。\n    " +
           "checkout <app>: 切换到一个应用，deploy、status 等命令将运行在该应用上。\n    " +
           "add <app>: 添加一个应用。\n    " +
-          "rm <app>: 移除一个应用。")
+          "rm <app>: 移除一个应用。\n    " +
+          "cql: 进入 CQL 查询交互。")
       .option('-f, --filepath <path>', '本地云代码项目根路径，默认是当前目录。')
       .option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')
       .option('-p, --project <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
