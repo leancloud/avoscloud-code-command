@@ -791,7 +791,7 @@ function outputQueryResult(resp, vertical){
 function doCloudQuery() {
     initAVOSCloudSDK(function(){
        input("CQL> ",function(cql){
-           if(cql == 'exit')
+           if(cql === 'exit')
                return;
            if(/.*;$/.test(cql))
                cql = cql.substring(0, cql.length - 1);
@@ -809,7 +809,7 @@ function doCloudQuery() {
                        var error = JSON.parse(err.responseText);
                        console.log(color.red(error.code + ': ' + error['error']));
                    }catch(e){
-                       console.log(err.responseText);
+                       console.log(color.red(err.responseText));
                    }
                    doCloudQuery();
                }
