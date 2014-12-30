@@ -30,6 +30,7 @@ var promptly = require('promptly');
 var mime = require('mime');
 var async = require('async');
 var color = require('cli-color');
+var Table = require('cli-table');
 
 //set qiniu timeout
 qiniu.conf.RPC_TIMEOUT = 3600000;
@@ -717,6 +718,106 @@ function getCurrApp() {
     return currApp;
 }
 
+function sortObject(o) {
+    var sorted = {},
+    key, a = [];
+    sorted['objectId'] = o['objectId'];
+
+    for (key in o) {
+        if (o.hasOwnProperty(key)) {
+            a.push(key);
+        }
+    }
+
+    a.sort();
+
+    for (key = 0; key < a.length; key++) {
+        if(a[key] != 'objectId' && a[key] != 'updatedAt' && a[key] != 'createdAt')
+            sorted[a[key]] = o[a[key]];
+    }
+    sorted['updatedAt'] = o['updatedAt'];
+    sorted['createdAt'] = o['createdAt'];
+    return sorted;
+}
+
+function outputQueryResult(resp, vertical){
+    var results = resp.results;
+    results = results.map(function(result){
+        return sortObject(result);
+    });
+    if(results == null || results.length == 0)
+        console.log("*EMPTY*");
+    if(vertical){
+        var table = new Table();
+        for(var i = 0; i< results.length ; i++){
+            var result = results[i];
+            for(var k in result){
+                var row  = {};
+                row[k] = result[k] || '';
+                table.push(row);
+            }
+        }
+        console.log(table.toString());
+        return;
+    }
+
+    var head = results.reduce(function(ret, row){
+        var ks = Object.keys(row);
+        if(!ret)
+            return ks;
+        if(ks.length > ret.length)
+            return ks;
+        else
+            return ret;
+    }, []);
+    var table = new Table({
+      head: head,
+      chars: { 'top': '═' , 'top-mid': '╤' , 'top-left': '╔' , 'top-right': '╗'
+             , 'bottom': '═' , 'bottom-mid': '╧' , 'bottom-left': '╚' , 'bottom-right': '╝'
+             , 'left': '║' , 'left-mid': '╟' , 'mid': '─' , 'mid-mid': '┼'
+             , 'right': '║' , 'right-mid': '╢' , 'middle': '│' }
+    });
+    for(var i = 0; i< results.length ; i++){
+        var result = results[i];
+        var row = [];
+        for(var j = 0; j < head.length; j++){
+            row.push(result[head[j]] || '');
+        }
+        table.push(row);
+    }
+    console.log(table.toString());
+}
+
+function doCloudQuery() {
+    initAVOSCloudSDK(function(){
+       input("CQL> ",function(cql){
+           if(cql === 'exit')
+               return;
+           if(/.*;$/.test(cql))
+               cql = cql.substring(0, cql.length - 1);
+           var  vertical =/.*\\G$/.test(cql);
+           if(vertical)
+               cql = cql.substring(0, cql.length -2);
+             //console.dir(cql);
+           util.requestCloud('cloudQuery', {cql: cql}, 'GET', {
+               success: function(resp) {
+                   outputQueryResult(resp, vertical);
+                   doCloudQuery();
+               },
+               error: function(err) {
+                   try{
+                       var error = JSON.parse(err.responseText);
+                       console.log(color.red(error.code + ': ' + error['error']));
+                   }catch(e){
+                       console.log(color.red(err.responseText));
+                   }
+                   doCloudQuery();
+               }
+           });
+        });
+    });
+}
+
 function logProjectHome() {
     console.log('[INFO]: Cloud Code Project Home Directory: ' + color.green(CLOUD_PATH));
     var apps = readAppsSync();
@@ -829,6 +930,9 @@ if (!CMD) {
                  return exitWith("Usage: avoscloud checkout <name>");
             checkoutApp(name);
             break;
+        case "cql":
+           doCloudQuery();
+           break;
         default:
             program.help();
             break;
