@@ -1,3 +1,6 @@
+## v0.6.2
+* 修复 `avos-express-cookie-session` 的用户退出登录无效的 Bug。
+
 ## v0.6.1
 * 增加 `cql` 命令用于 CQL 查询。
 * 增加 `__local` 全局变量指代本地测试环境。
