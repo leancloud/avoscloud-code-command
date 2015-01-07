@@ -602,7 +602,7 @@ function initAVOSCloudSDK(done) {
         } else {
           if(masterKey){
             AV.initialize(AV.applicationId, AV.applicationKey, masterKey);
-            AV.useMasterKey();
+            AV.Cloud.useMasterKey();
           }
         }
         if (done)
@@ -792,11 +792,17 @@ function sortObject(o) {
 
 function outputQueryResult(resp, vertical){
     var results = resp.results;
+    var count = resp.count;
     results = results.map(function(result){
         return sortObject(result);
     });
-    if(results == null || results.length == 0)
+    if((results == null || results.length == 0) && count == null)
         console.log("*EMPTY*");
+
+    if(count){
+        console.log(color.green('Count: ' + count));
+    }
+
     if(vertical){
         var table = new Table();
         for(var i = 0; i< results.length ; i++){
@@ -836,6 +842,8 @@ function outputQueryResult(resp, vertical){
         table.push(row);
     }
     console.log(table.toString());
+    if(results && results.length > 0)
+      console.log(color.green( results.length + ' rows in set.'));
 }
 
 function doCloudQuery() {
