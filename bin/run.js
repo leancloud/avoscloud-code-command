@@ -21,11 +21,11 @@ var _s = require('underscore.string'),
     _ = require('underscore');
 var https = require('https');
 var commander = require('./commander');
+var DecompressZip = require('decompress-zip');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
 var sprintf = require("sprintf-js").sprintf;
-var AdmZip = require('adm-zip');
 var promptly = require('promptly');
 var mime = require('mime');
 var async = require('async');
@@ -424,6 +424,39 @@ function viewCloudLog(lastLogUpdatedTime) {
     });
 };
 
+function forceUpdateMasterKey(appId, masterKey, done){
+    var home = getUserHome();
+    var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
+    fs.exists(avoscloudKeysFile, function(exists) {
+        var writeMasterKey = function(data) {
+            data = data || {}
+            data[appId] = masterKey;
+            //file mode is 0600
+            fs.writeFileSync(avoscloudKeysFile, JSON.stringify(data), {
+                mode: 384
+            });
+            done();
+        };
+        var readMasterKey = function() {
+            fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
+                if (err)
+                    return exitWith(err);
+                if (data.trim() == '') {
+                    data = '{}';
+                }
+                var data = JSON.parse(data);
+                var masterKey = data[appId];
+                writeMasterKey(data);
+            });
+        }
+        if (exists) {
+            readMasterKey();
+        } else {
+            writeMasterKey({});
+        }
+    });
+}
+
 /**
  *Creaet a new avoscloud cloud code project.
  */
@@ -453,13 +486,25 @@ function createNewProject() {
                 var file = path.join(TMP_DIR, appId + '.zip');
                 request(url).pipe(fs.createWriteStream(file))
                   .on('close', function(){
-                        var zip = new AdmZip(file);
-                        var zipEntries = zip.getEntries();
-                        zipEntries.forEach(function(entry){
-                            console.log(color.green('  ' + entry.entryName));
+                        var unzipper = new DecompressZip(file);
+                        unzipper.on('list', function (files) {
+                            files.forEach(function(file){
+                               console.log(color.green('  ' + file));
+                            });
                         });
-                        zip.extractAllTo('.', false);
-                        console.log("Project created!");
+                        unzipper.list();
+                        unzipper = new DecompressZip(file);
+                        unzipper.on('extract', function (log) {
+                            forceUpdateMasterKey(appId, masterKey, function(){
+                                console.log('Project created!');
+                            });
+                        });
+                        unzipper.on('error', function (err) {
+                            console.error('Caught an error when decompressing files: %j', err);
+                        });
+                        unzipper.extract({
+                            path: './'
+                        });
                   });
             });
         }, true);
