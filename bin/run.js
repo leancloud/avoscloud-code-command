@@ -500,7 +500,7 @@ function createNewProject() {
                             });
                         });
                         unzipper.on('error', function (err) {
-                            console.error('Caught an error when decompressing files: %j', err);
+                            console.error('Caught an error when decompressing files: %j, server response: %j', err, fs.readFileSync(file,'utf-8'));
                         });
                         unzipper.extract({
                             path: './'
