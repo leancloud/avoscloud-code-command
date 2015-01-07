@@ -599,6 +599,11 @@ function initAVOSCloudSDK(done) {
                     AV.initialize(data.applicationId, data.applicationKey);
                 }
             }
+        } else {
+          if(masterKey){
+            AV.initialize(AV.applicationId, AV.applicationKey, masterKey);
+            AV.useMasterKey();
+          }
         }
         if (done)
             done(masterKey);
