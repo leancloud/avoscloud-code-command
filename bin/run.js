@@ -600,7 +600,7 @@ function initAVOSCloudSDK(done) {
                 }
             }
         } else {
-          if(masterKey){
+          if(masterKey) {
             AV.initialize(AV.applicationId, AV.applicationKey, masterKey);
             AV.Cloud.useMasterKey();
           }
@@ -842,8 +842,9 @@ function outputQueryResult(resp, vertical){
         table.push(row);
     }
     console.log(table.toString());
-    if(results && results.length > 0)
-      console.log(color.green( results.length + ' rows in set.'));
+    if(results && results.length > 0) {
+      console.log(color.green(results.length + ' rows in set.'));
+    }
 }
 
 function doCloudQuery() {
