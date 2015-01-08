@@ -402,9 +402,9 @@ function updateMasterKey(appId, masterKey, done, force){
             //If the master key is exists and force is false,
             // then return the eixsts master key
             if(existsMasterkey && !force) {
-               if(done)
-                   done(existsMasterkey);
-               return;
+                if(done)
+                    done(existsMasterkey);
+                return;
             }
             data[appId] = masterKey;
             //Save to file ,and make sure file mode is 0600
