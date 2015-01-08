@@ -74,12 +74,14 @@ function initMasterKey(done) {
         promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
             if (!answer || answer.trim() == '')
                 return exitWith("无效的 Master Key");
+            AV.initialize(appId, answer);
             updateMasterKey(appId, answer, done, true);
         });
     };
     updateMasterKey(appId, null, function(existsMasterKey){
         if(existsMasterKey) {
             if(done) {
+                AV.initialize(appId, existsMasterKey);
                 return done(existsMasterKey);
             }
         } else {
