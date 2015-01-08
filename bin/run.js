@@ -402,14 +402,17 @@ function updateMasterKey(appId, masterKey, done, force){
             //If the master key is exists and force is false,
             // then return the eixsts master key
             if(existsMasterkey && !force) {
-                return done(existsMasterkey);
+               if(done)
+                   done(existsMasterkey);
+               return;
             }
             data[appId] = masterKey;
             //Save to file ,and make sure file mode is 0600
             fs.writeFileSync(avoscloudKeysFile, JSON.stringify(data), {
                 mode: 384
             });
-            done(masterKey);
+            if(done)
+                done(masterKey);
         };
         var readMasterKey = function() {
             fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
