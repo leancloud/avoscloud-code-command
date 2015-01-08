@@ -69,55 +69,23 @@ function deleteMasterKeys() {
 }
 
 function initMasterKey(done) {
-    var home = getUserHome();
-    var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
     var appId = getAppId(getCurrApp());
-    fs.exists(avoscloudKeysFile, function(exists) {
-        var writeMasterKey = function(data, cb) {
-            promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
-                if (!answer || answer.trim() == '')
-                    return exitWith("无效的 Master Key");
-                data = data || {}
-                data[appId] = answer;
-                //file mode is 0600
-                fs.writeFile(avoscloudKeysFile, JSON.stringify(data), {
-                    mode: 384
-                }, function(err) {
-                    if (err)
-                        return exitWith(err);
-                    cb(answer);
-                });
-            });
-        };
-        var readMasterKey = function() {
-            fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
-                if (err)
-                    return exitWith(err);
-                if (data.trim() == '') {
-                    data = '{}';
-                }
-                var data = JSON.parse(data);
-                var masterKey = data[appId];
-                if (!masterKey) {
-                    writeMasterKey(data, function(masterKey) {
-                        AV.initialize(appId, masterKey);
-                        done(masterKey);
-                    });
-                } else {
-                    AV.initialize(appId, masterKey);
-                    done(masterKey);
-                }
-            });
-        }
-        if (exists) {
-            readMasterKey();
+    var promptMasterKeyThenUpdate = function() {
+        promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
+            if (!answer || answer.trim() == '')
+                return exitWith("无效的 Master Key");
+            updateMasterKey(appId, answer, done, true);
+        });
+    };
+    updateMasterKey(appId, null, function(existsMasterKey){
+        if(existsMasterKey) {
+            if(done) {
+                return done(existsMasterKey);
+            }
         } else {
-            writeMasterKey({}, function(masterKey) {
-                AV.initialize(appId, masterKey);
-                done(masterKey);
-            });
+            promptMasterKeyThenUpdate();
         }
-    });
+    }, false);
 }
 
 function bucketDomain(bucket) {
@@ -424,18 +392,24 @@ function viewCloudLog(lastLogUpdatedTime) {
     });
 };
 
-function forceUpdateMasterKey(appId, masterKey, done){
+function updateMasterKey(appId, masterKey, done, force){
     var home = getUserHome();
     var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
     fs.exists(avoscloudKeysFile, function(exists) {
         var writeMasterKey = function(data) {
             data = data || {}
+            var existsMasterkey = data[appId];
+            //If the master key is exists and force is false,
+            // then return the eixsts master key
+            if(existsMasterkey && !force) {
+                return done(existsMasterkey);
+            }
             data[appId] = masterKey;
-            //file mode is 0600
+            //Save to file ,and make sure file mode is 0600
             fs.writeFileSync(avoscloudKeysFile, JSON.stringify(data), {
                 mode: 384
             });
-            done();
+            done(masterKey);
         };
         var readMasterKey = function() {
             fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
@@ -445,7 +419,6 @@ function forceUpdateMasterKey(appId, masterKey, done){
                     data = '{}';
                 }
                 var data = JSON.parse(data);
-                var masterKey = data[appId];
                 writeMasterKey(data);
             });
         }
@@ -495,9 +468,10 @@ function createNewProject() {
                         unzipper.list();
                         unzipper = new DecompressZip(file);
                         unzipper.on('extract', function (log) {
-                            forceUpdateMasterKey(appId, masterKey, function(){
+                            updateMasterKey(appId, masterKey, function(){
                                 console.log('Project created!');
-                            });
+                            //force to update master key.
+                            }, true);
                         });
                         unzipper.on('error', function (err) {
                             console.error('Caught an error when decompressing files: %j, server response: %j', err, fs.readFileSync(file,'utf-8'));
