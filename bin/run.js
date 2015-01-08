@@ -890,7 +890,6 @@ if (!CMD) {
             exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
             break;
         case "deploy":
-            initAVOSCloudSDK();
             logProjectHome();
             if (program.git) {
                 deployGitCloudCode(program.revision || 'master');
@@ -901,17 +900,14 @@ if (!CMD) {
             }
             break;
         case "undeploy":
-            initAVOSCloudSDK();
             logProjectHome();
             undeployCloudCode();
             break;
         case "publish":
-            initAVOSCloudSDK();
             logProjectHome();
             publishCloudCode();
             break;
         case "status":
-            initAVOSCloudSDK();
             logProjectHome();
             queryStatus();
             break;
@@ -919,7 +915,6 @@ if (!CMD) {
             createNewProject();
             break;
         case 'logs':
-            initAVOSCloudSDK();
             logProjectHome();
             viewCloudLog();
             break;
