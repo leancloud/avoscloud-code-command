@@ -1,3 +1,9 @@
+## v0.6.3
+* 修复 windows 无法新建项目的 Bug
+* 修复部署偶尔的 401 错误。
+* 修复 cql 命令无法执行 count 查询的 Bug
+* 改进 new 失败后的错误消息提示。
+
 ## v0.6.2
 * 修复 `avos-express-cookie-session` 的用户退出登录无效的 Bug。
 

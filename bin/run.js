@@ -21,11 +21,11 @@ var _s = require('underscore.string'),
     _ = require('underscore');
 var https = require('https');
 var commander = require('./commander');
+var DecompressZip = require('decompress-zip');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
 var sprintf = require("sprintf-js").sprintf;
-var AdmZip = require('adm-zip');
 var promptly = require('promptly');
 var mime = require('mime');
 var async = require('async');
@@ -69,55 +69,25 @@ function deleteMasterKeys() {
 }
 
 function initMasterKey(done) {
-    var home = getUserHome();
-    var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
     var appId = getAppId(getCurrApp());
-    fs.exists(avoscloudKeysFile, function(exists) {
-        var writeMasterKey = function(data, cb) {
-            promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
-                if (!answer || answer.trim() == '')
-                    return exitWith("无效的 Master Key");
-                data = data || {}
-                data[appId] = answer;
-                //file mode is 0600
-                fs.writeFile(avoscloudKeysFile, JSON.stringify(data), {
-                    mode: 384
-                }, function(err) {
-                    if (err)
-                        return exitWith(err);
-                    cb(answer);
-                });
-            });
-        };
-        var readMasterKey = function() {
-            fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
-                if (err)
-                    return exitWith(err);
-                if (data.trim() == '') {
-                    data = '{}';
-                }
-                var data = JSON.parse(data);
-                var masterKey = data[appId];
-                if (!masterKey) {
-                    writeMasterKey(data, function(masterKey) {
-                        AV.initialize(appId, masterKey);
-                        done(masterKey);
-                    });
-                } else {
-                    AV.initialize(appId, masterKey);
-                    done(masterKey);
-                }
-            });
-        }
-        if (exists) {
-            readMasterKey();
+    var promptMasterKeyThenUpdate = function() {
+        promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
+            if (!answer || answer.trim() == '')
+                return exitWith("无效的 Master Key");
+            AV.initialize(appId, answer);
+            updateMasterKey(appId, answer, done, true);
+        });
+    };
+    updateMasterKey(appId, null, function(existsMasterKey){
+        if(existsMasterKey) {
+            if(done) {
+                AV.initialize(appId, existsMasterKey);
+                return done(existsMasterKey);
+            }
         } else {
-            writeMasterKey({}, function(masterKey) {
-                AV.initialize(appId, masterKey);
-                done(masterKey);
-            });
+            promptMasterKeyThenUpdate();
         }
-    });
+    }, false);
 }
 
 function bucketDomain(bucket) {
@@ -424,6 +394,47 @@ function viewCloudLog(lastLogUpdatedTime) {
     });
 };
 
+function updateMasterKey(appId, masterKey, done, force){
+    var home = getUserHome();
+    var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
+    fs.exists(avoscloudKeysFile, function(exists) {
+        var writeMasterKey = function(data) {
+            data = data || {}
+            var existsMasterkey = data[appId];
+            //If the master key is exists and force is false,
+            // then return the eixsts master key
+            if(existsMasterkey && !force) {
+                if(done)
+                    done(existsMasterkey);
+                return;
+            }
+            data[appId] = masterKey;
+            //Save to file ,and make sure file mode is 0600
+            fs.writeFileSync(avoscloudKeysFile, JSON.stringify(data), {
+                mode: 384
+            });
+            if(done)
+                done(masterKey);
+        };
+        var readMasterKey = function() {
+            fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
+                if (err)
+                    return exitWith(err);
+                if (data.trim() == '') {
+                    data = '{}';
+                }
+                var data = JSON.parse(data);
+                writeMasterKey(data);
+            });
+        }
+        if (exists) {
+            readMasterKey();
+        } else {
+            writeMasterKey({});
+        }
+    });
+}
+
 /**
  *Creaet a new avoscloud cloud code project.
  */
@@ -453,13 +464,26 @@ function createNewProject() {
                 var file = path.join(TMP_DIR, appId + '.zip');
                 request(url).pipe(fs.createWriteStream(file))
                   .on('close', function(){
-                        var zip = new AdmZip(file);
-                        var zipEntries = zip.getEntries();
-                        zipEntries.forEach(function(entry){
-                            console.log(color.green('  ' + entry.entryName));
+                        var unzipper = new DecompressZip(file);
+                        unzipper.on('list', function (files) {
+                            files.forEach(function(file){
+                               console.log(color.green('  ' + file));
+                            });
                         });
-                        zip.extractAllTo('.', false);
-                        console.log("Project created!");
+                        unzipper.list();
+                        unzipper = new DecompressZip(file);
+                        unzipper.on('extract', function (log) {
+                            updateMasterKey(appId, masterKey, function(){
+                                console.log('Project created!');
+                            //force to update master key.
+                            }, true);
+                        });
+                        unzipper.on('error', function (err) {
+                            console.error('Caught an error when decompressing files: %j, server response: %j', err, fs.readFileSync(file,'utf-8'));
+                        });
+                        unzipper.extract({
+                            path: './'
+                        });
                   });
             });
         }, true);
@@ -554,6 +578,11 @@ function initAVOSCloudSDK(done) {
                     AV.initialize(data.applicationId, data.applicationKey);
                 }
             }
+        } else {
+          if(masterKey) {
+            AV.initialize(AV.applicationId, AV.applicationKey, masterKey);
+            AV.Cloud.useMasterKey();
+          }
         }
         if (done)
             done(masterKey);
@@ -742,11 +771,17 @@ function sortObject(o) {
 
 function outputQueryResult(resp, vertical){
     var results = resp.results;
+    var count = resp.count;
     results = results.map(function(result){
         return sortObject(result);
     });
-    if(results == null || results.length == 0)
+    if((results == null || results.length == 0) && count == null)
         console.log("*EMPTY*");
+
+    if(count){
+        console.log(color.green('Count: ' + count));
+    }
+
     if(vertical){
         var table = new Table();
         for(var i = 0; i< results.length ; i++){
@@ -786,6 +821,9 @@ function outputQueryResult(resp, vertical){
         table.push(row);
     }
     console.log(table.toString());
+    if(results && results.length > 0) {
+      console.log(color.green(results.length + ' rows in set.'));
+    }
 }
 
 function doCloudQuery() {
@@ -852,7 +890,6 @@ if (!CMD) {
             exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
             break;
         case "deploy":
-            initAVOSCloudSDK();
             logProjectHome();
             if (program.git) {
                 deployGitCloudCode(program.revision || 'master');
@@ -863,17 +900,14 @@ if (!CMD) {
             }
             break;
         case "undeploy":
-            initAVOSCloudSDK();
             logProjectHome();
             undeployCloudCode();
             break;
         case "publish":
-            initAVOSCloudSDK();
             logProjectHome();
             publishCloudCode();
             break;
         case "status":
-            initAVOSCloudSDK();
             logProjectHome();
             queryStatus();
             break;
@@ -881,7 +915,6 @@ if (!CMD) {
             createNewProject();
             break;
         case 'logs':
-            initAVOSCloudSDK();
             logProjectHome();
             viewCloudLog();
             break;

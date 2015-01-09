@@ -1,6 +1,6 @@
 {
   "name": "avoscloud-code",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "main": "./lib/cloud_code.js",
   "description": "AVOS Cloud Code SDK.",
   "repository": {
@@ -18,7 +18,7 @@
     "url": "https://github.com/avoscloud/avoscloud-code-command/issues"
   },
   "dependencies": {
-    "adm-zip": "0.4.4",
+    "decompress-zip": "0.1.0",
     "archiver": "0.13.0",
     "async": "0.9.0",
     "avos-lock": "latest",
