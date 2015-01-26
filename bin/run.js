@@ -158,6 +158,7 @@ function deployLocalCloudCode(cloudPath) {
         var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
         var output = fs.createWriteStream(file);
         var archive = archiver('zip');
+        var config = require(cloudPath+'/package.json').leancloud || {};
 
         output.on('close', function() {
             console.log("Wrote compressed file " + file + ' ...');
@@ -187,6 +188,7 @@ function deployLocalCloudCode(cloudPath) {
                         },
                         error: function(err) {
                             console.log("Sorry, try to deploy cloud code failed with '%s'", err.responseText);
+                            process.exit(1);
                         }
                     }, true);
                 }
@@ -200,10 +202,26 @@ function deployLocalCloudCode(cloudPath) {
 
         archive.pipe(output);
         archive.bulk([
-          { src: ['package.json', 'cloud/**', 'config/**', 'public/**']}
+          { src: ['package.json', 'cloud/**', 'config/**', 'public/**'].concat(add_glob(config.deploy || []))}
         ]);
         archive.finalize();
     });
+    
+    function add_glob(arr){
+        return arr.map(function (file){
+            if(!fs.existsSync(file)){
+                return false;
+            }
+            file = file.replace(/\/+$/g,'');
+            if(fs.lstatSync(file).isDirectory()){
+                return file+'/**';
+            }else{
+                return file
+            }
+        }).filter(function (file){
+            return file;
+        });
+    }
 }
 
 function deployGitCloudCode(revision) {
