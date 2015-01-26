@@ -30,7 +30,10 @@ var runjs = path.join(path.dirname(fs.realpathSync(__filename)), 'run.js');
 
 if(CMD) {
     args.unshift(runjs);
-    childProcess.spawn('node', args ,{stdio: 'inherit'});
+    var run = childProcess.spawn('node', args ,{stdio: 'inherit'});
+    run.on('close', function(code) {
+        process.exit(code);
+    });
 } else {
     var monconfig = {
        "ignore": [

@@ -856,6 +856,19 @@ function doCloudQuery() {
     });
 }
 
+function doLint() {
+    console.log("linting ...");
+    var cmd = path.join(__dirname, '..', 'node_modules', 'jshint', 'bin', 'jshint') + ' cloud';
+    exec(cmd, function(err, stdout, stderr) {
+        console.log(stdout);
+        if (err) {
+            process.exit(err.code);
+        } else {
+            console.log('lint ok');
+        }
+    });
+}
+
 function logProjectHome() {
     console.log('[INFO]: Cloud Code Project Home Directory: ' + color.green(CLOUD_PATH));
     var apps = readAppsSync();
@@ -868,7 +881,7 @@ function logProjectHome() {
     }
 }
 //Query lastet commandline version.
-queryLatestVersion()
+queryLatestVersion();
 //Send statistics data.
 sendStats(CMD);
 //Execute command.
@@ -964,8 +977,11 @@ if (!CMD) {
             checkoutApp(name);
             break;
         case "cql":
-           doCloudQuery();
-           break;
+            doCloudQuery();
+            break;
+        case "lint":
+            doLint();
+            break;
         default:
             program.help();
             break;
