@@ -187,6 +187,7 @@ function deployLocalCloudCode(cloudPath) {
                         },
                         error: function(err) {
                             console.log("Sorry, try to deploy cloud code failed with '%s'", err.responseText);
+                            process.exit(1);
                         }
                     }, true);
                 }
