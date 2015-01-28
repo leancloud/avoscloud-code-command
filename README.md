@@ -21,7 +21,6 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 * 2015-01-09 发布 0.6.3，修复 Windows 环境无法创建项目的 Bug、修复可能的 401 错误、修复 CQL 无法执行 count 查询的 Bug  等。
 * 2014-12-31 发布 0.6.2，增加 `cql` 命令和修复 `avos-express-cookie-session` 插件用户登出无效的 Bug。
 * 2014-12-26 发布 0.6.0，修正新版本查询 Bug。
-* 2014-12-26 发布 0.5.2 正式版本，修复 webHosting user 串号问题，增加 req.AV.user 对象，使用 nodemon 监视文件变更自动热加载。
 
 ## 说明
 
@@ -115,7 +114,13 @@ curl -X POST -H 'Content-Type:application/json' \
 
 如果您输入错误的 master key 或者在公共机器上运行本命令行工具，可手工删除该文件。
 
+## 贡献者
+
+感谢下列用户提交的 Patch:
+
+* [GongT](https://github.com/GongT)
+
 ## CopyRight
 
 * License: [GNU LGPL](https://www.gnu.org/licenses/lgpl.html).
-* Author: Dennis Zhuang（xzhuang@avoscloud.com）
+* Author: LeanCloud.cn (support@leancloud.cn)
