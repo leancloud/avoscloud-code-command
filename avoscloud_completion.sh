@@ -58,7 +58,7 @@ _avoscloud()
           -P -t -r ' -- "$cur" ) )
         return 0
     else
-        COMPREPLY=( $( compgen -W 'deploy undeploy status search
+        COMPREPLY=( $( compgen -W 'deploy undeploy status search lint
             publish new logs clear upload app checkout add rm cql
            ' -- "$cur" ) )
         return 0
