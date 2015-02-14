@@ -41,9 +41,7 @@ if(CMD) {
             "node_modules/**/node_modules"
          ],
          "watch": [
-             "public/",
-             "cloud/",
-             "config/",
+             "cloud/"
          ],
        "ext": "js json",
        "script": runjs,
