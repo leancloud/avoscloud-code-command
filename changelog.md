@@ -1,3 +1,7 @@
+## v0.6.5
+* nodemon 只监视 `cloud` 目录。
+* 升级提示增加 changelog 提示。
+
 ## v0.6.4
 * 增加 `AV.Cloud.onLogin` 方法
 * 增加 `moment-timezone` 默认第三方库。
