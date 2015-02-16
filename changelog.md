@@ -1,6 +1,7 @@
 ## v0.6.5
 * nodemon 只监视 `cloud` 目录。
 * 升级提示增加 changelog 提示。
+* 修复非 webhosting 项目无法测试登录用户的 Bug
 
 ## v0.6.4
 * 增加 `AV.Cloud.onLogin` 方法
