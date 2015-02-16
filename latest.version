@@ -1,3 +1,4 @@
 {
-  "version": "0.6.4"
+  "version": "0.6.5",
+  "changelog": "1.nodemon 只监视 cloud 目录。\n2.升级提示增加 changelog 提示。\n3.修复非 webhosting 项目无法测试登录用户的 Bug"
 }

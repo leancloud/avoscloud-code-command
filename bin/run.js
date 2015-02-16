@@ -707,8 +707,9 @@ function queryLatestVersion(){
 				  function(resp){
 					  try{
 						  var latestVersion = resp.version;
+						  var changelog = resp.changelog || '1.内部重构';
 						  if(latestVersion.localeCompare(version) > 0){
-							  console.warn("[WARN] 发现新版本 %s, 您可以通过下列命令升级： sudo npm install -g avoscloud-code", latestVersion);
+							  console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g avoscloud-code"), latestVersion, changelog);
 						  }
 					  }catch(err){
 						  //ignore
