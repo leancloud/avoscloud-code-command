@@ -18,7 +18,7 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
 
-* 2015-02-16 发布 0.6.5，nodemon 只监视 `cloud` 目录，增加升级变更提示等。
+* 2015-02-16 发布 0.6.5，nodemon 只监视 `cloud` 目录，增加升级变更提示，修复无法运行在 io.js 等 Bug。
 * 2015-02-13 发布 0.6.4，增加 lint 命令，增加 `AV.Cloud.onLogin` hook 等。
 * 2015-01-09 发布 0.6.3，修复 Windows 环境无法创建项目的 Bug、修复可能的 401 错误、修复 CQL 无法执行 count 查询的 Bug  等。
 * 2014-12-31 发布 0.6.2，增加 `cql` 命令和修复 `avos-express-cookie-session` 插件用户登出无效的 Bug。
