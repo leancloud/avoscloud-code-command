@@ -3,3 +3,4 @@ node_modules/
 .avoscloud/
 *~
 *.swp
+.idea
