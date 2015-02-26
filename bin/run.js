@@ -25,6 +25,7 @@ var DecompressZip = require('decompress-zip');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
+var nodeUtil = require('util');
 var sprintf = require("sprintf-js").sprintf;
 var promptly = require('promptly');
 var mime = require('mime');
@@ -510,7 +511,7 @@ function importFile(f, realPath, cb) {
             }, function(err, url, objectId) {
                 if (err) {
                     destroyFile(objectId);
-                    cb('Upload ' + realPath + ' fails with error: %j', err);
+                    cb(nodeUtil.format('Upload ' + realPath + ' fails with error: %j', err));
                 } else {
                     console.log('Uploads ' + realPath + ' successfully at: ' + url);
                     cb();
