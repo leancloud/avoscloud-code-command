@@ -1,4 +1,4 @@
 {
-  "version": "0.6.6",
+  "version": "0.6.7",
   "changelog": "\n1.修复 AV.Cloud.run 没有运行本地函数的 Bug。\n2.修复调试界面传入 JSON 数据类型错误的 Bug。\n3.修复部署上传文件失败时错误信息不正确的Bug。\n"
 }
