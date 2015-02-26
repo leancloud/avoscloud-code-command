@@ -111,12 +111,12 @@ function destroyFile(objectId) {
     }
 }
 
-function uploadFile(localFile, props, cb, retry, retries) {
+function uploadFile(localFile, props, cb, retry, retries, lastErr) {
     //Retried too many times, report error.
     if (retries && retries > 3) {
         console.warn("Faild to upload a file after retrying 3 times...give up : " + localFile);
         if (cb) {
-            cb(err);
+            cb(lastErr);
         }
         return;
     }
@@ -143,7 +143,7 @@ function uploadFile(localFile, props, cb, retry, retries) {
             if (retry) {
                 if (retries == null)
                     retries = 0;
-                uploadFile(localFile, props, cb, retry, retries + 1);
+                uploadFile(localFile, props, cb, retry, retries + 1, err);
             } else {
                 if (cb) {
                     cb(err);
@@ -511,7 +511,11 @@ function importFile(f, realPath, cb) {
             }, function(err, url, objectId) {
                 if (err) {
                     destroyFile(objectId);
-                    cb(nodeUtil.format('Upload ' + realPath + ' fails with error: %j', err));
+                    if(_.isError(err)) {
+                      cb(nodeUtil.format('Upload ' + realPath + ' fails with error: %s', err));
+                    } else {
+                      cb(nodeUtil.format('Upload ' + realPath + ' fails with error: %j', err));
+                    }
                 } else {
                     console.log('Uploads ' + realPath + ' successfully at: ' + url);
                     cb();
