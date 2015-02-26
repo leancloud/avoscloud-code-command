@@ -54,7 +54,7 @@
     "sprintf-js": "0.0.7",
     "stripe": "2.5.0",
     "tar": "0.1.19",
-    "underscore": "1.6.0",
+    "underscore": "1.8.2",
     "underscore.string": "2.3.3",
     "weibo": "0.6.9",
     "xml2js": "0.4.4"
