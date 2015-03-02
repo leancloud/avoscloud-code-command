@@ -18,6 +18,7 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
 
+* 2015-03-02 发布 v0.6.8，紧急修复调试界面
 * 2015-02-26 发布 0.6.7，一些 Bug 修复
 * 2015-02-16 发布 0.6.5，nodemon 只监视 `cloud` 目录，增加升级变更提示，修复无法运行在 io.js 等 Bug。
 * 2015-02-13 发布 0.6.4，增加 lint 命令，增加 `AV.Cloud.onLogin` hook 等。
