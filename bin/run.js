@@ -25,6 +25,7 @@ var DecompressZip = require('decompress-zip');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
+var nodeUtil = require('util');
 var sprintf = require("sprintf-js").sprintf;
 var promptly = require('promptly');
 var mime = require('mime');
@@ -110,12 +111,12 @@ function destroyFile(objectId) {
     }
 }
 
-function uploadFile(localFile, props, cb, retry, retries) {
+function uploadFile(localFile, props, cb, retry, retries, lastErr) {
     //Retried too many times, report error.
     if (retries && retries > 3) {
         console.warn("Faild to upload a file after retrying 3 times...give up : " + localFile);
         if (cb) {
-            cb(err);
+            cb(lastErr);
         }
         return;
     }
@@ -142,7 +143,7 @@ function uploadFile(localFile, props, cb, retry, retries) {
             if (retry) {
                 if (retries == null)
                     retries = 0;
-                uploadFile(localFile, props, cb, retry, retries + 1);
+                uploadFile(localFile, props, cb, retry, retries + 1, err);
             } else {
                 if (cb) {
                     cb(err);
@@ -527,7 +528,11 @@ function importFile(f, realPath, cb) {
             }, function(err, url, objectId) {
                 if (err) {
                     destroyFile(objectId);
-                    cb('Upload ' + realPath + ' fails with error: %j', err);
+                    if(_.isError(err)) {
+                      cb(nodeUtil.format('Upload ' + realPath + ' fails with error: %s', err));
+                    } else {
+                      cb(nodeUtil.format('Upload ' + realPath + ' fails with error: %j', err));
+                    }
                 } else {
                     console.log('Uploads ' + realPath + ' successfully at: ' + url);
                     cb();
@@ -724,8 +729,9 @@ function queryLatestVersion(){
 				  function(resp){
 					  try{
 						  var latestVersion = resp.version;
+						  var changelog = resp.changelog || '1.内部重构';
 						  if(latestVersion.localeCompare(version) > 0){
-							  console.warn("[WARN] 发现新版本 %s, 您可以通过下列命令升级： sudo npm install -g avoscloud-code", latestVersion);
+							  console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g avoscloud-code"), latestVersion, changelog);
 						  }
 					  }catch(err){
 						  //ignore
@@ -874,6 +880,19 @@ function doCloudQuery() {
     });
 }
 
+function doLint() {
+    console.log("linting ...");
+    var cmd = path.join(__dirname, '..', 'node_modules', 'jshint', 'bin', 'jshint') + ' cloud';
+    exec(cmd, function(err, stdout, stderr) {
+        console.log(stdout);
+        if (err) {
+            process.exit(err.code);
+        } else {
+            console.log('lint ok');
+        }
+    });
+}
+
 function logProjectHome() {
     console.log('[INFO]: Cloud Code Project Home Directory: ' + color.green(CLOUD_PATH));
     var apps = readAppsSync();
@@ -886,7 +905,7 @@ function logProjectHome() {
     }
 }
 //Query lastet commandline version.
-queryLatestVersion()
+queryLatestVersion();
 //Send statistics data.
 sendStats(CMD);
 //Execute command.
@@ -982,8 +1001,11 @@ if (!CMD) {
             checkoutApp(name);
             break;
         case "cql":
-           doCloudQuery();
-           break;
+            doCloudQuery();
+            break;
+        case "lint":
+            doLint();
+            break;
         default:
             program.help();
             break;

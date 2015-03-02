@@ -21,6 +21,7 @@ exports.parse_args = function(argv){
           "checkout <app>: 切换到一个应用，deploy、status 等命令将运行在该应用上。\n    " +
           "add <app>: 添加一个应用。\n    " +
           "rm <app>: 移除一个应用。\n    " +
+          "lint: 静态检查代码错误。\n    " +
           "cql: 进入 CQL 查询交互。")
       .option('-f, --filepath <path>', '本地云代码项目根路径，默认是当前目录。')
       .option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')

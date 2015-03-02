@@ -55,11 +55,11 @@ _avoscloud()
 
     if [[ "$cur" == -* ]]; then
         COMPREPLY=( $( compgen -W '-h -V -g -p -l -o -n
-          -t -r ' -- "$cur" ) )
+          -P -t -r ' -- "$cur" ) )
         return 0
     else
-        COMPREPLY=( $( compgen -W 'deploy undeploy status search
-            publish new logs clear upload app checkout add rm
+        COMPREPLY=( $( compgen -W 'deploy undeploy status search lint
+            publish new logs clear upload app checkout add rm cql
            ' -- "$cur" ) )
         return 0
     fi
