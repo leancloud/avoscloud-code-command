@@ -188,6 +188,11 @@ function deployLocalCloudCode(cloudPath) {
                             queryStatus();
                         },
                         error: function(err) {
+	                        if(!err.responseText){
+		                        console.log("Sorry, failed to deploy cloud code failed with error");
+		                        console.log(err)
+		                        process.exit(1);
+	                        }
 	                        try{
 		                        var eobj = JSON.parse(err.responseText);
 		                        console.log("Sorry, failed to deploy cloud code failed with error %d\n%s", eobj.code, eobj.error);
@@ -197,7 +202,7 @@ function deployLocalCloudCode(cloudPath) {
 	                        var isHtml = /<title>([\s\S]+)<\/title>/i;
 	                        if(isHtml.test(err.responseText)){
 		                        var title = isHtml.exec(err.responseText);
-		                        console.log("Sorry, try to deploy cloud code failed with '%s'", title[0]);
+		                        console.log("Sorry, try to deploy cloud code failed with '%s'", title[1]);
 	                        } else{
 		                        console.log("Sorry, try to deploy cloud code failed with '%s'", err.responseText);
 	                        }
