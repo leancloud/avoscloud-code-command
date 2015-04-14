@@ -51,6 +51,27 @@ function exitWith(err) {
     process.exit(1);
 }
 
+function print_response_error(action, err){
+	if(!err.responseText){
+		console.log("Sorry, %s failed with error", action);
+		console.log(err);
+		process.exit(1);
+	}
+	try{
+		var eobj = JSON.parse(err.responseText);
+		console.log("Sorry, %s failed with error %d\n%s", action, eobj.code, eobj.error);
+		process.exit(1);
+	} catch(e){
+	}
+	var isHtml = /<title>([\s\S]+)<\/title>/i;
+	if(isHtml.test(err.responseText)){
+		var title = isHtml.exec(err.responseText);
+		console.log("Sorry, %s failed with '%s'", action, title[1]);
+	} else{
+		console.log("Sorry, %s failed with '%s'", action, err.responseText);
+	}
+}
+
 /**
  * Tried to get user's home directory by environment variable.
  */
@@ -171,7 +192,7 @@ function deployLocalCloudCode(cloudPath) {
                 mime_type: 'application/zip, application/octet-stream'
             }, function(err, url, fileId) {
                 if (err) {
-                    console.error("Upload cloud code files failed with '%j'", err.responseText);
+	                print_response_error("Upload cloud code files", err);
                     destroyFile(fileId);
                     process.exit(1);
                 } else {
@@ -187,26 +208,9 @@ function deployLocalCloudCode(cloudPath) {
                             queryStatus();
                         },
                         error: function(err) {
-	                        if(!err.responseText){
-		                        console.log("Sorry, failed to deploy cloud code failed with error");
-		                        console.log(err)
-		                        process.exit(1);
+	                        print_response_error("Deploy cloud code", err);
+	                        process.exit(128);
 	                        }
-	                        try{
-		                        var eobj = JSON.parse(err.responseText);
-		                        console.log("Sorry, failed to deploy cloud code failed with error %d\n%s", eobj.code, eobj.error);
-		                        process.exit(1);
-	                        } catch(e){
-	                        }
-	                        var isHtml = /<title>([\s\S]+)<\/title>/i;
-	                        if(isHtml.test(err.responseText)){
-		                        var title = isHtml.exec(err.responseText);
-		                        console.log("Sorry, try to deploy cloud code failed with '%s'", title[1]);
-	                        } else{
-		                        console.log("Sorry, try to deploy cloud code failed with '%s'", err.responseText);
-	                        }
-	                        process.exit(1);
-                        }
                     }, true);
                 }
             }, false);
@@ -236,7 +240,8 @@ function deployGitCloudCode(revision) {
                 queryStatus();
             },
             error: function(err) {
-                console.log("Deployed cloud code from git repository failed with '%j'", err.responseText);
+                print_response_error("Deployed cloud code from git repository", err);
+	            process.exit(129);
             }
         }, true);
     });
@@ -260,7 +265,8 @@ function publishCloudCode() {
                 outputStatus(resp);
             },
             error: function(err) {
-                console.log("Published cloud code failed with '%j'", err.responseText);
+	            print_response_error("Published cloud code", err);
+	            process.exit(130);
             }
         }, true);
     });
@@ -274,7 +280,8 @@ function queryStatus() {
                 outputStatus(resp);
             },
             error: function(err) {
-                console.log("Query cloud code status failed with '%j'", err.responseText);
+	            print_response_error("Query cloud code status", err);
+	            process.exit(131);
             }
         }, true);
     });
@@ -288,7 +295,8 @@ function undeployCloudCode() {
                 queryStatus();
             },
             error: function(err) {
-                console.log("Undeployed cloud code status failed with '%j'", err.responseText);
+	            print_response_error("Undeployed cloud code", err);
+	            process.exit(132);
             }
         }, true);
     });
@@ -407,7 +415,8 @@ function viewCloudLog(lastLogUpdatedTime) {
                 }
             },
             error: function(err) {
-                console.log("Queried cloud code logs failed with '%j'", err.responseText);
+	            print_response_error("Queried cloud code logs", err);
+	            process.exit(133);
             }
         }, true);
     });
