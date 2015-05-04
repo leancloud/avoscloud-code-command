@@ -174,6 +174,40 @@ function uploadFile(localFile, props, cb, retry, retries, lastErr) {
     });
 }
 
+function loopLogs(opsToken, done) {
+  var start = null;
+  var moreData = true;
+  var doLoop = function() {
+    var url = 'functions/_ops/progressive/' + opsToken;
+    if (start) {
+      url += '?start=' + start;
+    }
+    util.requestCloud(url, {}, 'GET', {
+      success: function(res) {
+        moreData = res.moreData;
+        res.logs.forEach(function(logInfo) {
+          console.log('%s %s %s', new Date(logInfo.createdAt).toLocaleString(), logInfo.level, logInfo.content)
+          start = logInfo.createdAt;
+        });
+        if (moreData) {
+          setTimeout(function() {
+            doLoop();
+          }, 1000);
+        } else {
+          done();
+        }
+      },
+      error: function(err) {
+        console.log(err)
+      }
+    }, true);
+  };
+  // 等待部署开始日志入库
+  setTimeout(function() {
+    doLoop();
+  }, 3000);
+}
+
 function deployLocalCloudCode(cloudPath) {
     initMasterKey(function() {
         console.log("Compress cloud code files...");
@@ -198,14 +232,16 @@ function deployLocalCloudCode(cloudPath) {
                 } else {
                     console.log("Upload cloud code files successfully. Begin to deploy...");
                     //notify avoscloud platform to fetch new deployment.
-                    util.requestCloud('functions/deploy/command', {
+                    util.requestCloud('functions/_ops/deployByCommand', {
                         revision: url,
                         fileId: fileId,
                         log: program.log
                     }, 'POST', {
                         success: function(resp) {
-                            console.log("Congrats! Deploy cloud code successfully.");
-                            queryStatus();
+                            loopLogs(resp.opsToken, function() {
+                                console.log("Congrats! Deploy cloud code successfully.");
+                                queryStatus();
+                            });
                         },
                         error: function(err) {
 	                        print_response_error("Deploy cloud code", err);
@@ -232,12 +268,14 @@ function deployLocalCloudCode(cloudPath) {
 function deployGitCloudCode(revision) {
     initMasterKey(function() {
         console.log('Deploy cloud code from git repository...');
-        util.requestCloud('functions/deploy/command', {
+        util.requestCloud('functions/_ops/deployByCommand', {
             url: program.giturl
         }, 'POST', {
             success: function(resp) {
-                console.log("Congrats! Deploy cloud code from git repository successfully.");
-                queryStatus();
+                loopLogs(resp.opsToken, function() {
+                    console.log("Congrats! Deploy cloud code from git repository successfully.");
+                    queryStatus();
+                })
             },
             error: function(err) {
                 print_response_error("Deployed cloud code from git repository", err);
@@ -259,10 +297,12 @@ function outputStatus(status) {
 function publishCloudCode() {
     initMasterKey(function() {
         console.log('Publishing cloud code to production...');
-        util.requestCloud('functions/publishFunctions', {}, 'GET', {
+        util.requestCloud('functions/_ops/publish', {}, 'POST', {
             success: function(resp) {
-                console.log("Published cloud code successfully. Current status is: ");
-                outputStatus(resp);
+                loopLogs(resp.opsToken, function() {
+                    console.log("Published cloud code successfully. Current status is: ");
+                    queryStatus();
+                })
             },
             error: function(err) {
 	            print_response_error("Published cloud code", err);
