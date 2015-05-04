@@ -186,7 +186,7 @@ function loopLogs(opsToken, done) {
       success: function(res) {
         moreData = res.moreData;
         res.logs.forEach(function(logInfo) {
-          console.log('%s %s %s', new Date(logInfo.createdAt).toLocaleString(), logInfo.level, logInfo.content)
+          console.log('%s [%s] %s', new Date(logInfo.createdAt).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content)
           start = logInfo.createdAt;
         });
         if (moreData) {
