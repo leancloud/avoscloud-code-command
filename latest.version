@@ -1,4 +1,4 @@
 {
-  "version": "0.6.8",
-  "changelog": "\n1.紧急修复调试界面，感谢用户 GongT。\n"
+  "version": "0.7.0",
+  "changelog": "\n1.增加 --debug 选项。\n2.改进部署过程\n3.改进错误提示\n4.修复 -r 选项\5.修复其他一些 API Bug。\n"
 }
