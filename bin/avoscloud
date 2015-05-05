@@ -35,7 +35,12 @@ if(CMD) {
         process.exit(code);
     });
 } else {
+    var exec= 'node';
+    if(program.debug) {
+      exec = 'node debug';
+    }
     var monconfig = {
+       "exec": exec,
        "ignore": [
             ".git",
             "node_modules/**/node_modules"

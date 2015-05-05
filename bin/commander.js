@@ -24,6 +24,7 @@ exports.parse_args = function(argv){
           "lint: 静态检查代码错误。\n    " +
           "cql: 进入 CQL 查询交互。")
       .option('-f, --filepath <path>', '本地云代码项目根路径，默认是当前目录。')
+      .option('-d, --debug', '启用 Debug 模式，参见 https://nodejs.org/api/debugger.html。')
       .option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')
       .option('-p, --project <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
       .option('-l, --local', '使用本地代码部署云代码，该选项是默认选中。')
