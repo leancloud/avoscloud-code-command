@@ -1,6 +1,5 @@
-# `avoscloud-code`
 
-## 重要通知
+## 介绍
 
 **Windows 系统用户请确保安装 Node.js 在系统盘 C 盘，否则命令行工具无法正常运行。**
 
@@ -20,6 +19,7 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
 
+* 2015-05-05 发布 v0.7.0，改进部署日志和错误信息提示，增加 `--debug` 开关等。
 * 2015-03-02 发布 v0.6.8，紧急修复调试界面
 * 2015-02-26 发布 0.6.7，一些 Bug 修复
 * 2015-02-16 发布 0.6.5，nodemon 只监视 `cloud` 目录，增加升级变更提示，修复无法运行在 io.js 等 Bug。
