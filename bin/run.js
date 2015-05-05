@@ -269,6 +269,7 @@ function deployGitCloudCode(revision) {
     initMasterKey(function() {
         console.log('Deploy cloud code from git repository...');
         util.requestCloud('functions/_ops/deployByCommand', {
+            after: revision,
             url: program.giturl
         }, 'POST', {
             success: function(resp) {
