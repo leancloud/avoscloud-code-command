@@ -54,7 +54,7 @@ _avoscloud()
     esac
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=( $( compgen -W '-h -V -g -p -l -o -n
+        COMPREPLY=( $( compgen -W '-h -V -g -p -l -o -n -d
           -P -t -r ' -- "$cur" ) )
         return 0
     else
