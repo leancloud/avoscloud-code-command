@@ -219,7 +219,7 @@ function loopLogs(opsToken, cb) {
   }, 3000);
 }
 
-exports.deployLocalCloudCode = function (cloudPath, deployLog, cb) {
+exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) {
     initMasterKey(function() {
         console.log("Compress cloud code files...");
         var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
@@ -269,9 +269,7 @@ exports.deployLocalCloudCode = function (cloudPath, deployLog, cb) {
         });
 
         archive.pipe(output);
-        archive.bulk([
-          { src: ['package.json', 'cloud/**', 'config/**', 'public/**']}
-        ]);
+        archive.bulk(runtimeInfo.bulk());
         archive.finalize();
     });
 }
