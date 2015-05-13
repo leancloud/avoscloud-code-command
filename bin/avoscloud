@@ -29,24 +29,24 @@ var callback = function(err){
 
   var exitCode = err.exitCode || 1;
   var responseText = err.cause.responseText;
-	if(!responseText){
-		console.log("Sorry, %s failed with error", err.action);
-		console.log(err.cause);
-		process.exit(exitCode);
-	}
-	try{
-		var eobj = JSON.parse(responseText);
-		console.log("Sorry, %s failed with error %d\n%s", err.action, eobj.code, eobj.error);
-		process.exit(exitCode);
-	} catch(e){
-	}
-	var isHtml = /<title>([\s\S]+)<\/title>/i;
-	if(isHtml.test(responseText)){
-		var title = isHtml.exec(responseText);
-		console.log("Sorry, %s failed with '%s'", err.action, title[1]);
-	} else{
-		console.log("Sorry, %s failed with '%s'", err.action, responseText);
-	}
+  if(!responseText){
+    console.log("Sorry, %s failed with error", err.action);
+    console.log(err.cause);
+    process.exit(exitCode);
+  }
+  try{
+    var eobj = JSON.parse(responseText);
+    console.log("Sorry, %s failed with error %d\n%s", err.action, eobj.code, eobj.error);
+    process.exit(exitCode);
+  } catch(e){
+  }
+  var isHtml = /<title>([\s\S]+)<\/title>/i;
+  if(isHtml.test(responseText)){
+    var title = isHtml.exec(responseText);
+    console.log("Sorry, %s failed with '%s'", err.action, title[1]);
+  } else{
+    console.log("Sorry, %s failed with '%s'", err.action, responseText);
+  }
   process.exit(exitCode);
 }
 
@@ -56,7 +56,7 @@ var CMD = program.args[0];
 var CLOUD_PATH = path.resolve(program.filepath || '.');
 
 if (!CLOUD_PATH.match(/.*\/$/)) {
-    CLOUD_PATH = CLOUD_PATH + path.sep;
+  CLOUD_PATH = CLOUD_PATH + path.sep;
 }
 
 process.chdir(CLOUD_PATH);
@@ -72,115 +72,115 @@ run.queryLatestVersion();
 run.sendStats(CMD);
 //Execute command.
 
-if(CMD) {
-  switch (CMD) {
-    case "search":
-      if (!program.args[1]) {
-        console.log("Usage: avoscloud search <关键字>");
-        process.exit(1);
-      }
-      program.args.shift();
-      exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
-      callback();
-      break;
-    case "deploy":
-      run.logProjectHome();
-      if (program.git) {
-        run.deployGitCloudCode(program.revision || 'master', program.giturl, callback);
-      } else {
-        if (path.resolve(CLOUD_PATH) != path.resolve('.'))
-          return exitWith("'avoscloud deploy' must be run in a cloud code project directory.");
-        run.deployLocalCloudCode(CLOUD_PATH, program.log, callback);
-      }
-      break;
-    case "undeploy":
-      run.logProjectHome();
-      run.undeployCloudCode(callback);
-      break;
-    case "publish":
-      run.logProjectHome();
-      run.publishCloudCode(callback);
-      break;
-    case "status":
-      run.logProjectHome();
-      run.queryStatus(callback);
-      break;
-    case 'new':
-      run.createNewProject(callback);
-      break;
-    case 'logs':
-      run.logProjectHome();
-      run.viewCloudLog(program.lines, program.tailf, null, callback);
-      break;
-    case "clear":
-      run.deleteMasterKeys();
-      callback();
-      break;
-    case "upload":
-      run.initAVOSCloudSDK();
-      run.logProjectHome();
-      if (!program.args[1]) {
-        console.log("Usage: avoscloud upload <文件或目录>");
-        process.exit(1);
-      }
-      program.args.shift();
-      run.importFiles(program.args, function(err) {
-        if (err)
-          console.log(err);
-      }, callback);
-      break;
-    case "app":
-      //app <list>
-      var isList = program.args[1] == 'list';
-      run.appStatus(isList);
-      callback();
-      break;
-    case "add":
-      // add <name> <app id>
-      var name = program.args[1];
-      var appId = program.args[2];
-      if (!name)
-        return exitWith("Usage: avoscloud add <name> <app id>");
-      if (!appId)
-        return exitWith("Usage: avoscloud add <name> <app id>");
-      run.addApp(name, appId);
-      callback();
-      break;
-    case "rm":
-      //rm <name>
-      var name = program.args[1];
-      if (!name)
-        return exitWith("Usage: avoscloud rm <name>");
-      run.removeApp(name);
-      callback();
-      break;
-    case "checkout":
-      //checkout <name>
-      var name = program.args[1];
-      if (!name)
-        return exitWith("Usage: avoscloud checkout <name>");
-      run.checkoutApp(name);
-      callback();
-      break;
-    case "cql":
-      run.doCloudQuery(callback);
-      break;
-    case "lint":
-      run.doLint();
-      callback();
-      break;
-    default:
-      program.help();
-      break;
-  }
-} else {
-    runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
-        runtimeInfo.setDebug(program.debug);
-        var monconfig = runtimeInfo.getMonconfig(args);
-        console.log(color.green('提示：您可以敲入 rs 命令并回车来重启本进程'));
-        nodemon(monconfig);
-        nodemon.on('restart', function (files) {
-            console.log('[INFO]: avoscloud restarted due to: ', files);
-        });
+runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
+  runtimeInfo.setDebug(program.debug);
+  if(CMD) {
+    switch (CMD) {
+      case "search":
+        if (!program.args[1]) {
+          console.log("Usage: avoscloud search <关键字>");
+          process.exit(1);
+        }
+        program.args.shift();
+        exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
+        callback();
+        break;
+      case "deploy":
+        run.logProjectHome();
+        if (program.git) {
+          run.deployGitCloudCode(program.revision || 'master', program.giturl, callback);
+        } else {
+          if (path.resolve(CLOUD_PATH) != path.resolve('.'))
+            return exitWith("'avoscloud deploy' must be run in a cloud code project directory.");
+          run.deployLocalCloudCode(runtimeInfo, CLOUD_PATH, program.log, callback);
+        }
+        break;
+      case "undeploy":
+        run.logProjectHome();
+        run.undeployCloudCode(callback);
+        break;
+      case "publish":
+        run.logProjectHome();
+        run.publishCloudCode(callback);
+        break;
+      case "status":
+        run.logProjectHome();
+        run.queryStatus(callback);
+        break;
+      case 'new':
+        run.createNewProject(callback);
+        break;
+      case 'logs':
+        run.logProjectHome();
+        run.viewCloudLog(program.lines, program.tailf, null, callback);
+        break;
+      case "clear":
+        run.deleteMasterKeys();
+        callback();
+        break;
+      case "upload":
+        run.initAVOSCloudSDK();
+        run.logProjectHome();
+        if (!program.args[1]) {
+          console.log("Usage: avoscloud upload <文件或目录>");
+          process.exit(1);
+        }
+        program.args.shift();
+        run.importFiles(program.args, function(err) {
+          if (err)
+            console.log(err);
+        }, callback);
+        break;
+      case "app":
+        //app <list>
+        var isList = program.args[1] == 'list';
+        run.appStatus(isList);
+        callback();
+        break;
+      case "add":
+        // add <name> <app id>
+        var name = program.args[1];
+        var appId = program.args[2];
+        if (!name)
+          return exitWith("Usage: avoscloud add <name> <app id>");
+        if (!appId)
+          return exitWith("Usage: avoscloud add <name> <app id>");
+        run.addApp(name, appId);
+        callback();
+        break;
+      case "rm":
+        //rm <name>
+        var name = program.args[1];
+        if (!name)
+          return exitWith("Usage: avoscloud rm <name>");
+        run.removeApp(name);
+        callback();
+        break;
+      case "checkout":
+        //checkout <name>
+        var name = program.args[1];
+        if (!name)
+          return exitWith("Usage: avoscloud checkout <name>");
+        run.checkoutApp(name);
+        callback();
+        break;
+      case "cql":
+        run.doCloudQuery(callback);
+        break;
+      case "lint":
+        run.doLint();
+        callback();
+        break;
+      default:
+        program.help();
+        break;
+    }
+  } else {
+    var monconfig = runtimeInfo.getMonconfig(args);
+    console.log(color.green('提示：您可以敲入 rs 命令并回车来重启本进程'));
+    nodemon(monconfig);
+    nodemon.on('restart', function (files) {
+        console.log('[INFO]: avoscloud restarted due to: ', files);
     });
-}
+  }
+});
