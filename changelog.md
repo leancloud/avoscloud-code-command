@@ -1,3 +1,6 @@
+## v0.7.1
+* 修复关闭 _File 表写入权限后无法正常通过本地部署云代码的 Bug。
+
 ## v0.7.0
 * 增加 `--debug` （简写`-d`）选项，启用 debug 模式，使用 [node debugger](https://nodejs.org/api/debugger.html)调试你的云代码。
 * 改进部署，打印更详细的部署步骤和日志，增强体验。
