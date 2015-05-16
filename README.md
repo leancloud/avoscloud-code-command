@@ -19,6 +19,7 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
 
+* 2015-05-16 发布 v0.7.1，修复关闭 _File 创建权限后无法本地部署云代码的 Bug。
 * 2015-05-05 发布 v0.7.0，改进部署日志和错误信息提示，增加 `--debug` 开关等。
 * 2015-03-02 发布 v0.6.8，紧急修复调试界面
 * 2015-02-26 发布 0.6.7，一些 Bug 修复
