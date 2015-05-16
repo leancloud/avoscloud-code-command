@@ -141,6 +141,10 @@ function uploadFile(localFile, props, cb, retry, retries, lastErr) {
         }
         return;
     }
+    if(props) {
+      //use master key to upload files.
+      props._MasterKey = AV.masterKey || AV.applicationKey;
+    }
     util.requestCloud("qiniu", props, 'POST', {
         success: function(resp) {
             var objectId = resp.objectId
