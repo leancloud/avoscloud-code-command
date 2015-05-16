@@ -1,4 +1,4 @@
 {
-  "version": "0.7.0",
-  "changelog": "\n1.增加 --debug 选项。\n2.改进部署过程\n3.改进错误提示\n4.修复 -r 选项\n5.修复其他一些 API Bug。\n"
+  "version": "0.7.1",
+  "changelog": "修复关闭 _File 创建权限后导致本地无法部署云代码的 Bug。\n"
 }
