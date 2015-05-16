@@ -779,7 +779,7 @@ function appStatus(list) {
 }
 function queryLatestVersion(){
 	try{
-		util.ajax('GET','https://raw.githubusercontent.com/leancloud/avoscloud-code-command/master/latest.version',{},
+		util.ajax('GET','https://download.leancloud.cn/sdk/cloud_code_commandline.json',{},
 				  function(resp){
 					  try{
 						  var latestVersion = resp.version;
