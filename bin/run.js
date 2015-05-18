@@ -44,32 +44,35 @@ if (!TMP_DIR.match(/.*\/$/)) {
 }
 
 var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "..", "package.json"))).version;
-var program = commander.parse_args(process.argv);
+
+var PROJECT = null;
+var CLOUD_PATH = path.resolve('.');
+var PORT = 3000;
+
+// 设置命令作用的 project
+exports.setProject = function(project) {
+  PROJECT = project;
+}
+
+exports.setCloudPath = function(cloudPath) {
+  CLOUD_PATH = cloudPath;
+}
+
+exports.setPort = function(port) {
+  PORT = port;
+}
 
 function exitWith(err) {
     console.error('[ERROR]: ' + err);
     process.exit(1);
 }
 
-function print_response_error(action, err){
-	if(!err.responseText){
-		console.log("Sorry, %s failed with error", action);
-		console.log(err);
-		process.exit(1);
-	}
-	try{
-		var eobj = JSON.parse(err.responseText);
-		console.log("Sorry, %s failed with error %d\n%s", action, eobj.code, eobj.error);
-		process.exit(1);
-	} catch(e){
-	}
-	var isHtml = /<title>([\s\S]+)<\/title>/i;
-	if(isHtml.test(err.responseText)){
-		var title = isHtml.exec(err.responseText);
-		console.log("Sorry, %s failed with '%s'", action, title[1]);
-	} else{
-		console.log("Sorry, %s failed with '%s'", action, err.responseText);
-	}
+errorCb = function(cb, exitCode, action, cause) {
+  var error = new Error();
+  error.action = action;
+  error.exitCode = exitCode;
+  error.cause = cause;
+  cb(error);
 }
 
 /**
@@ -82,7 +85,7 @@ function getUserHome() {
     return home;
 }
 
-function deleteMasterKeys() {
+exports.deleteMasterKeys = function() {
     var home = getUserHome();
     var avoscloudKeysFile = path.join(home, '.avoscloud_keys')
     console.log("删除 " + avoscloudKeysFile + " ...");
@@ -90,20 +93,20 @@ function deleteMasterKeys() {
     console.log("Clear done!");
 }
 
-function initMasterKey(done) {
-    var appId = getAppId(getCurrApp());
+exports.initMasterKey = initMasterKey = function(done) {
+    var currApp = getAppSync();
     var promptMasterKeyThenUpdate = function() {
         promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
             if (!answer || answer.trim() == '')
                 return exitWith("无效的 Master Key");
-            AV.initialize(appId, answer);
-            updateMasterKey(appId, answer, done, true);
+            AV.initialize(currApp.appId, answer);
+            updateMasterKey(currApp.appId, answer, done, true);
         });
     };
-    updateMasterKey(appId, null, function(existsMasterKey){
+    updateMasterKey(currApp.appId, null, function(existsMasterKey){
         if(existsMasterKey) {
             if(done) {
-                AV.initialize(appId, existsMasterKey);
+                AV.initialize(currApp.appId, existsMasterKey);
                 return done(existsMasterKey);
             }
         } else {
@@ -178,7 +181,7 @@ function uploadFile(localFile, props, cb, retry, retries, lastErr) {
     });
 }
 
-function loopLogs(opsToken, done) {
+function loopLogs(opsToken, cb) {
   var start = null;
   var moreData = true;
   var doLoop = function() {
@@ -189,16 +192,20 @@ function loopLogs(opsToken, done) {
     util.requestCloud(url, {}, 'GET', {
       success: function(res) {
         moreData = res.moreData;
+        err = null;
         res.logs.forEach(function(logInfo) {
           console.log('%s [%s] %s', new Date(logInfo.createdAt).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content)
           start = logInfo.createdAt;
+          if (logInfo.level.toLocaleUpperCase() === 'ERROR') {
+            err = logInfo.content;
+          }
         });
         if (moreData) {
           setTimeout(function() {
             doLoop();
           }, 1000);
         } else {
-          done();
+          cb(err);
         }
       },
       error: function(err) {
@@ -212,7 +219,7 @@ function loopLogs(opsToken, done) {
   }, 3000);
 }
 
-function deployLocalCloudCode(cloudPath) {
+exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) {
     initMasterKey(function() {
         console.log("Compress cloud code files...");
         var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
@@ -230,26 +237,27 @@ function deployLocalCloudCode(cloudPath) {
                 mime_type: 'application/zip, application/octet-stream'
             }, function(err, url, fileId) {
                 if (err) {
-	                print_response_error("Upload cloud code files", err);
-                    destroyFile(fileId);
-                    process.exit(1);
+                  destroyFile(fileId);
+                  errorCb(cb, 1, "Upload cloud code files", err)
                 } else {
                     console.log("Upload cloud code files successfully. Begin to deploy...");
                     //notify avoscloud platform to fetch new deployment.
                     util.requestCloud('functions/_ops/deployByCommand', {
                         revision: url,
                         fileId: fileId,
-                        log: program.log
+                        log: deployLog
                     }, 'POST', {
                         success: function(resp) {
-                            loopLogs(resp.opsToken, function() {
+                            loopLogs(resp.opsToken, function(err) {
+                                if (err) {
+                                    return errorCb(cb, 128, "Deploy cloud code", err);
+                                }
                                 console.log("Congrats! Deploy cloud code successfully.");
-                                queryStatus();
+                                queryStatus(cb);
                             });
                         },
                         error: function(err) {
-	                        print_response_error("Deploy cloud code", err);
-	                        process.exit(128);
+                          errorCb(cb, 128, "Deploy cloud code", err);
 	                        }
                     }, true);
                 }
@@ -257,34 +265,33 @@ function deployLocalCloudCode(cloudPath) {
         });
 
         archive.on('error', function(err) {
-            console.error("Compress cloud code files failed with '%s'", err);
-            process.exit(1);
+            errorCb(cb, 1, "Compress cloud code files", err);
         });
 
         archive.pipe(output);
-        archive.bulk([
-          { src: ['package.json', 'cloud/**', 'config/**', 'public/**']}
-        ]);
+        archive.bulk(runtimeInfo.bulk());
         archive.finalize();
     });
 }
 
-function deployGitCloudCode(revision) {
+exports.deployGitCloudCode = function (revision, giturl, cb) {
     initMasterKey(function() {
         console.log('Deploy cloud code from git repository...');
         util.requestCloud('functions/_ops/deployByCommand', {
             after: revision,
-            url: program.giturl
+            url: giturl
         }, 'POST', {
             success: function(resp) {
-                loopLogs(resp.opsToken, function() {
+                loopLogs(resp.opsToken, function(err) {
+                    if (err) {
+                        return errorCb(cb, 129, "Deployed cloud code from git repository", err);
+                    }
                     console.log("Congrats! Deploy cloud code from git repository successfully.");
-                    queryStatus();
+                    queryStatus(cb);
                 })
             },
             error: function(err) {
-                print_response_error("Deployed cloud code from git repository", err);
-	            process.exit(129);
+                errorCb(cb, 129, "Deployed cloud code from git repository", err);
             }
         }, true);
     });
@@ -299,25 +306,27 @@ function outputStatus(status) {
     console.log('------------------------------------------------------------------------');
 }
 
-function publishCloudCode() {
+exports.publishCloudCode = function(cb) {
     initMasterKey(function() {
         console.log('Publishing cloud code to production...');
         util.requestCloud('functions/_ops/publish', {}, 'POST', {
             success: function(resp) {
-                loopLogs(resp.opsToken, function() {
+                loopLogs(resp.opsToken, function(err) {
+                    if (err) {
+                        return errorCb(cb, 130, "Published cloud code", err);
+                    }
                     console.log("Published cloud code successfully. Current status is: ");
-                    queryStatus();
+                    queryStatus(cb);
                 })
             },
             error: function(err) {
-	            print_response_error("Published cloud code", err);
-	            process.exit(130);
+                errorCb(cb, 130, "Published cloud code", err);
             }
         }, true);
     });
 }
 
-function queryStatus() {
+exports.queryStatus = queryStatus = function(cb) {
     initMasterKey(function() {
         util.requestCloud('functions/status', {}, 'GET', {
             success: function(resp) {
@@ -325,37 +334,25 @@ function queryStatus() {
                 outputStatus(resp);
             },
             error: function(err) {
-	            print_response_error("Query cloud code status", err);
-	            process.exit(131);
+              errorCb(cb, 131, "Query cloud code status", err);
             }
         }, true);
     });
 }
 
-function undeployCloudCode() {
+exports.undeployCloudCode = function(cb) {
     initMasterKey(function() {
         util.requestCloud('functions/undeploy/repo', {}, 'POST', {
             success: function(resp) {
                 console.log("Undeployed cloud code successfully.");
-                queryStatus();
+                queryStatus(cb);
             },
             error: function(err) {
-	            print_response_error("Undeployed cloud code", err);
-	            process.exit(132);
+                errorCb(cb, 132, "Undeployed cloud code", err);
             }
         }, true);
     });
 }
-
-//Retrieves command-line arguments.
-var CMD = program.args[0];
-var CLOUD_PATH = path.resolve(program.filepath || '.');
-
-if (!CLOUD_PATH.match(/.*\/$/)) {
-    CLOUD_PATH = CLOUD_PATH + path.sep;
-}
-
-process.chdir(CLOUD_PATH);
 
 function input(info, cb, password) {
     var pcb = function(err, anwser) {
@@ -387,7 +384,7 @@ function getDeviceId() {
     }
 };
 
-function sendStats(cmd) {
+exports.sendStats = function(cmd) {
     try {
         var sessionId = util.guid();
         var timestamp = new Date().getTime();
@@ -432,8 +429,8 @@ function outputLogs(resp) {
     }
 }
 
-function viewCloudLog(lastLogUpdatedTime) {
-    var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (lastLogUpdatedTime ? 1000 : (program.lines || 10));
+exports.viewCloudLog = viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
+    var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (lastLogUpdatedTime ? 1000 : (lines || 10));
     if (lastLogUpdatedTime) {
         var where = {
             createdAt: {
@@ -452,16 +449,15 @@ function viewCloudLog(lastLogUpdatedTime) {
                     lastLogUpdatedTime = resp.results[0].createdAt;
                 }
                 outputLogs(resp);
-                if (program.tailf) {
+                if (tailf) {
                     //fetch log every 500 milliseconds.
                     setTimeout(function() {
-                        viewCloudLog(lastLogUpdatedTime);
+                        viewCloudLog(null, tailf, lastLogUpdatedTime, cb);
                     }, 500);
                 }
             },
             error: function(err) {
-	            print_response_error("Queried cloud code logs", err);
-	            process.exit(133);
+                errorCb(cb, 133, "Queried cloud code logs", err);
             }
         }, true);
     });
@@ -511,7 +507,7 @@ function updateMasterKey(appId, masterKey, done, force){
 /**
  *Creaet a new avoscloud cloud code project.
  */
-function createNewProject() {
+exports.createNewProject = function() {
     console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。")
     input("请输入应用的 Application ID: ", function(appId) {
         if (!appId || appId.trim() == '')
@@ -616,7 +612,7 @@ function importFile(f, realPath, cb) {
 /**
  * import files to avoscloud.
  */
-function importFiles(files, cb) {
+exports.importFiles = function (files, cb) {
     async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(f, cb) {
         var realPath = path.resolve(f);
         if (fs.existsSync(realPath)) {
@@ -627,18 +623,15 @@ function importFiles(files, cb) {
     }, cb);
 }
 
-function initAVOSCloudSDK(done) {
-    var currApp = getCurrApp();
-    var appId = getAppId(currApp);
-    if (currApp == null || currApp === '' || appId == null || appId === '')
-         return exitWith("当前目录找不到有效的 LeanCloud 云代码应用运行 '" + CMD + "' 命令。");
+exports.initAVOSCloudSDK = initAVOSCloudSDK = function (done) {
+    var currApp = getAppSync();
     var globalConfig = path.join(CLOUD_PATH, 'config/global.json');
-    if (fs.existsSync(globalConfig)) {
+    if (fs.existsSync(globalConfig)) { // TODO 不需要从 global 文件初始化 AV 对象
         //try to initialize avoscloud sdk with config/gloabl.json
         var data = JSON.parse(fs.readFileSync(globalConfig, {
             encoding: 'utf-8'
         }));
-        if (data && data.applicationId === appId)
+        if (data && data.applicationId === currApp.appId)
             AV.initialize(data.applicationId, data.applicationKey);
     }
     initMasterKey(function(masterKey) {
@@ -647,7 +640,7 @@ function initAVOSCloudSDK(done) {
             var data = JSON.parse(fs.readFileSync(globalConfig, {
                 encoding: 'utf-8'
             }));
-            if (data && data.applicationId === appId) {
+            if (data && data.applicationId === currApp.appId) {
                 if (masterKey) {
                     AV._initialize(data.applicationId, data.applicationKey, masterKey);
                     AV.Cloud.useMasterKey();
@@ -675,31 +668,61 @@ function createConfigIfNessary() {
     fs.appendFileSync(path.join(CLOUD_PATH, ".gitignore"), ".avoscloud/\n");
 }
 
-function readAppsSync() {
+function getAppFromCloudCodeProject() {
+    var appConfig = path.join(CLOUD_PATH, 'config/global.json');
+    if (fs.existsSync(appConfig)) {
+        return {
+            'origin': require(appConfig).applicationId
+        };
+    }
+    return {};
+}
+
+function getAppsSync() {
     var appsFile = path.join(CLOUD_PATH, '.avoscloud/apps.json');
     if (fs.existsSync(appsFile)) {
         var apps = require(appsFile);
         if (apps && Object.keys(apps).length > 0)
             return apps;
     }
-    //if apps.json is not exists, tried to read from config/global.json as current app
-    var appConfig = path.join(CLOUD_PATH, 'config/global.json');
-    if (fs.existsSync(appConfig))
-        return {
-            'origin': require(appConfig).applicationId
-        };
-    return {};
+    return getAppFromCloudCodeProject();
 }
 
-function readCurrAppSync() {
+/**
+ * 获取 应用 tag 与 appId 信息
+ * 如果有 --project 参数，则获取该应用信息
+ * 如果没有，则获取「当前」应用信息：
+ * * 如果 `.avoscloud/curr_app` 存在，则以此为准。
+ * * 如果是 cloudcode 应用，则以 `config/global.json` 中配置为准。
+ * * 如果 `.avoscloud/apps.json` 存在
+ *   * 如果存在一组配置，则返回
+ *   * 否则报错
+ */
+exports.getAppSync = getAppSync = function() {
+    var apps = getAppsSync();
+    var appTags = Object.keys(apps);
+    if (appTags.length == 0) {
+        return exitWith("当前目录没有任何应用信息，请使用：add <name> <app id> 关联应用。");
+    }
+    if (PROJECT) {
+        if (apps[PROJECT]) {
+            return { tag: PROJECT, appId: apps[PROJECT] };
+        } else {
+            return exitWith("当前目录没有关联 '" + PROJECT + "' 应用信息，请使用：add <name> <app id> 关联应用。");
+        }
+    }
     var currAppFile = path.join(CLOUD_PATH, '.avoscloud/curr_app');
     if (fs.existsSync(currAppFile)) {
         var name = fs.readFileSync(currAppFile, 'utf-8').trim();
         if (name === '')
             return null;
-        return name;
-    } else
-        return null;
+        return { tag: name, appId: getAppsSync()[name] };
+    }
+    if (appTags.length == 1) {
+        return { tag: appTags[0], appId: apps[appTags[0]] };
+    } else {
+        exitWith("当前目录关联了多个应用，请使用：checkout <app> 选择应用。");
+    }
 }
 
 function writeCurrAppSync(name) {
@@ -719,42 +742,39 @@ function writeAppsSync(apps) {
     });
 }
 
-function addApp(name, appId) {
+exports.addApp = function(name, appId) {
     if (!/\w+/.test(name))
         return exitWith("Invalid app name.");
     if (!/[a-zA-Z0-9]+/.test(appId))
         return exitWith("Invalid app id.");
-    var apps = readAppsSync();
+    var apps = getAppsSync();
     if (apps[name])
          return exitWith("The app '" + name + "' is already exists.");
     apps[name] = appId;
     writeAppsSync(apps);
     console.log("Added a new app: %s -- %s", name, appId);
-    process.exit(0);
 }
 
-function removeApp(name) {
-    var apps = readAppsSync();
+exports.removeApp = function(name) {
+    var apps = getAppsSync();
     if (apps[name])
         delete apps[name];
     writeAppsSync(apps);
     console.log("Removed app: %s", name);
-    process.exit(0);
 }
 
-function checkoutApp(name) {
-    var apps = readAppsSync();
+exports.checkoutApp = function(name) {
+    var apps = getAppsSync();
     if (!apps[name])
         return exitWith("The app '" + name + "' is not exists.");
     writeCurrAppSync(name);
     console.log("Switced to app " + name);
-    process.exit(0);
 }
 
-function appStatus(list) {
-    var apps = readAppsSync();
-    var currApp = readCurrAppSync();
-    if (list) {
+exports.appStatus = function(isList) {
+    var currApp = getAppSync();
+    if (isList) {
+        var apps = getAppsSync();
         var maxNameLength = 0;
         for (var name in apps) {
             if (name.length > maxNameLength)
@@ -762,22 +782,17 @@ function appStatus(list) {
         }
         for (var name in apps) {
             var formatedName = sprintf('%-' + maxNameLength + 's', name);
-            if (name == currApp) {
+            if (name == currApp.tag) {
                 console.log(color.green("* " + formatedName + " " + apps[name]));
             } else {
                 console.log("  " + formatedName + " " + apps[name]);
             }
         }
     } else {
-        if (currApp && apps[currApp]) {
-            console.log(color.green("* " + currApp + " " + apps[currApp]));
-        } else {
-            console.warn("You are not in a app.Please checkout <app>");
-        }
+        console.log(color.green("* " + currApp.tag + " " + currApp.appId));
     }
-    process.exit(0);
 }
-function queryLatestVersion(){
+exports.queryLatestVersion = function(){
 	try{
 		util.ajax('GET','https://download.leancloud.cn/sdk/cloud_code_commandline.json',{},
 				  function(resp){
@@ -794,35 +809,6 @@ function queryLatestVersion(){
 	}catch(err){
 		//ignore
 	}
-}
-
-function getAppId(name) {
-    var apps = readAppsSync();
-    if (apps[name])
-        return apps[name];
-    if (name == 'origin' && fs.existsSync(path.join(CLOUD_PATH, 'config/global.json'))) {
-        return require(path.join(CLOUD_PATH, 'config/global.json')).applicationId;
-    }
-    return null;
-}
-
-/**
- * Resolve current app.
- * 1. when checked out a valid app,use it.
- * 2. If we are not in a valid app, use origin app if config/global.json is provided.
- * 3. else return null.
- */
-function getCurrApp() {
-    var currApp = program.project || readCurrAppSync();
-    var apps = readAppsSync();
-    //if the app is removed, ignore it.
-    if (!apps[currApp])
-        currApp = null;
-    if (!currApp) {
-        if (apps['origin'])
-            currApp = 'origin';
-    }
-    return currApp;
 }
 
 function sortObject(o) {
@@ -904,7 +890,7 @@ function outputQueryResult(resp, vertical){
     }
 }
 
-function doCloudQuery() {
+exports.doCloudQuery = doCloudQuery = function() {
     initAVOSCloudSDK(function(){
        input("CQL> ",function(cql){
            if(cql === 'exit')
@@ -934,7 +920,7 @@ function doCloudQuery() {
     });
 }
 
-function doLint() {
+exports.doLint = function() {
     console.log("linting ...");
     var cmd = path.join(__dirname, '..', 'node_modules', 'jshint', 'bin', 'jshint') + ' cloud';
     exec(cmd, function(err, stdout, stderr) {
@@ -947,121 +933,16 @@ function doLint() {
     });
 }
 
-function logProjectHome() {
+exports.logProjectHome = function () {
     console.log('[INFO]: Cloud Code Project Home Directory: ' + color.green(CLOUD_PATH));
-    var apps = readAppsSync();
-    var currApp = getCurrApp();
-    if (apps[currApp]) {
-        console.log('[INFO]: Current App: %s', color.red(currApp + ' ' + getAppId(currApp)));
+    var currApp = getAppSync();
+    if (currApp) {
+        console.log('[INFO]: Current App: %s', color.red(currApp.tag + ' ' + currApp.appId));
     } else {
-        console.warn('[INFO]: You are not in a app.Please checkout <app>');
-        process.exit(1);
+        exitWith('请使用：checkout <app> 选择应用。');
     }
 }
-//Query lastet commandline version.
-queryLatestVersion();
-//Send statistics data.
-sendStats(CMD);
-//Execute command.
 
-if (!CMD) {
-    logProjectHome();
-    initAVOSCloudSDK(function(masterKey) {
-        require(lib + '/mock').run(CLOUD_PATH, AV, program.port);
-        console.log("请使用浏览器打开 http://localhost:" + program.port + "/avos");
-    });
-} else {
-    switch (CMD) {
-        case "search":
-            if (!program.args[1]) {
-                console.log("Usage: avoscloud search <关键字>");
-                process.exit(1);
-            }
-            program.args.shift();
-            exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
-            break;
-        case "deploy":
-            logProjectHome();
-            if (program.git) {
-                deployGitCloudCode(program.revision || 'master');
-            } else {
-                if (path.resolve(CLOUD_PATH) != path.resolve('.'))
-                    return exitWith("'avoscloud deploy' must be run in a cloud code project directory.");
-                deployLocalCloudCode(CLOUD_PATH);
-            }
-            break;
-        case "undeploy":
-            logProjectHome();
-            undeployCloudCode();
-            break;
-        case "publish":
-            logProjectHome();
-            publishCloudCode();
-            break;
-        case "status":
-            logProjectHome();
-            queryStatus();
-            break;
-        case 'new':
-            createNewProject();
-            break;
-        case 'logs':
-            logProjectHome();
-            viewCloudLog();
-            break;
-        case "clear":
-            deleteMasterKeys();
-            break;
-        case "upload":
-            initAVOSCloudSDK();
-            logProjectHome();
-            if (!program.args[1]) {
-                console.log("Usage: avoscloud upload <文件或目录>");
-                process.exit(1);
-            }
-            program.args.shift();
-            importFiles(program.args, function(err) {
-                if (err)
-                    console.log(err);
-            });
-            break;
-        case "app":
-            //app <list>
-            var list = program.args[1] == 'list';
-            appStatus(list);
-            break;
-        case "add":
-            // add <name> <app id>
-            var name = program.args[1];
-            var appId = program.args[2];
-            if (!name)
-                return exitWith("Usage: avoscloud add <name> <app id>");
-            if (!appId)
-                return exitWith("Usage: avoscloud add <name> <app id>");
-            addApp(name, appId);
-            break;
-        case "rm":
-            //rm <name>
-            var name = program.args[1];
-            if (!name)
-                return exitWith("Usage: avoscloud rm <name>");
-            removeApp(name);
-            break;
-        case "checkout":
-            //checkout <name>
-            var name = program.args[1];
-            if (!name)
-                 return exitWith("Usage: avoscloud checkout <name>");
-            checkoutApp(name);
-            break;
-        case "cql":
-            doCloudQuery();
-            break;
-        case "lint":
-            doLint();
-            break;
-        default:
-            program.help();
-            break;
-    }
+exports.getPort = function() {
+  return PORT;
 }
