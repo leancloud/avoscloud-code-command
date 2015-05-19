@@ -96,6 +96,7 @@ function initMasterKey(done) {
         promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
             if (!answer || answer.trim() == '')
                 return exitWith("无效的 Master Key");
+            AV.useAVCloudUS();
             AV.initialize(appId, answer);
             updateMasterKey(appId, answer, done, true);
         });
@@ -528,6 +529,7 @@ function createNewProject() {
                     params = '&webHosting=true';
                 }
                 console.log("Creating project...");
+                AV.useAVCloudUS();
                 AV.initialize(appId, masterKey);
                 var url = AV.serverURL;
                 if (url.charAt(url.length - 1) !== "/") {
@@ -639,9 +641,11 @@ function initAVOSCloudSDK(done) {
             encoding: 'utf-8'
         }));
         if (data && data.applicationId === appId)
+            AV.useAVCloudUS();
             AV.initialize(data.applicationId, data.applicationKey);
     }
     initMasterKey(function(masterKey) {
+        AV.useAVCloudUS();
         if (fs.existsSync(globalConfig)) {
             //try to initialize avoscloud sdk.
             var data = JSON.parse(fs.readFileSync(globalConfig, {
