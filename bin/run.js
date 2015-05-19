@@ -102,6 +102,8 @@ function initMasterKey(done) {
         });
     };
     updateMasterKey(appId, null, function(existsMasterKey){
+
+        AV.useAVCloudUS();
         if(existsMasterKey) {
             if(done) {
                 AV.initialize(appId, existsMasterKey);
