@@ -63,7 +63,7 @@ exports.setPort = function(port) {
 }
 
 function exitWith(err) {
-    console.error('[ERROR]: ' + err);
+    console.error('[ERROR] ' + err);
     process.exit(1);
 }
 
@@ -81,16 +81,16 @@ errorCb = function(cb, exitCode, action, cause) {
 function getUserHome() {
     var home = process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH;
     if (!home)
-        return exitWith("Could not find user home directory");
+        return exitWith("无法找到用户 HOME 目录");
     return home;
 }
 
 exports.deleteMasterKeys = function() {
     var home = getUserHome();
     var avoscloudKeysFile = path.join(home, '.avoscloud_keys')
-    console.log("删除 " + avoscloudKeysFile + " ...");
+    console.log("[INFO] 删除 " + avoscloudKeysFile + " ...");
     fs.truncateSync(avoscloudKeysFile, 0);
-    console.log("Clear done!");
+    console.log("[INFO] 清除成功");
 }
 
 exports.initMasterKey = initMasterKey = function(done) {
@@ -138,7 +138,7 @@ function destroyFile(objectId) {
 function uploadFile(localFile, props, cb, retry, retries, lastErr) {
     //Retried too many times, report error.
     if (retries && retries > 3) {
-        console.warn("Faild to upload a file after retrying 3 times...give up : " + localFile);
+        console.warn("上传文件失败超过 3 次，放弃：" + localFile);
         if (cb) {
             cb(lastErr);
         }
@@ -221,15 +221,15 @@ function loopLogs(opsToken, cb) {
 
 exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) {
     initMasterKey(function() {
-        console.log("Compress cloud code files...");
+        console.log("[INFO] 压缩项目文件……");
         var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
         var output = fs.createWriteStream(file);
         var archive = archiver('zip');
 
         output.on('close', function() {
-            console.log("Wrote compressed file " + file + ' ...');
+            console.log("[INFO] 生成临时文件：" + file);
             //upload file to cloud code
-            console.log("Begin to upload cloud code files...");
+            console.log("[INFO] 开始上传项目文件……");
             var key = util.guid() + '.zip';
             uploadFile(file, {
                 key: key,
@@ -238,9 +238,8 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
             }, function(err, url, fileId) {
                 if (err) {
                   destroyFile(fileId);
-                  errorCb(cb, 1, "Upload cloud code files", err)
+                  errorCb(cb, 1, "上传项目文件", err)
                 } else {
-                    console.log("Upload cloud code files successfully. Begin to deploy...");
                     //notify avoscloud platform to fetch new deployment.
                     util.requestCloud('functions/_ops/deployByCommand', {
                         revision: url,
@@ -250,14 +249,14 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
                         success: function(resp) {
                             loopLogs(resp.opsToken, function(err) {
                                 if (err) {
-                                    return errorCb(cb, 128, "Deploy cloud code", err);
+                                    return errorCb(cb, 128, "部署失败", err);
                                 }
-                                console.log("Congrats! Deploy cloud code successfully.");
+                                console.log("[INFO] 部署成功");
                                 queryStatus(cb);
                             });
                         },
                         error: function(err) {
-                          errorCb(cb, 128, "Deploy cloud code", err);
+                          errorCb(cb, 128, "部署失败", err);
 	                        }
                     }, true);
                 }
@@ -265,7 +264,7 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
         });
 
         archive.on('error', function(err) {
-            errorCb(cb, 1, "Compress cloud code files", err);
+            errorCb(cb, 1, "压缩项目文件", err);
         });
 
         archive.pipe(output);
@@ -276,7 +275,6 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
 
 exports.deployGitCloudCode = function (revision, giturl, cb) {
     initMasterKey(function() {
-        console.log('Deploy cloud code from git repository...');
         util.requestCloud('functions/_ops/deployByCommand', {
             after: revision,
             url: giturl
@@ -284,14 +282,14 @@ exports.deployGitCloudCode = function (revision, giturl, cb) {
             success: function(resp) {
                 loopLogs(resp.opsToken, function(err) {
                     if (err) {
-                        return errorCb(cb, 129, "Deployed cloud code from git repository", err);
+                        return errorCb(cb, 129, "从 Git 仓库部署", err);
                     }
-                    console.log("Congrats! Deploy cloud code from git repository successfully.");
+                    console.log("[INFO] 部署成功");
                     queryStatus(cb);
                 })
             },
             error: function(err) {
-                errorCb(cb, 129, "Deployed cloud code from git repository", err);
+                errorCb(cb, 129, "从 Git 仓库部署", err);
             }
         }, true);
     });
@@ -299,28 +297,27 @@ exports.deployGitCloudCode = function (revision, giturl, cb) {
 
 function outputStatus(status) {
     console.log('------------------------------------------------------------------------');
-    console.log(sprintf("%-22s : '%s'", "Development version", status.dev));
-    console.log(sprintf("%-22s : '%s'", "Development commit log", status.devLog));
-    console.log(sprintf("%-22s : '%s'", "Production version", status.prod));
-    console.log(sprintf("%-22s : '%s'", "Production commit log", status.prodLog));
+    console.log(sprintf("%s : '%s'", "测试环境版本    ", status.dev));
+    console.log(sprintf("%s : '%s'", "测试环境提交日志", status.devLog));
+    console.log(sprintf("%s : '%s'", "生产环境版本    ", status.prod));
+    console.log(sprintf("%s : '%s'", "生产环境提交日志", status.prodLog));
     console.log('------------------------------------------------------------------------');
 }
 
 exports.publishCloudCode = function(cb) {
     initMasterKey(function() {
-        console.log('Publishing cloud code to production...');
         util.requestCloud('functions/_ops/publish', {}, 'POST', {
             success: function(resp) {
                 loopLogs(resp.opsToken, function(err) {
                     if (err) {
-                        return errorCb(cb, 130, "Published cloud code", err);
+                        return errorCb(cb, 130, "发布生产环境", err);
                     }
-                    console.log("Published cloud code successfully. Current status is: ");
+                    console.log("[INFO] 发布成功");
                     queryStatus(cb);
                 })
             },
             error: function(err) {
-                errorCb(cb, 130, "Published cloud code", err);
+                errorCb(cb, 130, "发布生产环境", err);
             }
         }, true);
     });
@@ -330,11 +327,12 @@ exports.queryStatus = queryStatus = function(cb) {
     initMasterKey(function() {
         util.requestCloud('functions/status', {}, 'GET', {
             success: function(resp) {
-                console.log("Cloud code status is: ");
+                console.log("项目状态：");
                 outputStatus(resp);
+                cb();
             },
             error: function(err) {
-              errorCb(cb, 131, "Query cloud code status", err);
+              errorCb(cb, 131, "查询项目状态", err);
             }
         }, true);
     });
@@ -344,11 +342,11 @@ exports.undeployCloudCode = function(cb) {
     initMasterKey(function() {
         util.requestCloud('functions/undeploy/repo', {}, 'POST', {
             success: function(resp) {
-                console.log("Undeployed cloud code successfully.");
+                console.log("[INFO] 清除成功");
                 queryStatus(cb);
             },
             error: function(err) {
-                errorCb(cb, 132, "Undeployed cloud code", err);
+                errorCb(cb, 132, "清除项目", err);
             }
         }, true);
     });
@@ -424,7 +422,7 @@ exports.sendStats = function(cmd) {
 function outputLogs(resp) {
     if (resp && resp.results.length > 0) {
         resp.results.reverse().forEach(function(log) {
-            console.log("[%s] [%s] -- %s:  %s", log.createdAt, (log.production == 1 ? 'production' : 'development'), log.level, log.content);
+            console.log('%s [%s] [%s] %s', new Date(log.createdAt).toLocaleString(), (log.production == 1 ? 'PROD' : 'TEST'), log.level.toLocaleUpperCase(), log.content)
         });
     }
 }
@@ -457,7 +455,7 @@ exports.viewCloudLog = viewCloudLog = function (lines, tailf, lastLogUpdatedTime
                 }
             },
             error: function(err) {
-                errorCb(cb, 133, "Queried cloud code logs", err);
+                errorCb(cb, 133, "查询应用日志", err);
             }
         }, true);
     });
@@ -548,7 +546,7 @@ exports.createNewProject = function() {
                             }, true);
                         });
                         unzipper.on('error', function (err) {
-                            console.error('Caught an error when decompressing files: %j, server response: %j', err, fs.readFileSync(file,'utf-8'));
+                            console.error('解压缩文件失败：%j，服务器响应：%j', err, fs.readFileSync(file,'utf-8'));
                         });
                         unzipper.extract({
                             path: './'
@@ -564,7 +562,7 @@ function importFile(f, realPath, cb) {
     if (stats.isFile()) {
         util.checksumFile(realPath, function(err, checksum) {
             if (err) {
-                return cb("Check sum for file " + realPath + " failed with error:" + err);
+                return cb("文件 " + realPath + " 校验和失败:" + err);
             }
             var extname = path.extname(realPath) != '.' ? path.extname(realPath) : '';
             uploadFile(realPath, {
@@ -579,12 +577,12 @@ function importFile(f, realPath, cb) {
                 if (err) {
                     destroyFile(objectId);
                     if(_.isError(err)) {
-                      cb(nodeUtil.format('Upload ' + realPath + ' fails with error: %s', err));
+                      cb(nodeUtil.format('上传文件 ' + realPath + ' 失败：%s', err));
                     } else {
-                      cb(nodeUtil.format('Upload ' + realPath + ' fails with error: %j', err));
+                      cb(nodeUtil.format('上传文件 ' + realPath + ' 失败：%j', err));
                     }
                 } else {
-                    console.log('Uploads ' + realPath + ' successfully at: ' + url);
+                    console.log('上传文件 ' + realPath + ' 成功：' + url);
                     cb();
                 }
             }, true);
@@ -592,8 +590,8 @@ function importFile(f, realPath, cb) {
     } else if (stats.isDirectory()) {
         fs.readdir(realPath, function(err, files) {
             if (err)
-                return cb("Read directory " + realPath + " failed with error:" + err);
-            console.log("Begin to upload files in directory " + realPath);
+                return cb("读取目录 " + realPath + " 失败：" + err);
+            console.log("开始上传目录 " + realPath + " 中的文件……");
             async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(subFile, cb) {
                 //pass in the eachLimit callback
                 importFile(subFile, realPath + path.sep + subFile, cb);
@@ -605,7 +603,7 @@ function importFile(f, realPath, cb) {
             });
         });
     } else {
-        cb(f + ' is not file or directory, ignoring...');
+        cb(f + ' 不是一个文件或目录，忽略');
     }
 }
 
@@ -618,7 +616,7 @@ exports.importFiles = function (files, cb) {
         if (fs.existsSync(realPath)) {
             importFile(f, realPath, cb);
         } else {
-            cb(f + " is not exists, ignores it...");
+            cb(f + " 不存在，忽略");
         }
     }, cb);
 }
@@ -744,15 +742,15 @@ function writeAppsSync(apps) {
 
 exports.addApp = function(name, appId) {
     if (!/\w+/.test(name))
-        return exitWith("Invalid app name.");
+        return exitWith("无效的应用名");
     if (!/[a-zA-Z0-9]+/.test(appId))
-        return exitWith("Invalid app id.");
+        return exitWith("无效的 Application ID");
     var apps = getAppsSync();
     if (apps[name])
-         return exitWith("The app '" + name + "' is already exists.");
+         return exitWith("应用 '" + name + "' 已经存在");
     apps[name] = appId;
     writeAppsSync(apps);
-    console.log("Added a new app: %s -- %s", name, appId);
+    console.log("[INFO] 关联应用：%s -- %s", name, appId);
 }
 
 exports.removeApp = function(name) {
@@ -760,15 +758,15 @@ exports.removeApp = function(name) {
     if (apps[name])
         delete apps[name];
     writeAppsSync(apps);
-    console.log("Removed app: %s", name);
+    console.log("[INFO] 移除应用关联：%s", name);
 }
 
 exports.checkoutApp = function(name) {
     var apps = getAppsSync();
     if (!apps[name])
-        return exitWith("The app '" + name + "' is not exists.");
+        return exitWith("应用 '" + name + "' 不存在");
     writeCurrAppSync(name);
-    console.log("Switced to app " + name);
+    console.log("[INFO] 切换到应用 " + name);
 }
 
 exports.appStatus = function(isList) {
@@ -890,11 +888,11 @@ function outputQueryResult(resp, vertical){
     }
 }
 
-exports.doCloudQuery = doCloudQuery = function() {
+exports.doCloudQuery = doCloudQuery = function(cb) {
     initAVOSCloudSDK(function(){
        input("CQL> ",function(cql){
            if(cql === 'exit')
-               return;
+               return cb();
            if(/.*;$/.test(cql))
                cql = cql.substring(0, cql.length - 1);
            var  vertical =/.*\\G$/.test(cql);
@@ -904,7 +902,7 @@ exports.doCloudQuery = doCloudQuery = function() {
            util.requestCloud('cloudQuery', {cql: cql}, 'GET', {
                success: function(resp) {
                    outputQueryResult(resp, vertical);
-                   doCloudQuery();
+                   doCloudQuery(cb);
                },
                error: function(err) {
                    try{
@@ -934,10 +932,10 @@ exports.doLint = function() {
 }
 
 exports.logProjectHome = function () {
-    console.log('[INFO]: Cloud Code Project Home Directory: ' + color.green(CLOUD_PATH));
+    console.log('[INFO] LeanEngine 项目根目录：' + color.green(CLOUD_PATH));
     var currApp = getAppSync();
     if (currApp) {
-        console.log('[INFO]: Current App: %s', color.red(currApp.tag + ' ' + currApp.appId));
+        console.log('[INFO] 当前应用: %s', color.red(currApp.tag + ' ' + currApp.appId));
     } else {
         exitWith('请使用：checkout <app> 选择应用。');
     }

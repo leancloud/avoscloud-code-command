@@ -18,7 +18,7 @@ var nodemon = require('nodemon'),
   exec = require('child_process').exec;
 
 function exitWith(err) {
-    console.error('[ERROR]: ' + err);
+    console.error('[ERROR] ' + err);
     process.exit(1);
 }
 
@@ -28,24 +28,28 @@ var callback = function(err){
   }
 
   var exitCode = err.exitCode || 1;
+  if (!err.cause) {
+    console.log("错误：", err.message || err);
+    return process.exit(exitCode);
+  }
+
   var responseText = err.cause.responseText;
   if(!responseText){
-    console.log("Sorry, %s failed with error", err.action);
-    console.log(err.cause);
+    console.log("抱歉，%s 失败：%s", err.action, err.cause);
     process.exit(exitCode);
   }
   try{
     var eobj = JSON.parse(responseText);
-    console.log("Sorry, %s failed with error %d\n%s", err.action, eobj.code, eobj.error);
+    console.log("抱歉，%s 失败：%d\n%s", err.action, eobj.code, eobj.error);
     process.exit(exitCode);
   } catch(e){
   }
   var isHtml = /<title>([\s\S]+)<\/title>/i;
   if(isHtml.test(responseText)){
     var title = isHtml.exec(responseText);
-    console.log("Sorry, %s failed with '%s'", err.action, title[1]);
+    console.log("抱歉，%s 失败：'%s'", err.action, title[1]);
   } else{
-    console.log("Sorry, %s failed with '%s'", err.action, responseText);
+    console.log("抱歉，%s 失败：'%s'", err.action, responseText);
   }
   process.exit(exitCode);
 }
@@ -72,26 +76,40 @@ run.queryLatestVersion();
 run.sendStats(CMD);
 //Execute command.
 
+// 不需要在项目目录执行的命令
+if(CMD) {
+  switch (CMD) {
+    case "search":
+      if (!program.args[1]) {
+        console.log("请使用：avoscloud search <关键字>");
+        process.exit(1);
+      }
+      program.args.shift();
+      exec('open https://leancloud.cn/search.html?q=' + encodeURIComponent(program.args.join(' ')));
+      callback();
+      break;
+    case 'new':
+      run.createNewProject(callback);
+      break;
+  }
+}
+
+// 需要在项目目录执行的命令
 runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
+  if (err) {
+    return callback(err);
+  }
+
   runtimeInfo.setDebug(program.debug);
   if(CMD) {
     switch (CMD) {
-      case "search":
-        if (!program.args[1]) {
-          console.log("Usage: avoscloud search <关键字>");
-          process.exit(1);
-        }
-        program.args.shift();
-        exec('open https://cn.avoscloud.com/search.html?q=' + encodeURIComponent(program.args.join(' ')));
-        callback();
-        break;
       case "deploy":
         run.logProjectHome();
         if (program.git) {
           run.deployGitCloudCode(program.revision || 'master', program.giturl, callback);
         } else {
           if (path.resolve(CLOUD_PATH) != path.resolve('.'))
-            return exitWith("'avoscloud deploy' must be run in a cloud code project directory.");
+            return exitWith("'avoscloud deploy' 命令必须在 LeanEngine 项目目录中使用");
           run.deployLocalCloudCode(runtimeInfo, CLOUD_PATH, program.log, callback);
         }
         break;
@@ -107,9 +125,6 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
         run.logProjectHome();
         run.queryStatus(callback);
         break;
-      case 'new':
-        run.createNewProject(callback);
-        break;
       case 'logs':
         run.logProjectHome();
         run.viewCloudLog(program.lines, program.tailf, null, callback);
@@ -122,7 +137,7 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
         run.initAVOSCloudSDK();
         run.logProjectHome();
         if (!program.args[1]) {
-          console.log("Usage: avoscloud upload <文件或目录>");
+          console.log("请使用：avoscloud upload <文件或目录>");
           process.exit(1);
         }
         program.args.shift();
@@ -142,9 +157,9 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
         var name = program.args[1];
         var appId = program.args[2];
         if (!name)
-          return exitWith("Usage: avoscloud add <name> <app id>");
+          return exitWith("请使用：avoscloud add <name> <app id>");
         if (!appId)
-          return exitWith("Usage: avoscloud add <name> <app id>");
+          return exitWith("请使用：avoscloud add <name> <app id>");
         run.addApp(name, appId);
         callback();
         break;
@@ -152,7 +167,7 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
         //rm <name>
         var name = program.args[1];
         if (!name)
-          return exitWith("Usage: avoscloud rm <name>");
+          return exitWith("请使用：avoscloud rm <name>");
         run.removeApp(name);
         callback();
         break;
@@ -160,7 +175,7 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
         //checkout <name>
         var name = program.args[1];
         if (!name)
-          return exitWith("Usage: avoscloud checkout <name>");
+          return exitWith("请使用：avoscloud checkout <name>");
         run.checkoutApp(name);
         callback();
         break;
@@ -180,7 +195,7 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
     console.log(color.green('提示：您可以敲入 rs 命令并回车来重启本进程'));
     nodemon(monconfig);
     nodemon.on('restart', function (files) {
-        console.log('[INFO]: avoscloud restarted due to: ', files);
+        console.log('[INFO] 因为文件变更而项目重启：', files);
     });
   }
 });
