@@ -1,3 +1,9 @@
+## v0.7.2
+* 支持 LeanEngine Node.js 运行时项目的部署。
+* 中文化提示信息。
+* 修复 命令行工具无法正常退出的 Bug。
+* 修复 部署失败仍然提示 'Deploy cloud code successfully' 的 Bug。
+
 ## v0.7.1
 * 修复关闭 _File 表写入权限后无法正常通过本地部署云代码的 Bug。
 
