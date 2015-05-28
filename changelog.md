@@ -1,3 +1,7 @@
+## v0.7.3
+* 修复 app add 命令在 LeanEngine 项目目录没有关联应用时执行报错的 Bug。
+* 增加 命令执行出错时提示「查看使用帮助：avoscloud -h」
+
 ## v0.7.2
 * 支持 LeanEngine Node.js 运行时项目的部署。
 * 中文化提示信息。
