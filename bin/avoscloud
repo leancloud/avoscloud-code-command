@@ -83,15 +83,12 @@ if(CMD) {
       }
       program.args.shift();
       exec('open https://leancloud.cn/search.html?q=' + encodeURIComponent(program.args.join(' ')));
-      callback();
-      break;
+      return callback();
     case 'new':
-      run.createNewProject(callback);
-      break;
+      return run.createNewProject(callback);
     case "clear":
       run.deleteMasterKeys();
-      callback();
-      break;
+      return callback();
     case "add":
       // add <name> <app id>
       var name = program.args[1];
@@ -101,12 +98,10 @@ if(CMD) {
       if (!appId)
         return exitWith("请使用：avoscloud add <name> <app id>");
       run.addApp(name, appId);
-      callback();
-      break;
+      return callback();
     case "lint":
       run.doLint();
-      callback();
-      break;
+      return callback();
   }
 }
 

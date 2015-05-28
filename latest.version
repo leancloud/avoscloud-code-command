@@ -1,4 +1,4 @@
 {
-  "version": "0.7.3",
-  "changelog": "* 修复 app add 命令在 LeanEngine 项目目录没有关联应用时执行报错的 Bug。\n"
+  "version": "0.7.4",
+  "changelog": "修复 new 命令提示不在项目目录的 Bug。\n"
 }
