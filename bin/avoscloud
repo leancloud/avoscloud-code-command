@@ -30,27 +30,24 @@ var callback = function(err){
   var exitCode = err.exitCode || 1;
   if (!err.cause) {
     console.log("错误：", err.message || err);
-    return process.exit(exitCode);
-  }
-
-  var responseText = err.cause.responseText;
-  if(!responseText){
+  } else if (!err.cause.responseText) {
     console.log("抱歉，%s 失败：%s", err.action, err.cause);
-    process.exit(exitCode);
+  } else {
+    var responseText = err.cause.responseText;
+    try{
+      var eobj = JSON.parse(responseText);
+      console.log("抱歉，%s 失败：%d\n%s", err.action, eobj.code, eobj.error);
+    } catch(e){
+      var isHtml = /<title>([\s\S]+)<\/title>/i;
+      if(isHtml.test(responseText)){
+        var title = isHtml.exec(responseText);
+        console.log("抱歉，%s 失败：'%s'", err.action, title[1]);
+      } else {
+        console.log("抱歉，%s 失败：'%s'", err.action, responseText);
+      }
+    }
   }
-  try{
-    var eobj = JSON.parse(responseText);
-    console.log("抱歉，%s 失败：%d\n%s", err.action, eobj.code, eobj.error);
-    process.exit(exitCode);
-  } catch(e){
-  }
-  var isHtml = /<title>([\s\S]+)<\/title>/i;
-  if(isHtml.test(responseText)){
-    var title = isHtml.exec(responseText);
-    console.log("抱歉，%s 失败：'%s'", err.action, title[1]);
-  } else{
-    console.log("抱歉，%s 失败：'%s'", err.action, responseText);
-  }
+  console.log("查看使用帮助：avoscloud -h");
   process.exit(exitCode);
 }
 
@@ -91,6 +88,25 @@ if(CMD) {
     case 'new':
       run.createNewProject(callback);
       break;
+    case "clear":
+      run.deleteMasterKeys();
+      callback();
+      break;
+    case "add":
+      // add <name> <app id>
+      var name = program.args[1];
+      var appId = program.args[2];
+      if (!name)
+        return exitWith("请使用：avoscloud add <name> <app id>");
+      if (!appId)
+        return exitWith("请使用：avoscloud add <name> <app id>");
+      run.addApp(name, appId);
+      callback();
+      break;
+    case "lint":
+      run.doLint();
+      callback();
+      break;
   }
 }
 
@@ -129,10 +145,6 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
         run.logProjectHome();
         run.viewCloudLog(program.lines, program.tailf, null, callback);
         break;
-      case "clear":
-        run.deleteMasterKeys();
-        callback();
-        break;
       case "upload":
         run.initAVOSCloudSDK();
         run.logProjectHome();
@@ -150,17 +162,6 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
         //app <list>
         var isList = program.args[1] == 'list';
         run.appStatus(isList);
-        callback();
-        break;
-      case "add":
-        // add <name> <app id>
-        var name = program.args[1];
-        var appId = program.args[2];
-        if (!name)
-          return exitWith("请使用：avoscloud add <name> <app id>");
-        if (!appId)
-          return exitWith("请使用：avoscloud add <name> <app id>");
-        run.addApp(name, appId);
         callback();
         break;
       case "rm":
@@ -181,10 +182,6 @@ runtime.detect(CLOUD_PATH, function(err, runtimeInfo) {
         break;
       case "cql":
         run.doCloudQuery(callback);
-        break;
-      case "lint":
-        run.doLint();
-        callback();
         break;
       default:
         program.help();
