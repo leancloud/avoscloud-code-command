@@ -19,6 +19,7 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
 
+* 2015-05-28 发布 v0.7.3，修复 app add 命令在 LeanEngine 项目目录没有关联应用时执行报错的 Bug。
 * 2015-05-25 发布 v0.7.2，支持 LeanEngine Node.js 运行时项目的部署；中文化提示信息等。
 * 2015-05-16 发布 v0.7.1，修复关闭 _File 创建权限后无法本地部署云代码的 Bug。
 * 2015-05-05 发布 v0.7.0，改进部署日志和错误信息提示，增加 `--debug` 开关等。

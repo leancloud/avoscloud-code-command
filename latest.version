@@ -1,4 +1,4 @@
 {
-  "version": "0.7.2",
-  "changelog": "* 支持 LeanEngine Node.js 运行时项目的部署。\n* 中文化提示信息。\n* 修复 命令行工具无法正常退出的 Bug。* 修复 部署失败仍然提示 'Deploy cloud code successfully' 的 Bug。\n"
+  "version": "0.7.3",
+  "changelog": "* 修复 app add 命令在 LeanEngine 项目目录没有关联应用时执行报错的 Bug。\n"
 }
