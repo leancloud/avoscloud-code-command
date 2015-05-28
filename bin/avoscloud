@@ -186,8 +186,7 @@ if(CMD) {
       break;
 
     case "lint":
-      run.doLint();
-      callback();
+      run.doLint(callback);
       break;
 
     default:

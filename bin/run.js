@@ -919,15 +919,16 @@ exports.doCloudQuery = doCloudQuery = function(cb) {
     });
 }
 
-exports.doLint = function() {
+exports.doLint = function(cb) {
     console.log("linting ...");
-    var cmd = path.join(__dirname, '..', 'node_modules', 'jshint', 'bin', 'jshint') + ' cloud';
+    var cmd = path.join(__dirname, '..', 'node_modules', 'jshint', 'bin', 'jshint') + ' . --exclude node_modules';
     exec(cmd, function(err, stdout, stderr) {
         console.log(stdout);
         if (err) {
             process.exit(err.code);
         } else {
             console.log('lint ok');
+            cb();
         }
     });
 }
