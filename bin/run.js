@@ -505,7 +505,7 @@ function updateMasterKey(appId, masterKey, done, force){
 /**
  *Creaet a new avoscloud cloud code project.
  */
-exports.createNewProject = function() {
+exports.createNewProject = function(cb) {
     console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。")
     input("请输入应用的 Application ID: ", function(appId) {
         if (!appId || appId.trim() == '')
@@ -542,11 +542,12 @@ exports.createNewProject = function() {
                         unzipper.on('extract', function (log) {
                             updateMasterKey(appId, masterKey, function(){
                                 console.log('Project created!');
+                                cb();
                             //force to update master key.
                             }, true);
                         });
                         unzipper.on('error', function (err) {
-                            console.error('解压缩文件失败：%j，服务器响应：%j', err, fs.readFileSync(file,'utf-8'));
+                            console.error('解压缩文件失败：%s，服务器响应：%s', err, fs.readFileSync(file,'utf-8'));
                         });
                         unzipper.extract({
                             path: './'
@@ -719,7 +720,7 @@ exports.getAppSync = getAppSync = function() {
     if (appTags.length == 1) {
         return { tag: appTags[0], appId: apps[appTags[0]] };
     } else {
-        exitWith("当前目录关联了多个应用，请使用：checkout <app> 选择应用。");
+        exitWith("当前目录关联了多个应用 " + appTags + "，请使用：checkout <app> 选择应用。");
     }
 }
 
