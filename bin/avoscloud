@@ -50,7 +50,7 @@ var callback = function(err){
   }
   console.log("查看使用帮助：avoscloud -h");
   process.exit(exitCode);
-}
+};
 
 var program = commander.parse_args(process.argv);
 
