@@ -6,7 +6,6 @@
  * Project: https://github.com/avoscloud/avoscloud-code-command
  * Created by : Emacs JavaScript Mode
  */
-
 var path = require('path');
 var fs = require('fs');
 var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
@@ -52,15 +51,15 @@ var PORT = 3000;
 // 设置命令作用的 project
 exports.setProject = function(project) {
   PROJECT = project;
-}
+};
 
 exports.setCloudPath = function(cloudPath) {
   CLOUD_PATH = cloudPath;
-}
+};
 
 exports.setPort = function(port) {
   PORT = port;
-}
+};
 
 function exitWith(err) {
     console.error('[ERROR] ' + err);
@@ -73,7 +72,7 @@ errorCb = function(cb, exitCode, action, cause) {
   error.exitCode = exitCode;
   error.cause = cause;
   cb(error);
-}
+};
 
 /**
  * Tried to get user's home directory by environment variable.
@@ -87,17 +86,17 @@ function getUserHome() {
 
 exports.deleteMasterKeys = function() {
     var home = getUserHome();
-    var avoscloudKeysFile = path.join(home, '.avoscloud_keys')
+    var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
     console.log("[INFO] 删除 " + avoscloudKeysFile + " ...");
     fs.truncateSync(avoscloudKeysFile, 0);
     console.log("[INFO] 清除成功");
-}
+};
 
 exports.initMasterKey = initMasterKey = function(done) {
     var currApp = getAppSync();
     var promptMasterKeyThenUpdate = function() {
         promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
-            if (!answer || answer.trim() == '')
+            if (!answer || answer.trim() === '')
                 return exitWith("无效的 Master Key");
             AV.initialize(currApp.appId, answer);
             updateMasterKey(currApp.appId, answer, done, true);
@@ -113,7 +112,7 @@ exports.initMasterKey = initMasterKey = function(done) {
             promptMasterKeyThenUpdate();
         }
     }, false);
-}
+};
 
 function bucketDomain(bucket) {
     //special bucket for old projects.
@@ -150,13 +149,13 @@ function uploadFile(localFile, props, cb, retry, retries, lastErr) {
     }
     util.requestCloud("qiniu", props, 'POST', {
         success: function(resp) {
-            var objectId = resp.objectId
+            var objectId = resp.objectId;
             var uptoken = resp.token;
             var bucket = resp.bucket;
             if (!uptoken) {
                 if (cb) {
                     cb(JSON.parse(resp.responseText).error);
-                    return
+                    return;
                 }
             }
             var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
@@ -169,7 +168,7 @@ function uploadFile(localFile, props, cb, retry, retries, lastErr) {
         error: function(err) {
             //mabye retry to upload it
             if (retry) {
-                if (retries == null)
+                if (!retries)
                     retries = 0;
                 uploadFile(localFile, props, cb, retry, retries + 1, err);
             } else {
@@ -194,7 +193,7 @@ function loopLogs(opsToken, cb) {
         moreData = res.moreData;
         err = null;
         res.logs.forEach(function(logInfo) {
-          console.log('%s [%s] %s', new Date(logInfo.createdAt).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content)
+          console.log('%s [%s] %s', new Date(logInfo.createdAt).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content);
           start = logInfo.createdAt;
           if (logInfo.level.toLocaleUpperCase() === 'ERROR') {
             err = logInfo.content;
@@ -209,7 +208,7 @@ function loopLogs(opsToken, cb) {
         }
       },
       error: function(err) {
-        console.log(err)
+        console.log(err);
       }
     }, true);
   };
@@ -238,7 +237,7 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
             }, function(err, url, fileId) {
                 if (err) {
                   destroyFile(fileId);
-                  errorCb(cb, 1, "上传项目文件", err)
+                  errorCb(cb, 1, "上传项目文件", err);
                 } else {
                     //notify avoscloud platform to fetch new deployment.
                     util.requestCloud('functions/_ops/deployByCommand', {
@@ -271,7 +270,7 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
         archive.bulk(runtimeInfo.bulk());
         archive.finalize();
     });
-}
+};
 
 exports.deployGitCloudCode = function (revision, giturl, cb) {
     initMasterKey(function() {
@@ -286,14 +285,14 @@ exports.deployGitCloudCode = function (revision, giturl, cb) {
                     }
                     console.log("[INFO] 部署成功");
                     queryStatus(cb);
-                })
+                });
             },
             error: function(err) {
                 errorCb(cb, 129, "从 Git 仓库部署", err);
             }
         }, true);
     });
-}
+};
 
 function outputStatus(status) {
     console.log('------------------------------------------------------------------------');
@@ -314,14 +313,14 @@ exports.publishCloudCode = function(cb) {
                     }
                     console.log("[INFO] 发布成功");
                     queryStatus(cb);
-                })
+                });
             },
             error: function(err) {
                 errorCb(cb, 130, "发布生产环境", err);
             }
         }, true);
     });
-}
+};
 
 exports.queryStatus = queryStatus = function(cb) {
     initMasterKey(function() {
@@ -336,7 +335,7 @@ exports.queryStatus = queryStatus = function(cb) {
             }
         }, true);
     });
-}
+};
 
 exports.undeployCloudCode = function(cb) {
     initMasterKey(function() {
@@ -350,7 +349,7 @@ exports.undeployCloudCode = function(cb) {
             }
         }, true);
     });
-}
+};
 
 function input(info, cb, password) {
     var pcb = function(err, anwser) {
@@ -367,7 +366,7 @@ function input(info, cb, password) {
      */
 function getDeviceId() {
     var home = getUserHome();
-    var deviceIdFile = home + path.sep + '.avoscloud_device_id'
+    var deviceIdFile = home + path.sep + '.avoscloud_device_id';
     var exists = fs.existsSync(deviceIdFile);
     if (exists) {
         return fs.readFileSync(deviceIdFile, {
@@ -380,7 +379,7 @@ function getDeviceId() {
         });
         return deviceId;
     }
-};
+}
 
 exports.sendStats = function(cmd) {
     try {
@@ -422,7 +421,7 @@ exports.sendStats = function(cmd) {
 function outputLogs(resp) {
     if (resp && resp.results.length > 0) {
         resp.results.reverse().forEach(function(log) {
-            console.log('%s [%s] [%s] %s', new Date(log.createdAt).toLocaleString(), (log.production == 1 ? 'PROD' : 'TEST'), log.level.toLocaleUpperCase(), log.content)
+            console.log('%s [%s] [%s] %s', new Date(log.createdAt).toLocaleString(), (log.production == 1 ? 'PROD' : 'TEST'), log.level.toLocaleUpperCase(), log.content);
         });
     }
 }
@@ -437,7 +436,7 @@ exports.viewCloudLog = viewCloudLog = function (lines, tailf, lastLogUpdatedTime
                     "iso": lastLogUpdatedTime
                 }
             }
-        }
+        };
         url += '&where=' + encodeURIComponent(JSON.stringify(where));
     }
     initMasterKey(function() {
@@ -466,7 +465,7 @@ function updateMasterKey(appId, masterKey, done, force){
     var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
     fs.exists(avoscloudKeysFile, function(exists) {
         var writeMasterKey = function(data) {
-            data = data || {}
+            data = data || {};
             var existsMasterkey = data[appId];
             //If the master key is exists and force is false,
             // then return the eixsts master key
@@ -487,13 +486,13 @@ function updateMasterKey(appId, masterKey, done, force){
             fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
                 if (err)
                     return exitWith(err);
-                if (data.trim() == '') {
+                if (data.trim() === '') {
                     data = '{}';
                 }
-                var data = JSON.parse(data);
+                data = JSON.parse(data);
                 writeMasterKey(data);
             });
-        }
+        };
         if (exists) {
             readMasterKey();
         } else {
@@ -506,17 +505,17 @@ function updateMasterKey(appId, masterKey, done, force){
  *Creaet a new avoscloud cloud code project.
  */
 exports.createNewProject = function(cb) {
-    console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。")
+    console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。");
     input("请输入应用的 Application ID: ", function(appId) {
-        if (!appId || appId.trim() == '')
+        if (!appId || appId.trim() === '')
             return exitWith("无效的 Application ID");
 
         input("请输入应用的 Master Key: ", function(masterKey) {
-            if (!masterKey || masterKey.trim() == '')
+            if (!masterKey || masterKey.trim() === '')
                 return exitWith("无效的 Master Key");
 
             input("选择您的应用类型（标准版或者 web 主机版）: [standard(S) or web(W)] ", function(type) {
-                type = type || 'S'
+                type = type || 'S';
                 var params = '';
                 if (type.toUpperCase() == 'W' || type.toUpperCase() == 'WEB') {
                     params = '&webHosting=true';
@@ -556,7 +555,7 @@ exports.createNewProject = function(cb) {
             });
         }, true);
     });
-}
+};
 
 function importFile(f, realPath, cb) {
     var stats = fs.statSync(realPath);
@@ -620,7 +619,7 @@ exports.importFiles = function (files, cb) {
             cb(f + " 不存在，忽略");
         }
     }, cb);
-}
+};
 
 exports.initAVOSCloudSDK = initAVOSCloudSDK = function (done) {
     var currApp = getAppSync();
@@ -656,7 +655,7 @@ exports.initAVOSCloudSDK = initAVOSCloudSDK = function (done) {
         if (done)
             done(masterKey);
     });
-}
+};
 
 function createConfigIfNessary() {
     var configDir = path.join(CLOUD_PATH, ".avoscloud");
@@ -700,7 +699,7 @@ function getAppsSync() {
 exports.getAppSync = getAppSync = function() {
     var apps = getAppsSync();
     var appTags = Object.keys(apps);
-    if (appTags.length == 0) {
+    if (appTags.length === 0) {
         return exitWith("当前目录没有任何应用信息，请使用：add <name> <app id> 关联应用。");
     }
     if (PROJECT) {
@@ -722,7 +721,7 @@ exports.getAppSync = getAppSync = function() {
     } else {
         exitWith("当前目录关联了多个应用 " + appTags + "，请使用：checkout <app> 选择应用。");
     }
-}
+};
 
 function writeCurrAppSync(name) {
     createConfigIfNessary();
@@ -752,7 +751,7 @@ exports.addApp = function(name, appId) {
     apps[name] = appId;
     writeAppsSync(apps);
     console.log("[INFO] 关联应用：%s -- %s", name, appId);
-}
+};
 
 exports.removeApp = function(name) {
     var apps = getAppsSync();
@@ -760,7 +759,7 @@ exports.removeApp = function(name) {
         delete apps[name];
     writeAppsSync(apps);
     console.log("[INFO] 移除应用关联：%s", name);
-}
+};
 
 exports.checkoutApp = function(name) {
     var apps = getAppsSync();
@@ -768,7 +767,7 @@ exports.checkoutApp = function(name) {
         return exitWith("应用 '" + name + "' 不存在");
     writeCurrAppSync(name);
     console.log("[INFO] 切换到应用 " + name);
-}
+};
 
 exports.appStatus = function(isList) {
     var currApp = getAppSync();
@@ -779,7 +778,7 @@ exports.appStatus = function(isList) {
             if (name.length > maxNameLength)
                 maxNameLength = name.length;
         }
-        for (var name in apps) {
+        for (name in apps) {
             var formatedName = sprintf('%-' + maxNameLength + 's', name);
             if (name == currApp.tag) {
                 console.log(color.green("* " + formatedName + " " + apps[name]));
@@ -790,7 +789,7 @@ exports.appStatus = function(isList) {
     } else {
         console.log(color.green("* " + currApp.tag + " " + currApp.appId));
     }
-}
+};
 exports.queryLatestVersion = function(){
 	try{
 		util.ajax('GET','https://download.leancloud.cn/sdk/cloud_code_commandline.json',{},
@@ -808,12 +807,12 @@ exports.queryLatestVersion = function(){
 	}catch(err){
 		//ignore
 	}
-}
+};
 
 function sortObject(o) {
     var sorted = {},
     key, a = [];
-    sorted['objectId'] = o['objectId'];
+    sorted.objectId = o.objectId;
 
     for (key in o) {
         if (o.hasOwnProperty(key)) {
@@ -827,8 +826,8 @@ function sortObject(o) {
         if(a[key] != 'objectId' && a[key] != 'updatedAt' && a[key] != 'createdAt')
             sorted[a[key]] = o[a[key]];
     }
-    sorted['updatedAt'] = o['updatedAt'];
-    sorted['createdAt'] = o['createdAt'];
+    sorted.updatedAt = o.updatedAt;
+    sorted.createdAt = o.createdAt;
     return sorted;
 }
 
@@ -838,7 +837,7 @@ function outputQueryResult(resp, vertical){
     results = results.map(function(result){
         return sortObject(result);
     });
-    if((results == null || results.length == 0) && count == null)
+    if((results === null || results.length === 0) && count === null)
         console.log("*EMPTY*");
 
     if(count){
@@ -870,10 +869,10 @@ function outputQueryResult(resp, vertical){
     }, []);
     var table = new Table({
       head: head,
-      chars: { 'top': '═' , 'top-mid': '╤' , 'top-left': '╔' , 'top-right': '╗'
-             , 'bottom': '═' , 'bottom-mid': '╧' , 'bottom-left': '╚' , 'bottom-right': '╝'
-             , 'left': '║' , 'left-mid': '╟' , 'mid': '─' , 'mid-mid': '┼'
-             , 'right': '║' , 'right-mid': '╢' , 'middle': '│' }
+      chars: { 'top': '═' , 'top-mid': '╤' , 'top-left': '╔' , 'top-right': '╗',
+               'bottom': '═' , 'bottom-mid': '╧' , 'bottom-left': '╚' , 'bottom-right': '╝',
+               'left': '║' , 'left-mid': '╟' , 'mid': '─' , 'mid-mid': '┼',
+               'right': '║' , 'right-mid': '╢' , 'middle': '│' }
     });
     for(var i = 0; i< results.length ; i++){
         var result = results[i];
@@ -908,7 +907,7 @@ exports.doCloudQuery = doCloudQuery = function(cb) {
                error: function(err) {
                    try{
                        var error = JSON.parse(err.responseText);
-                       console.log(color.red(error.code + ': ' + error['error']));
+                       console.log(color.red(error.code + ': ' + error.error));
                    }catch(e){
                        console.log(color.red(err.responseText));
                    }
@@ -917,7 +916,7 @@ exports.doCloudQuery = doCloudQuery = function(cb) {
            });
         });
     });
-}
+};
 
 exports.doLint = function(cb) {
     console.log("linting ...");
@@ -931,7 +930,7 @@ exports.doLint = function(cb) {
             cb();
         }
     });
-}
+};
 
 exports.logProjectHome = function () {
     console.log('[INFO] LeanEngine 项目根目录：' + color.green(CLOUD_PATH));
@@ -941,8 +940,8 @@ exports.logProjectHome = function () {
     } else {
         exitWith('请使用：checkout <app> 选择应用。');
     }
-}
+};
 
 exports.getPort = function() {
   return PORT;
-}
+};
