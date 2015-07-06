@@ -1,3 +1,6 @@
+## v0.7.6
+* 增加 LeanEngine 3.0 web 调试控制台。
+
 ## v0.7.5
 * 增加 LeanEngine Python 项目的运行和部署。
 * 修复 项目类型检测的处理不正确。
