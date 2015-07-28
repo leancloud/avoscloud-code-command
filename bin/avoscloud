@@ -48,7 +48,7 @@ var callback = function(err){
       }
     }
   }
-  console.log("查看使用帮助：avoscloud -h");
+  console.log("查看使用帮助：avoscloud -h，或查看相关文档：https://leancloud.cn/docs/cloud_code_commandline.html");
   process.exit(exitCode);
 };
 
