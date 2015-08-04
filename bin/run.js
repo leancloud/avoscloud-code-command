@@ -428,7 +428,7 @@ function outputLogs(resp) {
 
 exports.viewCloudLog = viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
     initMasterKey(function() {
-        var doViewCloudLog = function doViewCloudLog() {
+        var doViewCloudLog = function doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb) {
             var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (lastLogUpdatedTime ? 1000 : (lines || 10));
             if (lastLogUpdatedTime) {
                 var where = {
@@ -459,7 +459,8 @@ exports.viewCloudLog = viewCloudLog = function (lines, tailf, lastLogUpdatedTime
                 }
             }, true);
         };
-        doViewCloudLog();
+
+        doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb);
     });
 };
 
