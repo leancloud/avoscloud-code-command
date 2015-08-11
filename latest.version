@@ -1,4 +1,4 @@
 {
   "version": "0.7.8",
-  "changelog": "* 修复重复初始化 SDK 打印太多警告日志的 Bug。\n"
+  "changelog": "1.修复重复初始化 SDK 打印太多警告日志的 Bug。\n"
 }
