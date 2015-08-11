@@ -427,36 +427,40 @@ function outputLogs(resp) {
 }
 
 exports.viewCloudLog = viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
-    var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (lastLogUpdatedTime ? 1000 : (lines || 10));
-    if (lastLogUpdatedTime) {
-        var where = {
-            createdAt: {
-                "$gt": {
-                    "__type": "Date",
-                    "iso": lastLogUpdatedTime
-                }
-            }
-        };
-        url += '&where=' + encodeURIComponent(JSON.stringify(where));
-    }
     initMasterKey(function() {
-        util.requestCloud(url, {}, 'GET', {
-            success: function(resp) {
-                if (resp.results.length > 0) {
-                    lastLogUpdatedTime = resp.results[0].createdAt;
-                }
-                outputLogs(resp);
-                if (tailf) {
-                    //fetch log every 500 milliseconds.
-                    setTimeout(function() {
-                        viewCloudLog(null, tailf, lastLogUpdatedTime, cb);
-                    }, 500);
-                }
-            },
-            error: function(err) {
-                errorCb(cb, 133, "查询应用日志", err);
+        var doViewCloudLog = function doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb) {
+            var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (lastLogUpdatedTime ? 1000 : (lines || 10));
+            if (lastLogUpdatedTime) {
+                var where = {
+                    createdAt: {
+                        "$gt": {
+                            "__type": "Date",
+                            "iso": lastLogUpdatedTime
+                        }
+                    }
+                };
+                url += '&where=' + encodeURIComponent(JSON.stringify(where));
             }
-        }, true);
+            util.requestCloud(url, {}, 'GET', {
+                success: function(resp) {
+                    if (resp.results.length > 0) {
+                        lastLogUpdatedTime = resp.results[0].createdAt;
+                    }
+                    outputLogs(resp);
+                    if (tailf) {
+                        //fetch log every 500 milliseconds.
+                        setTimeout(function() {
+                            doViewCloudLog(null, tailf, lastLogUpdatedTime, cb);
+                        }, 500);
+                    }
+                },
+                error: function(err) {
+                    errorCb(cb, 133, "查询应用日志", err);
+                }
+            }, true);
+        };
+
+        doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb);
     });
 };
 
