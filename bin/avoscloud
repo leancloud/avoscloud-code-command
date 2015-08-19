@@ -171,6 +171,16 @@ if(CMD) {
       run.doCloudQuery(callback);
       break;
 
+    case "redis":
+      var db = 0;
+      if (program.args.length < 2 || program.args.length > 3) {
+         return exitWith("请使用：avoscloud redis <server> <db>");
+      } else if (program.args.length == 3) {
+         db = program.args[2];
+      }
+      run.doRedisClient(program.args[1], db);
+      break;
+
     case "clear":
       run.deleteMasterKeys();
       callback();

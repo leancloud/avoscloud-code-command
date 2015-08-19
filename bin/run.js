@@ -892,6 +892,23 @@ function outputQueryResult(resp, vertical){
     }
 }
 
+exports.doRedisClient = doRedisClient = function(server, db) {
+  initAVOSCloudSDK(function(){
+    input("Redis> ", function(command) {
+      util.requestRedis(server, db, command, {
+        success: function(resp) {
+          console.log(resp);
+          doRedisClient();
+        },
+        error: function(resp) {
+          console.log(resp);
+          doRedisClient();
+        },
+      });
+    });
+  });
+}
+
 exports.doCloudQuery = doCloudQuery = function(cb) {
     initAVOSCloudSDK(function(){
        input("CQL> ",function(cql){
