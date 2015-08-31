@@ -894,7 +894,11 @@ var doRedisClient = exports.doRedisClient = function(server, db) {
         return;
       }
       util.requestRedis(server, db, command, function(err, data) {
-        console.log(data);
+        if(err) {
+          console.log('(error)', err.message);
+        } else {
+          console.log(data);
+        }
         doRedisClient(server, db);
       });
     });
