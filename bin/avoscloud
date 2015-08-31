@@ -174,7 +174,7 @@ if(CMD) {
     case "redis":
       var db = 0;
       if (program.args.length < 2 || program.args.length > 3) {
-         return exitWith("请使用：avoscloud redis <server> <db>");
+         return exitWith("请使用：avoscloud redis <server> [db]");
       } else if (program.args.length == 3) {
          db = program.args[2];
       }
