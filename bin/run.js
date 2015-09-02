@@ -887,6 +887,26 @@ function outputQueryResult(resp, vertical){
     }
 }
 
+exports.getRedisInstances = function() {
+  initAVOSCloudSDK(function(){
+    util.getRedisInstances(function(err, datas) {
+      if (err) {
+        return exitWith('查询 Redis 实例出错：', err);
+      }
+      if(datas.length === 0) {
+        console.log('该应用没有 Redis 实例');
+      } else {
+        console.log('\tInstance\tMax Memory');
+        console.log('\t--------------------------');
+        for(var i in datas) {
+          var data = datas[i];
+          console.log('\t%s\t%d MB', data.instance, data.max_memory);
+        }
+      }
+    });
+  });
+};
+
 var doRedisClient = exports.doRedisClient = function(server, db) {
   initAVOSCloudSDK(function(){
     input("Redis> ", function(command) {

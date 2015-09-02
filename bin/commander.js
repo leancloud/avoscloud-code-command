@@ -22,7 +22,8 @@ exports.parse_args = function(argv){
           "add <app>: 添加一个应用。\n    " +
           "rm <app>: 移除一个应用。\n    " +
           "lint: 静态检查代码错误。\n    " +
-          "cql: 进入 CQL 查询交互。")
+          "cql: 进入 CQL 查询交互。\n    " +
+          "redis: LeanCache Redis 命令行。")
       .option('-f, --filepath <path>', '本地云代码项目根路径，默认是当前目录。')
       .option('-d, --debug', '启用 Debug 模式，参见 https://nodejs.org/api/debugger.html。')
       .option('-g, --git', '使用定义在管理平台的 git 仓库或者 -u 指定的 git 仓库部署云代码，默认使用本地代码部署。')
