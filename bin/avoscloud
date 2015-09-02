@@ -171,6 +171,22 @@ if(CMD) {
       run.doCloudQuery(callback);
       break;
 
+    case "redis":
+      var db = '0';
+      if (program.args.length < 2 || program.args.length > 3) {
+         return exitWith("请使用：\n" +
+                         "    avoscloud redis list: 查看当前应用的 Redis 实例\n" +
+                         "    avoscloud redis <instance> [db]: 连接 Redis，db 默认为 0");
+      } else if (program.args.length == 3) {
+         db = program.args[2];
+      }
+      if(program.args[1] === 'list') {
+        run.getRedisInstances();
+      } else {
+        run.doRedisClient(program.args[1], db);
+      }
+      break;
+
     case "clear":
       run.deleteMasterKeys();
       callback();

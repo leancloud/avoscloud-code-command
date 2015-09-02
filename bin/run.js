@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+'use strict';
 /**
  * AVOS Cloud command-line tool
  * Author: dennis zhuang<xzhuang@avoscloud.com>
@@ -10,16 +10,10 @@ var path = require('path');
 var fs = require('fs');
 var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
 var exec = require('child_process').exec;
-var fstream = require('fstream'),
-    tar = require('tar'),
-    zlib = require('zlib');
 var archiver = require('archiver');
 var os = require('os');
 var request = require('request');
-var _s = require('underscore.string'),
-    _ = require('underscore');
-var https = require('https');
-var commander = require('./commander');
+var _ = require('underscore');
 var DecompressZip = require('decompress-zip');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
@@ -35,7 +29,7 @@ var Table = require('cli-table');
 //set qiniu timeout
 qiniu.conf.RPC_TIMEOUT = 3600000;
 
-IMPORT_FILE_BATCH_SIZE = 20;
+var IMPORT_FILE_BATCH_SIZE = 20;
 
 var TMP_DIR = os.tmpdir();
 if (!TMP_DIR.match(/.*\/$/)) {
@@ -66,7 +60,7 @@ function exitWith(err) {
     process.exit(1);
 }
 
-errorCb = function(cb, exitCode, action, cause) {
+var errorCb = function(cb, exitCode, action, cause) {
   var error = new Error();
   error.action = action;
   error.exitCode = exitCode;
@@ -92,7 +86,7 @@ exports.deleteMasterKeys = function() {
     console.log("[INFO] 清除成功");
 };
 
-exports.initMasterKey = initMasterKey = function(done) {
+var initMasterKey = exports.initMasterKey = function(done) {
     var currApp = getAppSync();
     var promptMasterKeyThenUpdate = function() {
         promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
@@ -191,7 +185,7 @@ function loopLogs(opsToken, cb) {
     util.requestCloud(url, {}, 'GET', {
       success: function(res) {
         moreData = res.moreData;
-        err = null;
+        var err = null;
         res.logs.forEach(function(logInfo) {
           console.log('%s [%s] %s', new Date(logInfo.createdAt).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content);
           start = logInfo.createdAt;
@@ -322,7 +316,7 @@ exports.publishCloudCode = function(cb) {
     });
 };
 
-exports.queryStatus = queryStatus = function(cb) {
+var queryStatus = exports.queryStatus = function(cb) {
     initMasterKey(function() {
         util.requestCloud('functions/status', {}, 'GET', {
             success: function(resp) {
@@ -426,7 +420,7 @@ function outputLogs(resp) {
     }
 }
 
-exports.viewCloudLog = viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
+exports.viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
     initMasterKey(function() {
         var doViewCloudLog = function doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb) {
             var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (lastLogUpdatedTime ? 1000 : (lines || 10));
@@ -625,7 +619,7 @@ exports.importFiles = function (files, cb) {
     }, cb);
 };
 
-exports.initAVOSCloudSDK = initAVOSCloudSDK = function (done) {
+var initAVOSCloudSDK = exports.initAVOSCloudSDK = function (done) {
     var currApp = getAppSync();
     var globalConfig = path.join(CLOUD_PATH, 'config/global.json');
     if (fs.existsSync(globalConfig)) { // TODO 不需要从 global 文件初始化 AV 对象
@@ -700,7 +694,7 @@ function getAppsSync() {
  *   * 如果存在一组配置，则返回
  *   * 否则报错
  */
-exports.getAppSync = getAppSync = function() {
+var getAppSync = exports.getAppSync = function() {
     var apps = getAppsSync();
     var appTags = Object.keys(apps);
     if (appTags.length === 0) {
@@ -838,6 +832,7 @@ function sortObject(o) {
 function outputQueryResult(resp, vertical){
     var results = resp.results;
     var count = resp.count;
+    var table, i, result, row;
     results = results.map(function(result){
         return sortObject(result);
     });
@@ -849,11 +844,11 @@ function outputQueryResult(resp, vertical){
     }
 
     if(vertical){
-        var table = new Table();
-        for(var i = 0; i< results.length ; i++){
-            var result = results[i];
+        table = new Table();
+        for(i = 0; i< results.length ; i++){
+            result = results[i];
             for(var k in result){
-                var row  = {};
+                row = {};
                 row[k] = result[k] || '';
                 table.push(row);
             }
@@ -871,16 +866,16 @@ function outputQueryResult(resp, vertical){
         else
             return ret;
     }, []);
-    var table = new Table({
+    table = new Table({
       head: head,
       chars: { 'top': '═' , 'top-mid': '╤' , 'top-left': '╔' , 'top-right': '╗',
                'bottom': '═' , 'bottom-mid': '╧' , 'bottom-left': '╚' , 'bottom-right': '╝',
                'left': '║' , 'left-mid': '╟' , 'mid': '─' , 'mid-mid': '┼',
                'right': '║' , 'right-mid': '╢' , 'middle': '│' }
     });
-    for(var i = 0; i< results.length ; i++){
-        var result = results[i];
-        var row = [];
+    for(i = 0; i< results.length ; i++){
+        result = results[i];
+        row = [];
         for(var j = 0; j < head.length; j++){
             row.push(result[head[j]] || '');
         }
@@ -892,7 +887,45 @@ function outputQueryResult(resp, vertical){
     }
 }
 
-exports.doCloudQuery = doCloudQuery = function(cb) {
+exports.getRedisInstances = function() {
+  initAVOSCloudSDK(function(){
+    util.getRedisInstances(function(err, datas) {
+      if (err) {
+        return exitWith('查询 Redis 实例出错：', err);
+      }
+      if(datas.length === 0) {
+        console.log('该应用没有 Redis 实例');
+      } else {
+        console.log('\tInstance\tMax Memory');
+        console.log('\t--------------------------');
+        for(var i in datas) {
+          var data = datas[i];
+          console.log('\t%s\t%d MB', data.instance, data.max_memory);
+        }
+      }
+    });
+  });
+};
+
+var doRedisClient = exports.doRedisClient = function(server, db) {
+  initAVOSCloudSDK(function(){
+    input("Redis> ", function(command) {
+      if (command === 'quit' || command === 'exit') {
+        return;
+      }
+      util.requestRedis(server, db, command, function(err, data) {
+        if(err) {
+          console.log('(error)', err.message);
+        } else {
+          console.log(data);
+        }
+        doRedisClient(server, db);
+      });
+    });
+  });
+};
+
+var doCloudQuery = exports.doCloudQuery = function(cb) {
     initAVOSCloudSDK(function(){
        input("CQL> ",function(cql){
            if(cql === 'exit')
