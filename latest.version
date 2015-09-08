@@ -1,4 +1,4 @@
 {
-  "version": "0.7.8",
-  "changelog": "1.修复重复初始化 SDK 打印太多警告日志的 Bug。\n"
+  "version": "0.8.0",
+  "changelog": "1.增加 redis 命令，用于管理 LeanCache redis。\n"
 }
