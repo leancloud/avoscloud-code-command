@@ -98,6 +98,7 @@ exports.initMasterKey = initMasterKey = function(done) {
         promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
             if (!answer || answer.trim() === '')
                 return exitWith("无效的 Master Key");
+            answer = answer.trim();
             AV.initialize(currApp.appId, answer);
             updateMasterKey(currApp.appId, answer, done, true);
         });
@@ -514,10 +515,12 @@ exports.createNewProject = function(cb) {
         if (!appId || appId.trim() === '')
             return exitWith("无效的 Application ID");
 
+        appId = appId.trim();
         input("请输入应用的 Master Key: ", function(masterKey) {
             if (!masterKey || masterKey.trim() === '')
                 return exitWith("无效的 Master Key");
 
+            masterKey = masterKey.trim();
             input("选择您的应用类型（标准版或者 web 主机版）: [standard(S) or web(W)] ", function(type) {
                 type = type || 'S';
                 var params = '';
