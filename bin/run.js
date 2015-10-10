@@ -510,52 +510,85 @@ exports.createNewProject = function(cb) {
             return exitWith("无效的 Application ID");
 
         appId = appId.trim();
+
         input("请输入应用的 Master Key: ", function(masterKey) {
             if (!masterKey || masterKey.trim() === '')
                 return exitWith("无效的 Master Key");
 
             masterKey = masterKey.trim();
-            input("选择您的应用类型（标准版或者 web 主机版）: [standard(S) or web(W)] ", function(type) {
-                type = type || 'S';
-                var params = '';
-                if (type.toUpperCase() == 'W' || type.toUpperCase() == 'WEB') {
-                    params = '&webHosting=true';
-                }
+
+            input("请输选择语言（nodejs 或 python）: ", function(language) {
+                var languagesMapping = {
+                    'nodejs': 'node-js-getting-started',
+                    'python': 'python-getting-started'
+                };
+
+                var repoName = languagesMapping[language];
+
+                if (!repoName)
+                    return exitWith("无效的语言");
+
                 console.log("Creating project...");
                 AV.initialize(appId, masterKey);
-                var url = AV.serverURL;
-                if (url.charAt(url.length - 1) !== "/") {
-                    url += "/";
+                var baseUrl = AV.serverURL;
+                if (baseUrl.charAt(baseUrl.length - 1) !== "/") {
+                    baseUrl += "/";
                 }
-                url += "1/" + 'functions/skeleton?appId=' + appId + "&appKey=" + masterKey + params;
-                var file = path.join(TMP_DIR, appId + '.zip');
-                request(url).pipe(fs.createWriteStream(file))
-                  .on('close', function(){
-                        var unzipper = new DecompressZip(file);
-                        unzipper.on('list', function (files) {
-                            files.forEach(function(file){
-                               console.log(color.green('  ' + file));
+
+                request({
+                    url: baseUrl + '1/functions/_ops/appInfo',
+                    headers: {
+                        'X-AVOSCloud-Application-Id': appId,
+                        'X-AVOSCloud-Application-Key': masterKey
+                    }
+                }, function(err, res, body) {
+                    if (res.statusCode != 200) {
+                        try {
+                            return exitWith(JSON.parse(body).error);
+                        } catch (err) {
+                            return exitWith(res.statusText);
+                        }
+                    }
+
+                    var appName = JSON.parse(body).app_name;
+
+                    try {
+                        fs.mkdirSync(appName);
+                    } catch (err) {
+                        if (err.code != 'EEXIST')
+                            throw err;
+                    }
+
+                    var zipFilePath = path.join(TMP_DIR, appId + '.zip');
+                    request('http://lcinternal-cloud-code-update.avosapps.com/' + repoName + '.zip')
+                        .pipe(fs.createWriteStream(zipFilePath))
+                        .on('close', function() {
+                            var unzipper = new DecompressZip(zipFilePath);
+                            unzipper.on('list', function(files) {
+                                files.forEach(function(file) {
+                                    console.log(color.green('  ' + file));
+                                });
                             });
-                        });
-                        unzipper.list();
-                        unzipper = new DecompressZip(file);
-                        unzipper.on('extract', function (log) {
-                            updateMasterKey(appId, masterKey, function(){
-                                console.log('Project created!');
-                                cb();
-                            //force to update master key.
-                            }, true);
-                        });
-                        unzipper.on('error', function (err) {
-                            console.error('解压缩文件失败：%s，服务器响应：%s', err, fs.readFileSync(file,'utf-8'));
-                        });
-                        unzipper.extract({
-                            path: './'
-                        });
-                  });
+                            unzipper.list();
+                            unzipper = new DecompressZip(zipFilePath);
+                            unzipper.on('extract', function(log) {
+                                updateMasterKey(appId, masterKey, function() {
+                                    console.log('Project created!');
+                                    cb();
+                                    //force to update master key.
+                                }, true);
+                            });
+                            unzipper.on('error', function(err) {
+                                console.error('解压缩文件失败：%s，服务器响应：%s', err, fs.readFileSync(zipFilePath, 'utf-8'));
+                            });
+                            unzipper.extract({
+                                path: appName
+                            });
+                        })
+                });
             });
-        }, true);
-    });
+        });
+    })
 };
 
 function importFile(f, realPath, cb) {
