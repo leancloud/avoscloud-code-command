@@ -517,18 +517,22 @@ exports.createNewProject = function(cb) {
 
             masterKey = masterKey.trim();
 
-            input("请输选择语言（nodejs 或 python）: ", function(language) {
-                var languagesMapping = {
-                    'nodejs': 'node-js-getting-started',
-                    'python': 'python-getting-started'
-                };
+            var languagesMapping = {
+                'nodejs': 'node-js-getting-started',
+                'node': 'node-js-getting-started',
+                'n': 'node-js-getting-started',
+                'python': 'python-getting-started',
+                'py': 'python-getting-started',
+                'p': 'python-getting-started'
+            };
 
-                var repoName = languagesMapping[language];
+            input("请选择项目语言，Node.js(N) 或 Python(P): ", function(language) {
+                var repoName = languagesMapping[language.toLowerCase()];
 
                 if (!repoName)
                     return exitWith("无效的语言");
 
-                console.log("Creating project...");
+                console.log("正在创建项目 ...");
                 AV.initialize(appId, masterKey);
                 var baseUrl = AV.serverURL;
                 if (baseUrl.charAt(baseUrl.length - 1) !== "/") {
@@ -542,11 +546,13 @@ exports.createNewProject = function(cb) {
                         'X-AVOSCloud-Application-Key': masterKey
                     }
                 }, function(err, res, body) {
-                    if (res.statusCode != 200) {
+                    if (err) {
+                        return exitWith(err.message);
+                    } else if (res.statusCode != 200) {
                         try {
                             return exitWith(JSON.parse(body).error);
                         } catch (err) {
-                            return exitWith(res.statusText);
+                            return exitWith(res.statusText || res.statusCode);
                         }
                     }
 
@@ -556,7 +562,7 @@ exports.createNewProject = function(cb) {
                         fs.mkdirSync(appName);
                     } catch (err) {
                         if (err.code != 'EEXIST')
-                            throw err;
+                            return exitWith(err.message);
                     }
 
                     var zipFilePath = path.join(TMP_DIR, appId + '.zip');
@@ -573,7 +579,7 @@ exports.createNewProject = function(cb) {
                             unzipper = new DecompressZip(zipFilePath);
                             unzipper.on('extract', function(log) {
                                 updateMasterKey(appId, masterKey, function() {
-                                    console.log('Project created!');
+                                    console.log('项目创建完成！');
                                     cb();
                                     //force to update master key.
                                 }, true);
