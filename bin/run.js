@@ -511,7 +511,7 @@ exports.createNewProject = function(cb) {
 
         appId = appId.trim();
 
-        input("请输入应用的 Master Key: ", function(masterKey) {
+        promptly.password("请输入应用的 Master Key: ", function(err, masterKey) {
             if (!masterKey || masterKey.trim() === '')
                 return exitWith("无效的 Master Key");
 
@@ -540,10 +540,10 @@ exports.createNewProject = function(cb) {
                 }
 
                 request({
-                    url: baseUrl + '1/functions/_ops/appInfo',
+                    url: baseUrl + '1.1/__leancloud/apps/appDetail',
                     headers: {
                         'X-AVOSCloud-Application-Id': appId,
-                        'X-AVOSCloud-Application-Key': masterKey
+                        'X-AVOSCloud-Application-Key': masterKey + ',master'
                     }
                 }, function(err, res, body) {
                     if (err) {
