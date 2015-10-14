@@ -25,6 +25,7 @@ var mime = require('mime');
 var async = require('async');
 var color = require('cli-color');
 var Table = require('cli-table');
+var AdmZip = require('adm-zip');
 
 //set qiniu timeout
 qiniu.conf.RPC_TIMEOUT = 3600000;
@@ -569,27 +570,23 @@ exports.createNewProject = function(cb) {
                     request('http://lcinternal-cloud-code-update.avosapps.com/' + repoName + '.zip')
                         .pipe(fs.createWriteStream(zipFilePath))
                         .on('close', function() {
-                            var unzipper = new DecompressZip(zipFilePath);
-                            unzipper.on('list', function(files) {
-                                files.forEach(function(file) {
-                                    console.log(color.green('  ' + file));
+                            try {
+                                var unzipper = new AdmZip(zipFilePath);
+
+                                unzipper.getEntries().forEach(function(file) {
+                                    console.log(color.green('  ' + file.entryName));
                                 });
-                            });
-                            unzipper.list();
-                            unzipper = new DecompressZip(zipFilePath);
-                            unzipper.on('extract', function(log) {
-                                updateMasterKey(appId, masterKey, function() {
-                                    console.log('项目创建完成！');
-                                    cb();
-                                    //force to update master key.
-                                }, true);
-                            });
-                            unzipper.on('error', function(err) {
+
+                                unzipper.extractAllTo(appName, true);
+                            } catch (err) {
                                 console.error('解压缩文件失败：%s，服务器响应：%s', err, fs.readFileSync(zipFilePath, 'utf-8'));
-                            });
-                            unzipper.extract({
-                                path: appName
-                            });
+                            }
+
+                            updateMasterKey(appId, masterKey, function() {
+                                console.log('项目创建完成！');
+                                cb();
+                                //force to update master key.
+                            }, true);
                         })
                 });
             });
