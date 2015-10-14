@@ -104,13 +104,13 @@ var initMasterKey = exports.initMasterKey = function(done) {
             updateMasterKeys(currApp.appId, {
                 masterKey: masterKey,
                 appKey: appDetail.app_key
-            }, {force: true}, callback);
+            }, {force: true}, callback.bind(null, appDetail));
         });
     };
 
     updateMasterKeys(currApp.appId, {}, function(err, keys) {
         if (keys.masterKey) {
-            done = done.bind(null, keys.masterKey);
+            done = done.bind(null, keys.masterKey, keys.appKey);
 
             AV.initialize(currApp.appId, keys.masterKey);
 
@@ -121,10 +121,9 @@ var initMasterKey = exports.initMasterKey = function(done) {
             }
         } else {
             promptMasterKey(function(err, masterKey) {
-                AV.initialize(currApp.appId, masterKey);
-
-                updateKeys(masterKey, function() {
-                    done(masterKey);
+                updateKeys(masterKey, function(appDetail) {
+                    AV.initialize(currApp.appId, masterKey);
+                    done(masterKey, appDetail.app_key);
                 });
             });
         }
@@ -608,10 +607,6 @@ exports.createNewProject = function(cb) {
 
                 console.log("正在创建项目 ...");
                 AV.initialize(appId, masterKey);
-                var baseUrl = AV.serverURL;
-                if (baseUrl.charAt(baseUrl.length - 1) !== "/") {
-                    baseUrl += "/";
-                }
 
                 fetchAppDetail(appId, masterKey, function(err, appDetail) {
                     try {
