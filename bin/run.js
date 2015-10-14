@@ -89,25 +89,46 @@ exports.deleteMasterKeys = function() {
 
 var initMasterKey = exports.initMasterKey = function(done) {
     var currApp = getAppSync();
-    var promptMasterKeyThenUpdate = function() {
-        promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
-            if (!answer || answer.trim() === '')
+
+    var promptMasterKey = function(callback) {
+        promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, masterKey) {
+            if (!masterKey || masterKey.trim() === '')
                 return exitWith("无效的 Master Key");
-            answer = answer.trim();
-            AV.initialize(currApp.appId, answer);
-            updateMasterKey(currApp.appId, answer, done, true);
+
+            callback(null, masterKey.trim())
         });
     };
-    updateMasterKey(currApp.appId, null, function(existsMasterKey){
-        if(existsMasterKey) {
-            if(done) {
-                AV.initialize(currApp.appId, existsMasterKey);
-                return done(existsMasterKey);
+
+    var updateKeys = function(masterKey, callback) {
+        fetchAppDetail(currApp.appId, masterKey, function(err, appDetail) {
+            updateMasterKeys(currApp.appId, {
+                masterKey: masterKey,
+                appKey: appDetail.app_key
+            }, {force: true}, callback);
+        });
+    };
+
+    updateMasterKeys(currApp.appId, {}, function(err, keys) {
+        if (keys.masterKey) {
+            done = done.bind(null, keys.masterKey);
+
+            AV.initialize(currApp.appId, keys.masterKey);
+
+            if (!keys.appKey) { // 如果没有 appKey (旧版本) 则去查询然后纪录
+                updateKeys(keys.masterKey, done);
+            } else {
+                done();
             }
         } else {
-            promptMasterKeyThenUpdate();
+            promptMasterKey(function(err, masterKey) {
+                AV.initialize(currApp.appId, masterKey);
+
+                updateKeys(masterKey, function() {
+                    done(masterKey);
+                });
+            });
         }
-    }, false);
+    });
 };
 
 function bucketDomain(bucket) {
@@ -460,44 +481,96 @@ exports.viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
     });
 };
 
-function updateMasterKey(appId, masterKey, done, force){
-    var home = getUserHome();
-    var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
-    fs.exists(avoscloudKeysFile, function(exists) {
-        var writeMasterKey = function(data) {
-            data = data || {};
-            var existsMasterkey = data[appId];
-            //If the master key is exists and force is false,
-            // then return the eixsts master key
-            if(existsMasterkey && !force) {
-                if(done)
-                    done(existsMasterkey);
-                return;
-            }
-            data[appId] = masterKey;
-            //Save to file ,and make sure file mode is 0600
-            fs.writeFileSync(avoscloudKeysFile, JSON.stringify(data), {
-                mode: 384
-            });
-            if(done)
-                done(masterKey);
-        };
-        var readMasterKey = function() {
-            fs.readFile(avoscloudKeysFile, 'utf-8', function(err, data) {
-                if (err)
-                    return exitWith(err);
-                if (data.trim() === '') {
-                    data = '{}';
-                }
-                data = JSON.parse(data);
-                writeMasterKey(data);
-            });
-        };
-        if (exists) {
-            readMasterKey();
-        } else {
-            writeMasterKey({});
+var migrateAvoscloudKeys = _.once(function() {
+    var avoscloudAppKeysFile = path.join(getUserHome(), '.avoscloud_keys');
+    var leancloudFolder = path.join(getUserHome(), '.leancloud');
+    var leancloudAppKeysFile = path.join(leancloudFolder, 'app_keys');
+
+    if (fs.existsSync(avoscloudAppKeysFile)) {
+        if (fs.existsSync(leancloudAppKeysFile))
+            return; // 如果已有新格式的文件则不迁移
+
+        try {
+            fs.mkdirSync(leancloudFolder);
+        } catch (err) {
+            if (err.code != 'EEXIST')
+                return exitWith(err.message);
         }
+
+        var data = fs.readFileSync(avoscloudAppKeysFile, 'utf-8');
+
+        if (data.trim() === '')
+            data = '{}';
+
+        var appKeys = _.mapObject(JSON.parse(data), function(value) {
+            if (_.isString(value)) {
+                return {
+                    masterKey: value,
+                    appKey: null
+                };
+            } else {
+                return value;
+            }
+        });
+
+        fs.writeFileSync(leancloudAppKeysFile, JSON.stringify(appKeys), {
+            mode: '0600'
+        });
+
+        fs.unlinkSync(avoscloudAppKeysFile);
+    }
+});
+
+function loadLocalAppKeys(callback) {
+    migrateAvoscloudKeys();
+
+    fs.readFile(path.join(getUserHome(), '.leancloud/app_keys'), 'utf-8', function(err, data) {
+        if (err) {
+            if (err.code == 'ENOENT')
+                return callback(null, {});
+            else
+                return exitWith(err.message);
+        }
+
+        if (data.trim() === '')
+            data = '{}';
+
+        callback(null, JSON.parse(data));
+    })
+}
+
+function updateMasterKeys(appId, keys, options, callback) {
+    if (_.isFunction(options)) {
+        callback = options;
+        options = {};
+    }
+
+    var leancloudFolder = path.join(getUserHome(), '.leancloud');
+
+    loadLocalAppKeys(function(err, appKeys) {
+        // If the master key is exists and force is false, then return the eixsts master key
+        if (appKeys[appId] && appKeys[appId].masterKey && !options.force)
+            return callback(null, appKeys[appId]);
+
+        appKeys[appId] = {
+            masterKey: keys.masterKey,
+            appKey: keys.appKey
+        };
+
+        fs.mkdir(leancloudFolder, function(err) {
+            if (err && err.code != 'EEXIST')
+                return exitWith(err.message);
+
+            // Save to file ,and make sure file mode is 0600
+            fs.writeFile(path.join(leancloudFolder, 'app_keys'), JSON.stringify(appKeys), {
+                mode: '0600'
+            }, function(err) {
+                if (err)
+                    exitWith(err.message);
+                else
+                    callback(null, appKeys[appId]);
+            });
+        });
     });
 }
 
@@ -540,27 +613,9 @@ exports.createNewProject = function(cb) {
                     baseUrl += "/";
                 }
 
-                request({
-                    url: baseUrl + '1.1/__leancloud/apps/appDetail',
-                    headers: {
-                        'X-AVOSCloud-Application-Id': appId,
-                        'X-AVOSCloud-Application-Key': masterKey + ',master'
-                    }
-                }, function(err, res, body) {
-                    if (err) {
-                        return exitWith(err.message);
-                    } else if (res.statusCode != 200) {
-                        try {
-                            return exitWith(JSON.parse(body).error);
-                        } catch (err) {
-                            return exitWith(res.statusText || res.statusCode);
-                        }
-                    }
-
-                    var appName = JSON.parse(body).app_name;
-
+                fetchAppDetail(appId, masterKey, function(err, appDetail) {
                     try {
-                        fs.mkdirSync(appName);
+                        fs.mkdirSync(appDetail.app_name);
                     } catch (err) {
                         if (err.code != 'EEXIST')
                             return exitWith(err.message);
@@ -577,16 +632,20 @@ exports.createNewProject = function(cb) {
                                     console.log(color.green('  ' + file.entryName));
                                 });
 
-                                unzipper.extractAllTo(appName, true);
+                                unzipper.extractAllTo(appDetail.app_name, true);
                             } catch (err) {
-                                console.error('解压缩文件失败：%s，服务器响应：%s', err, fs.readFileSync(zipFilePath, 'utf-8'));
+                                console.error('解压缩文件失败：%s，服务器响应：%s', err.message, fs.readFileSync(zipFilePath, 'utf-8'));
                             }
 
-                            updateMasterKey(appId, masterKey, function() {
+                            updateMasterKeys(appId, {
+                                masterKey: masterKey,
+                                appKey: appDetail.app_key
+                            }, {force: true}, function() {
+                                exports.setCloudPath(path.resolve(appDetail.app_name));
+                                exports.addApp(appDetail.app_name, appId);
                                 console.log('项目创建完成！');
                                 cb();
-                                //force to update master key.
-                            }, true);
+                            });
                         })
                 });
             });
@@ -776,6 +835,32 @@ function writeAppsSync(apps) {
         mode: 384
     });
 }
+
+var fetchAppDetail = function(appId, masterKey, callback) {
+  request({
+      url: AV.serverURL + '/1.1/__leancloud/apps/appDetail',
+      headers: {
+          'X-AVOSCloud-Application-Id': appId,
+          'X-AVOSCloud-Application-Key': masterKey + ',master'
+      }
+  }, function(err, res, body) {
+    if (err) {
+        exitWith(err.message);
+    } else if (res.statusCode != 200) {
+        try {
+            exitWith(JSON.parse(body).error);
+        } catch (err) {
+            exitWith(res.statusText || res.statusCode);
+        }
+    } else {
+      try {
+          callback(null, JSON.parse(body))
+      } catch (err) {
+          exitWith(err.message);
+      }
+    }
+  });
+};
 
 exports.addApp = function(name, appId) {
     if (!/\w+/.test(name))
