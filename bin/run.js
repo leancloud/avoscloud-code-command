@@ -14,7 +14,6 @@ var archiver = require('archiver');
 var os = require('os');
 var request = require('request');
 var _ = require('underscore');
-var DecompressZip = require('decompress-zip');
 var AV = require('avoscloud-sdk').AV;
 var qiniu = require('qiniu');
 var util = require(lib + '/util');
@@ -82,8 +81,18 @@ function getUserHome() {
 exports.deleteMasterKeys = function() {
     var home = getUserHome();
     var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
-    console.log("[INFO] 删除 " + avoscloudKeysFile + " ...");
-    fs.truncateSync(avoscloudKeysFile, 0);
+    var leancloudAppKeysFile = path.join(home, '.leancloud/app_keys');
+
+    try {
+      console.log("[INFO] 删除 " + avoscloudKeysFile + " ...");
+      fs.truncateSync(avoscloudKeysFile, 0);
+      console.log("[INFO] 删除 " + leancloudAppKeysFile + " ...");
+      fs.truncateSync(leancloudAppKeysFile, 0);
+    } catch (err) {
+      if (err.code != 'ENOENT')
+        exitWith(err.message);
+    }
+
     console.log("[INFO] 清除成功");
 };
 
@@ -95,7 +104,7 @@ var initMasterKey = exports.initMasterKey = function(done) {
             if (!masterKey || masterKey.trim() === '')
                 return exitWith("无效的 Master Key");
 
-            callback(null, masterKey.trim())
+            callback(null, masterKey.trim());
         });
     };
 
@@ -490,7 +499,7 @@ var migrateAvoscloudKeys = _.once(function() {
             return; // 如果已有新格式的文件则不迁移
 
         try {
-            fs.mkdirSync(leancloudFolder);
+            fs.mkdirSync(leancloudFolder, '0700');
         } catch (err) {
             if (err.code != 'EEXIST')
                 return exitWith(err.message);
@@ -535,7 +544,7 @@ function loadLocalAppKeys(callback) {
             data = '{}';
 
         callback(null, JSON.parse(data));
-    })
+    });
 }
 
 function updateMasterKeys(appId, keys, options, callback) {
@@ -556,7 +565,7 @@ function updateMasterKeys(appId, keys, options, callback) {
             appKey: keys.appKey
         };
 
-        fs.mkdir(leancloudFolder, function(err) {
+        fs.mkdir(leancloudFolder, '0700', function(err) {
             if (err && err.code != 'EEXIST')
                 return exitWith(err.message);
 
@@ -641,11 +650,11 @@ exports.createNewProject = function(cb) {
                                 console.log('项目创建完成！');
                                 cb();
                             });
-                        })
+                        });
                 });
             });
         });
-    })
+    });
 };
 
 function importFile(f, realPath, cb) {
@@ -849,7 +858,7 @@ var fetchAppDetail = function(appId, masterKey, callback) {
         }
     } else {
       try {
-          callback(null, JSON.parse(body))
+          callback(null, JSON.parse(body));
       } catch (err) {
           exitWith(err.message);
       }
