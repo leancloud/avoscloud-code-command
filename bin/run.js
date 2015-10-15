@@ -82,8 +82,18 @@ function getUserHome() {
 exports.deleteMasterKeys = function() {
     var home = getUserHome();
     var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
-    console.log("[INFO] 删除 " + avoscloudKeysFile + " ...");
-    fs.truncateSync(avoscloudKeysFile, 0);
+    var leancloudAppKeysFile = path.join(home, '.leancloud/app_keys');
+
+    try {
+      console.log("[INFO] 删除 " + avoscloudKeysFile + " ...");
+      fs.truncateSync(avoscloudKeysFile, 0);
+      console.log("[INFO] 删除 " + leancloudAppKeysFile + " ...");
+      fs.truncateSync(leancloudAppKeysFile, 0);
+    } catch (err) {
+      if (!err.code == 'ENOENT')
+        exitWith(err.message);
+    }
+
     console.log("[INFO] 清除成功");
 };
 
@@ -490,7 +500,7 @@ var migrateAvoscloudKeys = _.once(function() {
             return; // 如果已有新格式的文件则不迁移
 
         try {
-            fs.mkdirSync(leancloudFolder);
+            fs.mkdirSync(leancloudFolder, '0700');
         } catch (err) {
             if (err.code != 'EEXIST')
                 return exitWith(err.message);
@@ -556,7 +566,7 @@ function updateMasterKeys(appId, keys, options, callback) {
             appKey: keys.appKey
         };
 
-        fs.mkdir(leancloudFolder, function(err) {
+        fs.mkdir(leancloudFolder, '0700', function(err) {
             if (err && err.code != 'EEXIST')
                 return exitWith(err.message);
 
