@@ -25,6 +25,7 @@ var mime = require('mime');
 var async = require('async');
 var color = require('cli-color');
 var Table = require('cli-table');
+var AdmZip = require('adm-zip');
 
 //set qiniu timeout
 qiniu.conf.RPC_TIMEOUT = 3600000;
@@ -92,6 +93,7 @@ var initMasterKey = exports.initMasterKey = function(done) {
         promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, answer) {
             if (!answer || answer.trim() === '')
                 return exitWith("无效的 Master Key");
+            answer = answer.trim();
             AV.initialize(currApp.appId, answer);
             updateMasterKey(currApp.appId, answer, done, true);
         });
@@ -508,51 +510,88 @@ exports.createNewProject = function(cb) {
         if (!appId || appId.trim() === '')
             return exitWith("无效的 Application ID");
 
-        input("请输入应用的 Master Key: ", function(masterKey) {
+        appId = appId.trim();
+
+        promptly.password("请输入应用的 Master Key: ", function(err, masterKey) {
             if (!masterKey || masterKey.trim() === '')
                 return exitWith("无效的 Master Key");
 
-            input("选择您的应用类型（标准版或者 web 主机版）: [standard(S) or web(W)] ", function(type) {
-                type = type || 'S';
-                var params = '';
-                if (type.toUpperCase() == 'W' || type.toUpperCase() == 'WEB') {
-                    params = '&webHosting=true';
-                }
-                console.log("Creating project...");
+            masterKey = masterKey.trim();
+
+            var languagesMapping = {
+                'nodejs': 'node-js-getting-started',
+                'node': 'node-js-getting-started',
+                'n': 'node-js-getting-started',
+                'python': 'python-getting-started',
+                'py': 'python-getting-started',
+                'p': 'python-getting-started'
+            };
+
+            input("请选择项目语言，Node.js(N) 或 Python(P): ", function(language) {
+                var repoName = languagesMapping[language.toLowerCase()];
+
+                if (!repoName)
+                    return exitWith("无效的语言");
+
+                console.log("正在创建项目 ...");
                 AV.initialize(appId, masterKey);
-                var url = AV.serverURL;
-                if (url.charAt(url.length - 1) !== "/") {
-                    url += "/";
+                var baseUrl = AV.serverURL;
+                if (baseUrl.charAt(baseUrl.length - 1) !== "/") {
+                    baseUrl += "/";
                 }
-                url += "1/" + 'functions/skeleton?appId=' + appId + "&appKey=" + masterKey + params;
-                var file = path.join(TMP_DIR, appId + '.zip');
-                request(url).pipe(fs.createWriteStream(file))
-                  .on('close', function(){
-                        var unzipper = new DecompressZip(file);
-                        unzipper.on('list', function (files) {
-                            files.forEach(function(file){
-                               console.log(color.green('  ' + file));
-                            });
-                        });
-                        unzipper.list();
-                        unzipper = new DecompressZip(file);
-                        unzipper.on('extract', function (log) {
-                            updateMasterKey(appId, masterKey, function(){
-                                console.log('Project created!');
+
+                request({
+                    url: baseUrl + '1.1/__leancloud/apps/appDetail',
+                    headers: {
+                        'X-AVOSCloud-Application-Id': appId,
+                        'X-AVOSCloud-Application-Key': masterKey + ',master'
+                    }
+                }, function(err, res, body) {
+                    if (err) {
+                        return exitWith(err.message);
+                    } else if (res.statusCode != 200) {
+                        try {
+                            return exitWith(JSON.parse(body).error);
+                        } catch (err) {
+                            return exitWith(res.statusText || res.statusCode);
+                        }
+                    }
+
+                    var appName = JSON.parse(body).app_name;
+
+                    try {
+                        fs.mkdirSync(appName);
+                    } catch (err) {
+                        if (err.code != 'EEXIST')
+                            return exitWith(err.message);
+                    }
+
+                    var zipFilePath = path.join(TMP_DIR, appId + '.zip');
+                    request('http://lcinternal-cloud-code-update.avosapps.com/' + repoName + '.zip')
+                        .pipe(fs.createWriteStream(zipFilePath))
+                        .on('close', function() {
+                            try {
+                                var unzipper = new AdmZip(zipFilePath);
+
+                                unzipper.getEntries().forEach(function(file) {
+                                    console.log(color.green('  ' + file.entryName));
+                                });
+
+                                unzipper.extractAllTo(appName, true);
+                            } catch (err) {
+                                console.error('解压缩文件失败：%s，服务器响应：%s', err, fs.readFileSync(zipFilePath, 'utf-8'));
+                            }
+
+                            updateMasterKey(appId, masterKey, function() {
+                                console.log('项目创建完成！');
                                 cb();
-                            //force to update master key.
+                                //force to update master key.
                             }, true);
-                        });
-                        unzipper.on('error', function (err) {
-                            console.error('解压缩文件失败：%s，服务器响应：%s', err, fs.readFileSync(file,'utf-8'));
-                        });
-                        unzipper.extract({
-                            path: './'
-                        });
-                  });
+                        })
+                });
             });
-        }, true);
-    });
+        });
+    })
 };
 
 function importFile(f, realPath, cb) {
