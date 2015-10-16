@@ -42,6 +42,7 @@ var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(
 var PROJECT = null;
 var CLOUD_PATH = path.resolve('.');
 var PORT = 3000;
+var HOST = 'localhost';
 
 // 设置命令作用的 project
 exports.setProject = function(project) {
@@ -54,6 +55,10 @@ exports.setCloudPath = function(cloudPath) {
 
 exports.setPort = function(port) {
   PORT = port;
+};
+
+exports.setHost = function(host) {
+  HOST = host;
 };
 
 function exitWith(err) {
@@ -1020,4 +1025,7 @@ exports.logProjectHome = function () {
 
 exports.getPort = function() {
   return PORT;
+};
+exports.getHost = function() {
+  return HOST;
 };

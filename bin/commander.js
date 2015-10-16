@@ -34,6 +34,7 @@ exports.parse_args = function(argv){
       .option('-t, --tailf', '自动刷新云代码日志，结合 logs 命令使用。', 1)
       .option('-r, --revision <revision>', 'git 的版本号，仅对从 git 仓库部署有效。')
       .option('-P, --port <port>', '指定本地调试的端口，默认 3000。', 3000)
+      .option('-H, --host <host>', '指定本地调试的主机名，默认 localhost。', 'localhost')
       .parse(argv);
   return program;
 }
