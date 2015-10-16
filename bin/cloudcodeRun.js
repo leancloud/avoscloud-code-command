@@ -7,6 +7,7 @@ var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
 
 var program = commander.parse_args(process.argv);
 run.setPort(program.port);
+run.setHost(program.host);
 
 var CLOUD_PATH = path.resolve('.');
 
@@ -16,6 +17,6 @@ if (!CLOUD_PATH.match(/.*\/$/)) {
 
 run.logProjectHome();
 run.initAVOSCloudSDK(function(masterKey) {
-    require(lib + '/mock').run(CLOUD_PATH, AV, run.getPort());
-    console.log("请使用浏览器打开 http://localhost:" + run.getPort() + "/avos");
+    require(lib + '/mock').run(CLOUD_PATH, AV, run.getPort(), run.getHost());
+    console.log("请使用浏览器打开 http://" + run.getHost() + ":" + run.getPort() + "/avos");
 });

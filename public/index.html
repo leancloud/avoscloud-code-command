@@ -112,7 +112,7 @@
             if (err) {
               return $('#result').html(err.message || err);
             }
-            var url = "http://localhost:" + leanenginePort + "/1.1/functions/" + $('#functions').val();
+            var url = "http://" + window.location.hostname + ":" + leanenginePort + "/1.1/functions/" + $('#functions').val();
             request(url, data, user);
           })
         } catch(e){
@@ -149,7 +149,7 @@
             if (err) {
               return $('#result').html(err.message || err);
             }
-            var url = "http://localhost:" + leanenginePort + "/1.1/functions" + $('#hooks').val();
+            var url = "http://" + window.location.hostname + ":" + leanenginePort + "/1.1/functions" + $('#hooks').val();
             getObject(function(err, data) {
               if (err) {
                 return $('#result').html(err.message || err);

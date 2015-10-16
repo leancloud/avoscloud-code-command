@@ -67,6 +67,7 @@ var args = process.argv.slice(2);
 run.setProject(program.project);
 run.setCloudPath(CLOUD_PATH);
 run.setPort(program.port);
+run.setHost(program.host);
 
 //Query lastet commandline version.
 run.queryLatestVersion();
@@ -226,13 +227,15 @@ if(CMD) {
       run.initMasterKey(function(masterKey) {
         var app = run.getAppSync();
         var testServerPort = parseInt(run.getPort()) + 1;
+        var testServerHost = run.getHost();
         testServer.set('leanenginePort', run.getPort());
         testServer.set('port', testServerPort);
+        testServer.set('host', testServerHost);
         testServer.set('appId', app.appId);
         testServer.set('appKey', masterKey);
         testServer.set('masterKey', masterKey);
-        console.log(color.green('提示：您可以使用 http://localhost:' + testServerPort + ' 测试 Cloud 函数'));
-        testServer.listen(testServerPort);
+        console.log(color.green('提示：您可以使用 http://' + testServerHost + ':' + testServerPort + ' 测试 Cloud 函数'));
+        testServer.listen(testServerPort, testServerHost);
       });
     }
   });
