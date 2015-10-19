@@ -1,6 +1,6 @@
+'use strict';
 var fs = require('fs');
 var path = require('path');
-var AV = require('avoscloud-sdk').AV;
 var run = require('./run');
 var commander = require('./commander');
 var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
@@ -15,7 +15,7 @@ if (!CLOUD_PATH.match(/.*\/$/)) {
 }
 
 run.logProjectHome();
-run.initAVOSCloudSDK(function(masterKey) {
+run.initAVOSCloudSDK(function(AV) {
     require(lib + '/mock').run(CLOUD_PATH, AV, run.getPort());
     console.log("请使用浏览器打开 http://localhost:" + run.getPort() + "/avos");
 });
