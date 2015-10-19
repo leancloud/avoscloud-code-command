@@ -86,6 +86,12 @@ exports.deleteMasterKeys = function() {
     try {
       console.log("[INFO] 删除 " + avoscloudKeysFile + " ...");
       fs.truncateSync(avoscloudKeysFile, 0);
+    } catch (err) {
+      if (err.code !== 'ENOENT')
+        exitWith(err.message);
+    }
+
+    try {
       console.log("[INFO] 删除 " + leancloudAppKeysFile + " ...");
       fs.truncateSync(leancloudAppKeysFile, 0);
     } catch (err) {
