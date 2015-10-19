@@ -117,7 +117,6 @@ if(CMD) {
       break;
 
     case "upload":
-      run.initAVOSCloudSDK();
       run.logProjectHome();
       if (!program.args[1]) {
         console.log("请使用：avoscloud upload <文件或目录>");
@@ -223,14 +222,14 @@ if(CMD) {
         console.log('[INFO] 因为文件变更而项目重启：', files);
     });
     if (runtimeInfo.runtime != 'cloudcode') {
-      run.initMasterKey(function(masterKey) {
+      run.initAVOSCloudSDK(function(AV) {
         var app = run.getAppSync();
         var testServerPort = parseInt(run.getPort()) + 1;
         testServer.set('leanenginePort', run.getPort());
         testServer.set('port', testServerPort);
         testServer.set('appId', app.appId);
-        testServer.set('appKey', masterKey);
-        testServer.set('masterKey', masterKey);
+        testServer.set('appKey', AV.applicationKey);
+        testServer.set('masterKey', AV.masterKey);
         console.log(color.green('提示：您可以使用 http://localhost:' + testServerPort + ' 测试 Cloud 函数'));
         testServer.listen(testServerPort);
       });
