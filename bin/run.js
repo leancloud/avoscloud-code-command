@@ -442,7 +442,7 @@ function outputLogs(resp) {
 exports.viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
     initAVOSCloudSDK(function() {
         var doViewCloudLog = function doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb) {
-            var url = 'stats/cloud/logs';
+            var url = 'tables/EngineLogs';
             if (lastLogUpdatedTime) {
               url += '?since=' + encodeURIComponent(lastLogUpdatedTime);
             }
