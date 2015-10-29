@@ -195,9 +195,9 @@ function loopLogs(opsToken, prod, cb) {
       success: function(res) {
         moreData = res.moreData;
         var err = null;
-        res.logs.forEach(function(logInfo) {
-          console.log('%s [%s] %s', new Date(logInfo.createdAt).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content);
-          start = logInfo.createdAt;
+        res.logs.reverse().forEach(function(logInfo) {
+          console.log('%s [%s] %s', new Date(logInfo.time).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content);
+          start = logInfo.time;
           if (logInfo.level.toLocaleUpperCase() === 'ERROR') {
             err = logInfo.content;
           }
