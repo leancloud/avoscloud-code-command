@@ -429,9 +429,12 @@ exports.sendStats = function(cmd) {
 };
 
 function outputLogs(resp) {
-    if (resp && resp.results.length > 0) {
-        resp.results.reverse().forEach(function(log) {
-            console.log('%s [%s] [%s] %s', new Date(log.createdAt).toLocaleString(), (log.production == 1 ? 'PROD' : 'TEST'), log.level.toLocaleUpperCase(), log.content);
+    if (resp && resp.length > 0) {
+        resp.reverse().forEach(function(log) {
+            var time = new Date(log.time).toLocaleString();
+            var env = log.production == 1 ? 'PROD' : 'TEST';
+            var content = log.content.replace(/\n$/, '');
+            console.log('%s [%s] [%s] %s', time, env, log.level.toLocaleUpperCase(), content);
         });
     }
 }
@@ -439,22 +442,20 @@ function outputLogs(resp) {
 exports.viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
     initAVOSCloudSDK(function() {
         var doViewCloudLog = function doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb) {
-            var url = 'classes/_CloudLog?order=-updatedAt&limit=' + (lastLogUpdatedTime ? 1000 : (lines || 10));
+            var url = 'tables/EngineLogs';
             if (lastLogUpdatedTime) {
-                var where = {
-                    createdAt: {
-                        "$gt": {
-                            "__type": "Date",
-                            "iso": lastLogUpdatedTime
-                        }
-                    }
-                };
-                url += '&where=' + encodeURIComponent(JSON.stringify(where));
+              url += '?since=' + encodeURIComponent(lastLogUpdatedTime);
             }
             util.requestCloud(url, {}, 'GET', {
                 success: function(resp) {
-                    if (resp.results.length > 0) {
-                        lastLogUpdatedTime = resp.results[0].createdAt;
+                    resp = resp.map(function(item) {
+                      if (_.isString(item))
+                        return JSON.parse(item);
+                      else
+                        return item;
+                    });
+                    if (resp.length > 0) {
+                        lastLogUpdatedTime = resp[0].time;
                     }
                     outputLogs(resp);
                     if (tailf) {
