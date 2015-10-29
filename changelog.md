@@ -1,3 +1,8 @@
+## v0.9.0
+* new 命令生成 Leanengine 3.0 项目框架.
+* 改进 logs 命令，使用新的数据源，低于此版本的命令行工具需要立即升级，否则无法查看日志。
+* 使用 App key 初始化 SDK。
+
 ## v0.8.0
 * 增加  `redis` 命令，用于管理 LeanCache redis。
 
