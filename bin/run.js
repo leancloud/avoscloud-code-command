@@ -183,13 +183,13 @@ function uploadFile(localFile, props, cb, retry, retries, lastErr) {
     });
 }
 
-function loopLogs(opsToken, cb) {
+function loopLogs(opsToken, prod, cb) {
   var start = null;
   var moreData = true;
   var doLoop = function() {
-    var url = 'functions/_ops/progressive/' + opsToken;
+    var url = 'functions/_ops/progressive/' + opsToken + '?production=' + prod;
     if (start) {
-      url += '?start=' + start;
+      url += '&start=' + start;
     }
     util.requestCloud(url, {}, 'GET', {
       success: function(res) {
@@ -249,7 +249,7 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
                         log: deployLog
                     }, 'POST', {
                         success: function(resp) {
-                            loopLogs(resp.opsToken, function(err) {
+                            loopLogs(resp.opsToken, 0, function(err) {
                                 if (err) {
                                     return errorCb(cb, 128, "部署失败", err);
                                 }
@@ -282,7 +282,7 @@ exports.deployGitCloudCode = function (revision, giturl, cb) {
             url: giturl
         }, 'POST', {
             success: function(resp) {
-                loopLogs(resp.opsToken, function(err) {
+                loopLogs(resp.opsToken, 0, function(err) {
                     if (err) {
                         return errorCb(cb, 129, "从 Git 仓库部署", err);
                     }
@@ -310,7 +310,7 @@ exports.publishCloudCode = function(cb) {
     initAVOSCloudSDK(function() {
         util.requestCloud('functions/_ops/publish', {}, 'POST', {
             success: function(resp) {
-                loopLogs(resp.opsToken, function(err) {
+                loopLogs(resp.opsToken, 1, function(err) {
                     if (err) {
                         return errorCb(cb, 130, "发布生产环境", err);
                     }
@@ -448,6 +448,9 @@ exports.viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
             }
             util.requestCloud(url, {}, 'GET', {
                 success: function(resp) {
+                    if (resp.results) {
+                      resp = resp.results;
+                    }
                     resp = resp.map(function(item) {
                       if (_.isString(item))
                         return JSON.parse(item);
