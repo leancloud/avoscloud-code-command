@@ -6,15 +6,16 @@
   <script type="text/javascript" src="https://cdn1.lncld.net/static/js/av-core-mini-0.5.4.js"></script>
   <link rel="stylesheet" href="http://cdn.staticfile.org/twitter-bootstrap/3.3.1/css/bootstrap.min.css" type="text/css" media="screen"/>
   <script type="text/javascript" charset="utf-8">
-    var appId, appKey, leanenginePort;
+    var appId, appKey, masterKey, leanenginePort;
 
     $(document).ready(function (){
       
       $.get("/__engine/1/appInfo", function(data) {
         appId = data.appId;
         appKey = data.appKey;
+        masterKey = data.masterKey;
         leanenginePort = data.leanenginePort; 
-        AV._initialize(appId, appKey, appKey);
+        AV._initialize(appId, appKey, masterKey);
         AV._useMasterKey = true;
       });
 
@@ -29,10 +30,9 @@
           $('#hooks').find('option').remove().end();
           $.get("/__engine/1/classes/" + className + "/actions", function (data){
             _.each(data, function (name){
-              $('#hooks')
-                  .append($("<option></option>")
-                      .attr("value", "/" + name.className + "/" + name.action)
-                      .text(name.action));
+              $('#hooks').append($("<option></option>")
+                .attr("value", "/" + name.className + "/" + name.action)
+                .text(name.action));
             });
           });
         }
