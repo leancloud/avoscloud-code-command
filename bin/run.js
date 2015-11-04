@@ -432,19 +432,19 @@ function outputLogs(resp) {
     if (resp && resp.length > 0) {
         resp.reverse().forEach(function(log) {
             var time = new Date(log.time).toLocaleString();
-            var env = log.production == 1 ? 'PROD' : 'TEST';
+            var env = log.production == 1 ? 'PROD' : 'STG';
             var content = log.content.replace(/\n$/, '');
             console.log('%s [%s] [%s] %s', time, env, log.level.toLocaleUpperCase(), content);
         });
     }
 }
 
-exports.viewCloudLog = function (lines, tailf, lastLogUpdatedTime, cb) {
+exports.viewCloudLog = function (lines, tailf, prod, lastLogUpdatedTime, cb) {
     initAVOSCloudSDK(function() {
         var doViewCloudLog = function doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb) {
-            var url = 'tables/EngineLogs';
+            var url = 'tables/EngineLogs?production=' + prod;
             if (lastLogUpdatedTime) {
-              url += '?since=' + encodeURIComponent(lastLogUpdatedTime);
+              url += '&since=' + encodeURIComponent(lastLogUpdatedTime);
             }
             util.requestCloud(url, {}, 'GET', {
                 success: function(resp) {
