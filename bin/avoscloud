@@ -112,12 +112,8 @@ if(CMD) {
       break;
 
     case 'logs':
-      var prod;
-      if (program.env === 'prod') {
-        prod = 1;
-      } else if (program.env === 'stg') {
-        prod = 0;
-      } else {
+      var prod = ["stg", "prod"].indexOf(program.env);
+      if (prod < 0) {
         console.log("请使用：avoscloud logs -e <prod|stg> 查询指定环境的日志");
         process.exit(1);
       }
