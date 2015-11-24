@@ -219,25 +219,30 @@ if(CMD) {
     if (err) {
       return callback(err);
     }
-    runtimeInfo.setDebug(program.debug);
-    var monconfig = runtimeInfo.getMonconfig(args);
-    console.log(color.green('提示：您可以敲入 rs 命令并回车来重启本进程'));
-    nodemon(monconfig);
-    nodemon.on('restart', function (files) {
-        console.log('[INFO] 因为文件变更而项目重启：', files);
-    });
-    if (runtimeInfo.runtime != 'cloudcode') {
-      run.initAVOSCloudSDK(function(AV) {
-        var app = run.getAppSync();
-        var testServerPort = parseInt(run.getPort()) + 1;
-        testServer.set('leanenginePort', run.getPort());
-        testServer.set('port', testServerPort);
-        testServer.set('appId', app.appId);
-        testServer.set('appKey', AV.applicationKey);
-        testServer.set('masterKey', AV.masterKey);
-        console.log(color.green('提示：您可以使用 http://localhost:' + testServerPort + ' 测试 Cloud 函数'));
-        testServer.listen(testServerPort);
+
+    try {
+      runtimeInfo.setDebug(program.debug);
+      var monconfig = runtimeInfo.getMonconfig(args);
+      console.log(color.green('提示：您可以敲入 rs 命令并回车来重启本进程'));
+      nodemon(monconfig);
+      nodemon.on('restart', function (files) {
+          console.log('[INFO] 因为文件变更而项目重启：', files);
       });
+      if (runtimeInfo.runtime != 'cloudcode') {
+        run.initAVOSCloudSDK(function(AV) {
+          var app = run.getAppSync();
+          var testServerPort = parseInt(run.getPort()) + 1;
+          testServer.set('leanenginePort', run.getPort());
+          testServer.set('port', testServerPort);
+          testServer.set('appId', app.appId);
+          testServer.set('appKey', AV.applicationKey);
+          testServer.set('masterKey', AV.masterKey);
+          console.log(color.green('提示：您可以使用 http://localhost:' + testServerPort + ' 测试 Cloud 函数'));
+          testServer.listen(testServerPort);
+        });
+      }
+    } catch (err) {
+      exitWith(err.message);
     }
   });
 }
