@@ -9,12 +9,12 @@
     var appId, appKey, masterKey, leanenginePort;
 
     $(document).ready(function (){
-      
+
       $.get("/__engine/1/appInfo", function(data) {
         appId = data.appId;
         appKey = data.appKey;
         masterKey = data.masterKey;
-        leanenginePort = data.leanenginePort; 
+        leanenginePort = data.leanenginePort;
         AV._initialize(appId, appKey, masterKey);
         AV._useMasterKey = true;
       });
@@ -106,7 +106,7 @@
       function parseJSON(s){
         return JSON.stringify(eval('(' + s + ')'));
       }
-      
+
       //events
       $('#callFuncs').click(function (e){
         try {
@@ -120,7 +120,8 @@
             if (err) {
               return $('#result').html(err.message || err);
             }
-            var url = "http://localhost:" + leanenginePort + "/1.1/functions/" + $('#functions').val();
+            var apiEndpoint = $('#isCall').is(':checked') ? '/1.1/call/' : '/1.1/functions/';
+            var url = "http://localhost:" + leanenginePort + apiEndpoint + $('#functions').val();
             request(url, data, user);
           })
         } catch(e){
@@ -190,6 +191,10 @@
       </div>
       <div class="form-group">
         <label>传入 JSON 格式参数（可为空）</label>
+        <span>
+          &raquo; <input type="checkbox" id="isCall">
+          <label for="isCall">作为 AVObject 传输（call）</label>
+        </span>
         <textarea id='params' rows="10" cols="80" class="form-control"></textarea>
       </div>
       <button type="button" id="callFuncs" class="btn btn-default">执行</button>
