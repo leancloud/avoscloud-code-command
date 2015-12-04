@@ -211,7 +211,8 @@ function loopLogs(opsToken, prod, cb) {
         }
       },
       error: function(err) {
-        console.log(err);
+        console.error('[ERROR]loopLogs: ', err.message || (err.statusText && err.statusText.message));
+        setTimeout(doLoop, 1000);
       }
     }, true);
   };
