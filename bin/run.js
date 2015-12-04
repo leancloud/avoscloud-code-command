@@ -221,7 +221,7 @@ function loopLogs(opsToken, prod, cb) {
   }, 3000);
 }
 
-exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) {
+exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, options, cb) {
     initAVOSCloudSDK(function() {
         console.log("[INFO] 压缩项目文件……");
         var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
@@ -246,7 +246,8 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
                     util.requestCloud('functions/_ops/deployByCommand', {
                         revision: url,
                         fileId: fileId,
-                        log: deployLog
+                        log: options.deployLog,
+                        options: options.options
                     }, 'POST', {
                         success: function(resp) {
                             loopLogs(resp.opsToken, 0, function(err) {
@@ -275,11 +276,12 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, deployLog, cb) 
     });
 };
 
-exports.deployGitCloudCode = function (revision, giturl, cb) {
+exports.deployGitCloudCode = function (revision, options, cb) {
     initAVOSCloudSDK(function() {
         util.requestCloud('functions/_ops/deployByCommand', {
             after: revision,
-            url: giturl
+            url: options.giturl,
+            options: options.options
         }, 'POST', {
             success: function(resp) {
                 loopLogs(resp.opsToken, 0, function(err) {
