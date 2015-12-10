@@ -35,6 +35,7 @@ exports.parse_args = function(argv){
       .option('-e, --env <prod|stg>', '查看 prod 环境日志或 stg 环境，默认 prod 环境。', 'prod')
       .option('-r, --revision <revision>', 'git 的版本号，仅对从 git 仓库部署有效。')
       .option('-P, --port <port>', '指定本地调试的端口，默认 3000。', 3000)
+      .option('--enable <feature1,feature2>', '启用实验性功能')
       .parse(argv);
   return program;
 }

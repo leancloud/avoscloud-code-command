@@ -83,7 +83,10 @@ if(CMD) {
     case "deploy":
       run.logProjectHome();
       if (program.git) {
-        run.deployGitCloudCode(program.revision || 'master', program.giturl, callback);
+        run.deployGitCloudCode(program.revision || 'master', {
+          giturl: program.giturl,
+          options: program.enable
+        }, callback);
       } else {
         if (path.resolve(CLOUD_PATH) != path.resolve('.'))
           return exitWith("'avoscloud deploy' 命令必须在 LeanEngine 项目目录中使用");
@@ -91,7 +94,10 @@ if(CMD) {
           if (err) {
             return callback(err);
           }
-          run.deployLocalCloudCode(runtimeInfo, CLOUD_PATH, program.log, callback);
+          run.deployLocalCloudCode(runtimeInfo, CLOUD_PATH, {
+            deployLog: program.log,
+            options: program.enable
+          }, callback);
         });
       }
       break;
