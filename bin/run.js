@@ -641,7 +641,7 @@ exports.createNewProject = function(cb) {
                     }
 
                     var zipFilePath = path.join(TMP_DIR, appId + '.zip');
-                    request('http://lcinternal-cloud-code-update.avosapps.com/' + repoName + '.zip')
+                    request('http://lcinternal-cloud-code-update.leanapp.cn/' + repoName + '.zip')
                         .pipe(fs.createWriteStream(zipFilePath))
                         .on('close', function() {
                             try {
