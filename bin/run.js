@@ -271,8 +271,21 @@ exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, options, cb) {
             errorCb(cb, 1, "压缩项目文件", err);
         });
 
+        var patterns = getIgnorePatterns(cloudPath);
+
+        if (patterns) {
+          patterns = [{ src: ['**'].concat(patterns.map(function(pattern) {
+            if (pattern[0] == '!')
+              return pattern.slice(1);
+            else
+              return '!' + pattern;
+          })) }];
+        } else {
+          patterns = runtimeInfo.bulk();
+        }
+
         archive.pipe(output);
-        archive.bulk(runtimeInfo.bulk());
+        archive.bulk(patterns);
         archive.finalize();
     });
 };
@@ -990,6 +1003,22 @@ function outputQueryResult(resp, vertical){
     if(results && results.length > 0) {
       console.log(color.green(results.length + ' rows in set.'));
     }
+}
+
+function getIgnorePatterns(cloudPath) {
+  var patterns;
+
+  try {
+    patterns = fs.readFileSync(path.join(cloudPath, '.leanengineignore')).toString().split(/\n/).filter(function(line) {
+      return line.trim();
+    });
+  } catch (err) {
+    if (err.code != 'ENOENT') {
+      exitWith(err.message);
+    }
+  }
+
+  return patterns;
 }
 
 exports.getRedisInstances = function() {
