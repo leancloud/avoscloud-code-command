@@ -1,4 +1,3 @@
-
 ## 介绍
 
 **Windows 系统用户请确保安装 Node.js 在系统盘 C 盘，否则命令行工具无法正常运行。**
@@ -15,20 +14,7 @@ sudo npm install -g avoscloud-code
 sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 ```
 
-## 更新日志
-
-详情查看 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)
-
-* 2015-05-29 发布 v0.7.5，支持 LeanEngine Python 运行时项目的部署；修复 项目类型检测处理不正确的 Bug。
-* 2015-05-28 发布 v0.7.4，修复 new 命令提示不在项目目录的 Bug。
-* 2015-05-28 发布 v0.7.3，修复 app add 命令在 LeanEngine 项目目录没有关联应用时执行报错的 Bug。
-* 2015-05-25 发布 v0.7.2，支持 LeanEngine Node.js 运行时项目的部署；中文化提示信息等。
-* 2015-05-16 发布 v0.7.1，修复关闭 _File 创建权限后无法本地部署云代码的 Bug。
-* 2015-05-05 发布 v0.7.0，改进部署日志和错误信息提示，增加 `--debug` 开关等。
-* 2015-03-02 发布 v0.6.8，紧急修复调试界面
-* 2015-02-26 发布 0.6.7，一些 Bug 修复
-* 2015-02-16 发布 0.6.5，nodemon 只监视 `cloud` 目录，增加升级变更提示，修复无法运行在 io.js 等 Bug。
-* 2015-02-13 发布 0.6.4，增加 lint 命令，增加 `AV.Cloud.onLogin` hook 等。
+详细的使用指南见 [云代码命令行工具使用详解](http://leancloud.cn/docs/cloud_code_commandline.html)，更新日志见 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)。
 
 ## 说明
 
@@ -48,21 +34,22 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
   Usage: avoscloud [选项] <命令>
 
   有效的命令列表包括:
-    deploy: 部署云代码到 AVOS Cloud 平台开发环境
-    undeploy: 从 AVOS Cloud 平台清除云代码部署，包括生产环境和开发环境
+    deploy: 部署云代码到 LeanEngine 平台开发环境
+    undeploy: 从 LeanEngine 平台清除云代码部署，包括生产环境和开发环境
     status: 查询当前部署状态
     search <keyword>: 根据关键字查询开发文档
     publish: 发布开发环境代码到生产环境
     new: 创建云代码项目
     logs: 查看云代码日志
     clear: 清除本地状态，在输入 app id 或者 master key 错误的情况下使用
-    upload <file-or-directory>: 导入文件到 AVOS Cloud 平台，如果是目录，则会将该目录下的文件递归导入。
-    app [list]:  显示当前应用，deploy、status 等命令运行在当前应用上，如果加上 list ，则显示所有的应用信息。
+    upload <file-or-directory>: 导入文件到 LeanCloud 平台，如果是目录，则会将该目录下的文件递归导入。
+    app [list]: 显示当前应用，deploy、status 等命令运行在当前应用上，如果加上 list ，则显示所有的应用信息。
     checkout <app>: 切换到一个应用，deploy、status 等命令将运行在该应用上。
     add <app>: 添加一个应用。
     rm <app>: 移除一个应用。
     lint: 静态检查代码错误。
-    cql: 进入 CQL 查询交互。
+    cql: 进入 CQL 交互式命令行。
+    redis: 进入 LeanCache Redis 交互式命令行。
 
   Options:
 
@@ -80,6 +67,10 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 并且本工具具有代码热加载功能。修改代码后，无需重启即可以调试最新代码。
 
+### 上传代码时忽略部分文件
+
+在使用命令行工具上传代码时，你可以在项目目录新建一个名为 `.leanengineignore` 的文件定义不需要上传的文件列表（编译产生的临时文件等在运行时不需要的文件）。它的语法类似于 `.gitignore`, 每行一个表达式，例如 `**/node_modules/**` 表示忽略任意层级下的 node_modules 目录，`*.pyc` 表示忽略拓展名为 pyc 的文件。
+
 ## Bash Completion
 
 下载 [avoscloud_completion.sh](https://github.com/avoscloud/avoscloud-code-command/blob/master/avoscloud_completion.sh) 保存到某个目录，例如保存为 `~/.avoscloud_completion.sh`，然后在 `.bashrc` 或者 `.bash_profile` 文件中添加：
@@ -89,11 +80,6 @@ source ~/.avoscloud_completion.sh
 ```
 
 重启终端 bash，或者重新加载 profile 文件，就可以让 `avoscloud` 命令拥有自动完成功能。
-
-
-## 使用指南
-
-参考 [云代码命令行工具使用详解](http://leancloud.cn/docs/cloud_code_commandline.html)
 
 ## cURL 调试
 
@@ -118,11 +104,7 @@ curl -X POST -H 'Content-Type:application/json' \
 
 ## 安全性
 
-部署、发布、清除部署等命令在第一次运行的时候要求用户输入应用的 master key，您可以在 LeanCloud 平台的应用设置里找到 master key。
-
-输入后，本命令行工具将这个应用信息记录在 `~/.avoscloud_keys` 文件中（0600 文件权限模式）。
-
-如果您输入错误的 master key 或者在公共机器上运行本命令行工具，可手工删除该文件。
+部署、发布等命令在第一次运行的时候要求输入应用的 master key，您可以在 LeanCloud 平台的应用设置里找到 master key。输入后，命令行工具会将这个应用信息记录在 `~/.leancloud/app_keys` 中（0600 文件权限模式）。如果您在认证过程中出现问题，或在公共机器上使用命令行工具，可运行 `avoscloud clear` 来删除认证信息。
 
 ## 贡献者
 
