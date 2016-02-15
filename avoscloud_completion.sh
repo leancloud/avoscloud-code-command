@@ -51,15 +51,19 @@ _avoscloud()
             COMPREPLY=( $( compgen -W 'logs' -- "$cur" ) )
             return 0
             ;;
+        -e)
+            COMPREPLY=( $( compgen -W 'stg prod' -- "$cur" ) )
+            return 0
+            ;;
     esac
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=( $( compgen -W '-h -V -g -p -l -o -n -d
+        COMPREPLY=( $( compgen -W '-h -V -g -p -l -o -n -d -e
           -P -t -r ' -- "$cur" ) )
         return 0
     else
         COMPREPLY=( $( compgen -W 'deploy undeploy status search lint
-            publish new logs clear upload app checkout add rm cql
+            publish new logs clear upload app checkout add rm cql redis
            ' -- "$cur" ) )
         return 0
     fi
