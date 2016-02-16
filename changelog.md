@@ -47,12 +47,12 @@
 * 修复 部署失败仍然提示 'Deploy cloud code successfully' 的 Bug。
 
 ## v0.7.1
-* 修复关闭 _File 表写入权限后无法正常通过本地部署云代码的 Bug。
+* 修复关闭 _File 表写入权限后无法正常通过本地部署云引擎的 Bug。
 
 ## v0.7.0
-* 增加 `--debug` （简写`-d`）选项，启用 debug 模式，使用 [node debugger](https://nodejs.org/api/debugger.html)调试你的云代码。
+* 增加 `--debug` （简写`-d`）选项，启用 debug 模式，使用 [node debugger](https://nodejs.org/api/debugger.html)调试你的云引擎。
 * 改进部署，打印更详细的部署步骤和日志，增强体验。
-* 云代码函数增加 `request.ip` 获取调用客户端 IP。
+* 云引擎函数增加 `request.ip` 获取调用客户端 IP。
 * 改进错误输出。
 * 修复 `AV.Cloud.httpRequest` 无法 POST 中文信息的 Bug（同步服务端）
 * 修复 `-r` 选项对 Git 仓库部署无效的 Bug

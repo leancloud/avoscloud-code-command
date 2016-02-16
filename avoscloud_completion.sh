@@ -23,32 +23,45 @@ _avoscloud()
         -h|-V)
             return 0
             ;;
-        -p|checkout)
+        up)
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $( compgen -W '-d --debug -P --port' -- "$cur" ) )
+                return 0
+            fi
+            ;;
+        deploy)
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $( compgen -W '-o --log -g --git -r --revision --app' -- "$cur" ) )
+                return 0
+            fi
+            ;;
+        publish|status|undeploy|cql|upload|clear)
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $( compgen -W '--app' -- "$cur" ) )
+                return 0
+            fi
+            ;;
+        logs)
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=( $( compgen -W '-n --lines -t --tailf -e --env --app' -- "$cur" ) )
+                return 0
+            fi
+            ;;
+        app)
+            COMPREPLY=( $( compgen -W 'list add checkout rm' -- "$cur" ) )
+            return 0
+            ;;
+        checkout|rm)
             _apps
             return 0
             ;;
-        -o|-r|-n)
-            COMPREPLY=( $(compgen -f -- ${cur}) )
+        redis)
+            COMPREPLY=( $( compgen -W 'list conn' -- "$cur" ) )
             return 0
             ;;
-        upload)
-            COMPREPLY=( $(compgen -f -d -- ${cur}) )
-            return 0;
-            ;;
-        app)
-            COMPREPLY=( $( compgen -W 'list' -- "$cur" ) )
-            return 0;
-            ;;
-        -g)
-            COMPREPLY=( $( compgen -W 'deploy -r' -- "$cur" ) )
-            return 0
-            ;;
-        -l)
-            COMPREPLY=( $( compgen -W 'deploy' -- "$cur" ) )
-            return 0
-            ;;
-        -t)
-            COMPREPLY=( $( compgen -W 'logs' -- "$cur" ) )
+
+        --app)
+            _apps
             return 0
             ;;
         -e)
@@ -57,15 +70,10 @@ _avoscloud()
             ;;
     esac
 
-    if [[ "$cur" == -* ]]; then
-        COMPREPLY=( $( compgen -W '-h -V -g -p -l -o -n -d -e
-          -P -t -r ' -- "$cur" ) )
-        return 0
-    else
-        COMPREPLY=( $( compgen -W 'deploy undeploy status search lint
-            publish new logs clear upload app checkout add rm cql redis
-           ' -- "$cur" ) )
-        return 0
-    fi
+    COMPREPLY=( $( compgen -W 'search new up deploy publish status undeploy
+        logs app cql redis upload lint clear
+       ' -- "$cur" ) )
+    return 0
 } &&
 complete -F _avoscloud avoscloud
+complete -F _avoscloud lc

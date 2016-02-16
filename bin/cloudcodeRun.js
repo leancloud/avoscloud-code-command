@@ -1,12 +1,14 @@
 'use strict';
-var fs = require('fs');
 var path = require('path');
-var run = require('./run');
-var commander = require('./commander');
-var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
+var AV = require('avoscloud-sdk').AV;
 
-var program = commander.parse_args(process.argv);
-run.setPort(program.port);
+var APP_ID = process.env.LC_APP_ID;
+var APP_KEY = process.env.LC_APP_KEY;
+var MASTER_KEY = process.env.LC_APP_MASTER_KEY;
+var PORT = process.env.LC_APP_PORT;
+
+AV.initialize(APP_ID, APP_KEY, MASTER_KEY);
+AV.Cloud.useMasterKey();
 
 var CLOUD_PATH = path.resolve('.');
 
@@ -14,8 +16,5 @@ if (!CLOUD_PATH.match(/.*\/$/)) {
     CLOUD_PATH = CLOUD_PATH + path.sep;
 }
 
-run.logProjectHome();
-run.initAVOSCloudSDK(function(AV) {
-    require(lib + '/mock').run(CLOUD_PATH, AV, run.getPort());
-    console.log("请使用浏览器打开 http://localhost:" + run.getPort() + "/avos");
-});
+require('../lib/mock').run(CLOUD_PATH, AV, PORT);
+console.log("请使用浏览器打开 http://localhost:" + PORT + "/avos");
