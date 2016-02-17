@@ -22,17 +22,17 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 
 * 要在本地调试云引擎，你需要安装 [Node.js](http://nodejs.org) 最新版本。
 * 运行命令：`sudo npm install -g avoscloud-code` 安装调试 SDK。以后更新升级也请执行此命令。
-* 在项目根目录运行 `lc up`，将启动本地调试服务器。
+* 在项目根目录运行 `lean up`，将启动本地调试服务器。
 * 访问 [localhost:3000](http://localhost:3000/) 即可访问本机启动的云引擎项目。
 * 访问 [localhost:3001](http://localhost:3001) 调试云引擎函数和 class hook 函数等。
   * 云引擎 2.0 版访问 [localhost:3000/avos](http://localhost:3000/avos)
 
 ## 功能说明
 
-`lc -h` 输出：
+`lean -h` 输出：
 
 ```
-  Usage: lc [options] [command]
+  Usage: lean [options] [command]
 
 
   Commands:
@@ -73,11 +73,11 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
 source ~/.avoscloud_completion.sh
 ```
 
-重启终端 bash，或者重新加载 profile 文件，就可以让 `lc` 命令拥有自动完成功能。
+重启终端 bash，或者重新加载 profile 文件，就可以让 `lean` 命令拥有自动完成功能。
 
 ## 安全性
 
-部署、发布等命令在第一次运行的时候要求输入应用的 master key，您可以在 LeanCloud 平台的应用设置里找到 master key。输入后，命令行工具会将这个应用信息记录在 `~/.leancloud/app_keys` 中（0600 文件权限模式）。如果您在认证过程中出现问题，或在公共机器上使用命令行工具，可运行 `lc clear` 来删除认证信息。
+部署、发布等命令在第一次运行的时候要求输入应用的 master key，您可以在 LeanCloud 平台的应用设置里找到 master key。输入后，命令行工具会将这个应用信息记录在 `~/.leancloud/app_keys` 中（0600 文件权限模式）。如果您在认证过程中出现问题，或在公共机器上使用命令行工具，可运行 `lean clear` 来删除认证信息。
 
 ## 贡献者
 

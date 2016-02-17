@@ -5,7 +5,7 @@ var spawn = require('child_process').spawn;
 var should = require('should');
 var path = require('path');
 
-var lcCmd = path.resolve(__dirname, '../bin/lc');
+var lcCmd = path.resolve(__dirname, '../bin/lean');
 
 var app = {
   name: 'cmdTest',
@@ -22,7 +22,7 @@ var app2 = {
 };
 
 var tempDirName = function () {
-  return path.join(tempdir(), 'lc_' + new Date().getTime());
+  return path.join(tempdir(), 'lean_' + new Date().getTime());
 };
 
 describe('engine', function() {

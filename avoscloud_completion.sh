@@ -76,4 +76,4 @@ _avoscloud()
     return 0
 } &&
 complete -F _avoscloud avoscloud
-complete -F _avoscloud lc
+complete -F _avoscloud lean

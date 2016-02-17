@@ -2,6 +2,6 @@
 
 var color = require('cli-color');
 
-console.log(color.green('请使用 "lc" 替代 "avoscloud"'));
-require('./lc');
+console.log(color.green('请使用 "lean" 替代 "avoscloud"'));
+require('./lean');
 

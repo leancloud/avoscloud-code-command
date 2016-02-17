@@ -25,7 +25,7 @@ var color = require('cli-color');
 var Table = require('cli-table');
 var AdmZip = require('adm-zip');
 var Q = require('q');
-var debug = require('debug')('lc');
+var debug = require('debug')('lean');
 
 var Runtime = require('../lib/runtime');
 var util = require('../lib/util');
