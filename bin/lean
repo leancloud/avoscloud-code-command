@@ -48,7 +48,9 @@ program
 
 program
   .command('new')
-  .description('创建引擎项目。')
+  .description('创建云引擎项目。')
+  .option('--appId <appId>', '应用 ID。')
+  .option('--runtime <node|python>', '运行环境，可选：Node.js, Python')
   .action(function(options) {
     run.createNewProject(options.appId, options.runtime, callback);
   });
@@ -108,6 +110,11 @@ program
     }
     run.undeployCloudCode(callback);
   });
+
+program
+  .command('image', '应用镜像管理。')
+  .command('group', '应用实例分组管理。')
+  .command('instance', '应用实例管理。');
 
 program
   .command('logs')

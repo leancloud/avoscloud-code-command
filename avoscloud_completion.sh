@@ -41,6 +41,18 @@ _avoscloud()
                 return 0
             fi
             ;;
+        image)
+            COMPREPLY=( $( compgen -W 'list build rm rmcache' -- "$cur" ) )
+            return 0
+            ;;
+        group)
+            COMPREPLY=( $( compgen -W 'list deploy undeploy' -- "$cur" ) )
+            return 0
+            ;;
+        instance)
+            COMPREPLY=( $( compgen -W 'list new rm' -- "$cur" ) )
+            return 0
+            ;;
         logs)
             if [[ "$cur" == -* ]]; then
                 COMPREPLY=( $( compgen -W '-n --lines -t --tailf -e --env --app' -- "$cur" ) )
@@ -71,6 +83,7 @@ _avoscloud()
     esac
 
     COMPREPLY=( $( compgen -W 'search new up deploy publish status undeploy
+        image group instance
         logs app cql redis upload lint clear
        ' -- "$cur" ) )
     return 0

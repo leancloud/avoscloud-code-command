@@ -1,0 +1,48 @@
+#!/usr/bin/env node
+'use strict';
+var program = require('commander');
+var run = require('./run');
+var callback = require('../lib/util').callback;
+
+program
+  .command('list')
+  .description('查看实例组列表。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.logProjectHome();
+    run.listGroups(callback);
+  });
+
+program
+  .command('deploy <groupName> [imageTag]')
+  .description('部署实例组，该实例组下所有实例都会部署指定的 image。默认部署最新的 image。')
+  .option('-F --force [false]', '强制重新部署，即使实例当前运行的 image 和目标 image 一样也重新部署，默认 false。', false)
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(groupName, imageTag, options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.logProjectHome();
+    run.deployGroup(groupName, imageTag, options, callback);
+  });
+
+program
+  .command('undeploy <groupName>')
+  .description('清除实例组部署，该实例组下所有实例都会清除部署。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(groupName, options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.logProjectHome();
+    run.undeployGroup(groupName, callback);
+  });
+
+program.parse(process.argv);
+
+if (!program.args.length) {
+  program.help();
+}

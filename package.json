@@ -32,6 +32,7 @@
     "cron": "latest",
     "debug": "0.7.4",
     "ejs": "0.8.4",
+    "eventsource": "^0.2.0",
     "express": "3.4.0",
     "express-ejs-layouts": "0.3.1",
     "fstream": "0.1.25",
@@ -55,13 +56,15 @@
     "sprintf-js": "0.0.7",
     "stripe": "2.5.0",
     "tar": "0.1.19",
+    "text-table": "^0.2.0",
     "underscore": "1.8.2",
     "underscore.string": "2.3.3",
     "weibo": "0.6.9",
     "xml2js": "0.4.4"
   },
   "bin": {
-    "avoscloud": "./bin/avoscloud"
+    "avoscloud": "./bin/avoscloud",
+    "lean": "./bin/lean"
   },
   "engines": [
     "node >= 0.10.0"

@@ -25,6 +25,8 @@ var color = require('cli-color');
 var Table = require('cli-table');
 var AdmZip = require('adm-zip');
 var Q = require('q');
+var table = require('text-table');
+var moment = require('moment');
 var debug = require('debug')('lean');
 
 var Runtime = require('../lib/runtime');
@@ -161,6 +163,46 @@ function uploadFile(localFile, props, attempts, cb) {
   });
 }
 
+function pollEvents(eventToken, cb) {
+  var from = null;
+  var moreEvent = true;
+  var doLoop = function() {
+    var url = 'functions/_ops/events/poll/' + eventToken;
+    if (from) {
+      url += '?from=' + from;
+    }
+    util.request(url, function(err, data) {
+      if (err) {
+        console.error('获取云引擎日志失败：%s', err.message);
+      }
+      moreEvent = data.moreEvent;
+      var errLog = null;
+      data.events.reverse().forEach(function(logInfo) {
+        console.log('%s [%s] %s', new Date(logInfo.time).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content);
+        from = logInfo.time;
+        if (logInfo.level.toLocaleUpperCase() === 'ERROR') {
+          errLog = logInfo.content;
+        }
+      });
+      if (moreEvent) {
+        setTimeout(function() {
+          doLoop();
+        }, 1000);
+      } else {
+        if (errLog) {
+          return cb(new Error(errLog));
+        }
+        cb();
+      }
+      
+    });
+  };
+  // 等待操作日志入库
+  setTimeout(function() {
+    doLoop();
+  }, 3000);
+}
+
 function loopLogs(opsToken, prod, cb) {
   var start = null;
   var moreData = true;
@@ -201,86 +243,327 @@ function loopLogs(opsToken, prod, cb) {
   }, 3000);
 }
 
-exports.deployLocalCloudCode = function (options, cb) {
-    logProjectHome();
-    var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
-    var fileId;
-    Q.nfcall(initAVOSCloudSDK)
-      .then(function() {
-        return Q.ninvoke(Runtime, 'detect', CLOUD_PATH);
-      }).then(function(runtimeInfo) {
-        return Q.Promise(function(resolve, reject) {
-          console.log("压缩项目文件……");
-          var output = fs.createWriteStream(file);
-          var archive = archiver('zip');
-          
-          output.on('close', function() {
-            resolve();
-          });
+var uploadProject = function() {
+  var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
+  return Q.nfcall(initAVOSCloudSDK).then(function() {
+    return Q.ninvoke(Runtime, 'detect', CLOUD_PATH);
+  }).then(function(runtimeInfo) {
+    return Q.Promise(function(resolve, reject) {
+      console.log("压缩项目文件 ...");
+      var output = fs.createWriteStream(file);
+      var archive = archiver('zip');
+      
+      output.on('close', function() {
+        resolve();
+      });
 
-          archive.on('error', function(err) {
-              err.action = '部署云引擎应用：项目文件打包';
-              reject(err);
-          });
+      archive.on('error', function(err) {
+          err.action = '项目文件打包';
+          reject(err);
+      });
 
-          var patterns = getIgnorePatterns(CLOUD_PATH);
-          if (patterns) {
-            patterns = [{ src: ['**'].concat(patterns.map(function(pattern) {
-              if (pattern[0] == '!')
-                return pattern.slice(1);
-              else
-                return '!' + pattern;
-            })) }];
-          } else {
-            patterns = runtimeInfo.bulk();
-          }
+      var patterns = getIgnorePatterns(CLOUD_PATH);
+      if (patterns) {
+        patterns = [{ src: ['**'].concat(patterns.map(function(pattern) {
+          if (pattern[0] == '!')
+            return pattern.slice(1);
+          else
+            return '!' + pattern;
+        })) }];
+      } else {
+        patterns = runtimeInfo.bulk();
+      }
 
-          archive.pipe(output);
-          archive.bulk(patterns);
-          archive.finalize();
-        });
-      }).then(function() {
-        console.log("生成临时文件：" + file);
-        //upload file to cloud code
-        console.log("开始上传项目文件……");
-        var key = util.guid() + '.zip';
-        return Q.nfcall(uploadFile, file, {
-            key: key,
-            name: file,
-            mime_type: 'application/zip, application/octet-stream'
-        });
-      }).then(function(args) {
-        var url = args[0];
-        fileId = args[1];
-        //notify avoscloud platform to fetch new deployment.
-        return Q.Promise(function(resolve, reject) {
-          util.request('functions/_ops/deployByCommand', {
-            method: 'POST',
-            data: {
-              revision: url,
-              fileId: fileId,
-              log: options.deployLog,
-              options: options.options
-            }
-          }, function(err, data) {
-            if (err) {
-              return reject(err);
-            }
-            resolve(data.opsToken);
-          });
-        });
-      }).then(function(opsToken) {
-        return Q.nfcall(loopLogs, opsToken, 0);
-      }).then(function() {
-        console.log("\n部署成功\n");
-        return Q.nfcall(queryStatus);
-      }).then(cb).catch(function(err) {
-        if(fileId) {
-          destroyFile(fileId);
-        }
-        err.action = '部署云引擎应用';
-        return cb(err);
+      archive.pipe(output);
+      archive.bulk(patterns);
+      archive.finalize();
     });
+  }).then(function() {
+    console.log("生成临时文件：" + file);
+    //upload file to cloud code
+    console.log("开始上传项目文件 ...");
+    var key = util.guid() + '.zip';
+    return Q.nfcall(uploadFile, file, {
+        key: key,
+        name: file,
+        mime_type: 'application/zip, application/octet-stream'
+    });
+  });
+};
+
+exports.buildImageFromLocal = function(options, cb) {
+  var fileId;
+  uploadProject().then(function(args) {
+    fileId = args[1];
+    return Q.nfcall(util.request, 'functions/_ops/images', {
+      method: 'POST',
+      data: {
+        zipUrl: args[0],
+        log: options.log,
+        async: true
+      }
+    });
+  }).then(function(data) {
+    return Q.nfcall(pollEvents, data.eventToken);
+  }).then(function() {
+    console.log("\n构建成功\n");
+    return Q.nfcall(listImages, 1);
+  }).then(cb).catch(function(err) {
+    if(fileId) {
+      destroyFile(fileId);
+    }
+    err.action = '构建应用镜像';
+    return cb(err);
+  });
+};
+
+var listImages = exports.listImages = function(limit, cb) {
+  if (nodeUtil.isFunction(limit)) {
+    cb = limit;
+    limit = 10;
+  }
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/images', function(err, data) {
+      if (err) {
+        return cb(err);
+      }
+      data = data.slice(0, limit);
+      var datas = [
+        [ 'IMAGE TAG', 'STATUS', 'VERSION', 'COMMENT', 'RUNTIME', 'CREATED' ]
+      ];
+      data.forEach(function(image) {
+        datas.push([image.imageTag, image.status, image.version, image.comment, image.runtime, moment(image.created).fromNow()]);
+      });
+      console.log(table(datas));
+      cb();
+    });
+  });
+};
+
+exports.rmImage = function(imageTag, cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/images/' + imageTag, {
+      method: 'DELETE',
+    }, function(err) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n操作成功\n");
+      cb();
+    });
+  });
+};
+
+exports.rmImageCache = function(cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/images/deleteBuildCache', {
+      method: 'POST',
+    }, function(err) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n操作成功\n");
+      cb();
+    });
+  });
+};
+
+var envMap = {
+  '0': 'stg',
+  '1': 'prod'
+};
+
+var showGroup = function(groups) {
+  var datas = [
+    [ 'GROUP NAME', 'ENV', 'CURRENT IMAGE', 'INSTANCES', 'CREATED', 'DEPLOYED']
+  ];
+  groups.forEach(function(obj) {
+    datas.push([
+      obj.groupName,
+      envMap[obj.prod],
+      obj.currentImage && obj.currentImage.imageTag || '',
+      '[' + obj.instances.map(function(instance) {
+        return instance.name + '(' + instance.status + ')';
+      }).join(',') + ']',
+      moment(obj.created).fromNow(),
+      moment(obj.deployed).fromNow()
+    ]);
+  });
+  console.log(table(datas));
+};
+
+exports.listGroups = function(cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/groups', function(err, data) {
+      if (err) {
+        return cb(err);
+      }
+      showGroup(data);
+      cb();
+    });
+  });
+};
+
+exports.deployGroup = function(groupName, imageTag, options, cb) {
+  Q.nfcall(initAVOSCloudSDK).then(function() {
+    return Q.nfcall(util.request, 'functions/_ops/groups/' + groupName + '/deploy', {
+      method: JSON.parse(options.force) ? 'POST' : 'PUT',
+      data: {
+        imageTag: imageTag,
+        async: true
+      }
+    });
+  }).then(function(data) {
+    return Q.nfcall(pollEvents, data.eventToken);
+  }).then(function() {
+    console.log("\n部署成功\n");
+    return Q.nfcall(util.request, 'functions/_ops/groups');
+  }).then(function(groups) {
+    showGroup(_.where(groups, {groupName: groupName}));
+    return;
+  }).then(cb).catch(function(err) {
+    err.action = '部署实例组';
+    return cb(err);
+  });
+};
+
+exports.undeployGroup = function(groupName, cb) {
+  Q.nfcall(initAVOSCloudSDK).then(function() {
+    return Q.nfcall(util.request, 'functions/_ops/groups/' + groupName + '/deploy', {
+      method: 'DELETE'
+    });
+  }).then(function() {
+    console.log("\n清除成功\n");
+    return Q.nfcall(util.request, 'functions/_ops/groups');
+  }).then(function(groups) {
+    showGroup(_.where(groups, {groupName: groupName}));
+    return;
+  }).then(cb).catch(function(err) {
+    err.action = '清除实例组部署';
+    return cb(err);
+  });
+};
+
+var quotaMap = {
+  '1': '1CPU/512MB',
+  '2': '2CPU/1GB',
+  '4': '4CPU/2GB',
+};
+
+exports.createInstance = function(options, cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/instances', {
+      method: 'POST',
+      data: {
+        name: options.name,
+        groupName: options.groupName
+      }
+    }, function(err, obj) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n创建成功\n");
+      var datas = [
+        [ 'NAME', 'STATUS', 'GROUP NAME', 'QUOTA', 'IMAGE TAG', 'DEPLOYED', 'CREATED' ]
+      ];
+      datas.push([
+        obj.name,
+        obj.status,
+        obj.groupName,
+        quotaMap[obj.quota] || obj.quota,
+        obj.imageInfo && obj.imageInfo.imageTag || '',
+        moment(obj.deployed).fromNow(),
+        moment(obj.created).fromNow()
+        ]);
+      console.log(table(datas));
+      cb();
+    });
+  });
+};
+
+exports.changeGroup = function(targetGroup, instance, cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/instances/' + instance + '/groupName', {
+      method: 'PUT',
+      data: {
+        groupName: targetGroup
+      }
+    }, function(err, data) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n切换成功\n");
+      cb();
+    });
+  });
+};
+
+exports.deleteInstance = function(instance, cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/instances/' + instance, {
+      method: 'DELETE'
+    }, function(err) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n移除成功\n");
+      cb();
+    });
+  });
+};
+
+exports.listInstances = function(cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/instances', function(err, data) {
+      if (err) {
+        return cb(err);
+      }
+      var datas = [
+        [ 'NAME', 'STATUS', 'GROUP NAME', 'QUOTA', 'IMAGE TAG', 'DEPLOYED', 'CREATED' ]
+      ];
+      data.forEach(function(obj) {
+        datas.push([
+          obj.name,
+          obj.status,
+          obj.groupName,
+          quotaMap[obj.quota] || obj.quota,
+          obj.imageInfo && obj.imageInfo.imageTag || '',
+          moment(obj.deployed).fromNow(),
+          moment(obj.created).fromNow()
+          ]);
+      });
+      console.log(table(datas));
+      cb();
+    });
+  });
+};
+
+exports.deployLocalCloudCode = function (options, cb) {
+  logProjectHome();
+  var fileId;
+  return uploadProject().then(function(args) {
+    fileId = args[1];
+    return Q.nfcall(util.request, 'functions/_ops/deployByCommand', {
+      method: 'POST',
+      data: {
+        revision: args[0],
+        fileId: fileId,
+        log: options.deployLog,
+        options: options.options
+      }
+    });
+  }).then(function(data) {
+    return Q.nfcall(loopLogs, data.opsToken, 0);
+  }).then(function() {
+    console.log("\n部署成功\n");
+    return Q.nfcall(queryStatus);
+  }).then(cb).catch(function(err) {
+    if(fileId) {
+      destroyFile(fileId);
+    }
+    err.action = '部署云引擎应用';
+    return cb(err);
+  });
 };
 
 exports.deployGitCloudCode = function (revision, options, cb) {
@@ -774,7 +1057,7 @@ function importFile(f, realPath, cb) {
         fs.readdir(realPath, function(err, files) {
             if (err)
                 return cb("读取目录 " + realPath + " 失败：" + err);
-            console.log("开始上传目录 " + realPath + " 中的文件……");
+            console.log("开始上传目录 " + realPath + " 中的文件 ...");
             async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(subFile, cb) {
                 //pass in the eachLimit callback
                 importFile(subFile, realPath + path.sep + subFile, cb);

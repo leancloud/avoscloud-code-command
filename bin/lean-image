@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+'use strict';
+var program = require('commander');
+var run = require('./run');
+var callback = require('../lib/util').callback;
+
+program
+  .command('list')
+  .description('查看镜像列表。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.logProjectHome();
+    run.listImages(callback);
+  });
+
+program
+  .command('build')
+  .description('构建镜像。')
+  .option('-o, --log <log>', '本次部署的提交日志，仅对从本地部署有效。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.logProjectHome();
+    run.buildImageFromLocal(options, callback);
+  });
+
+program
+  .command('rm <imageTag>')
+  .description('移除镜像。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(imageTag, options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.logProjectHome();
+    run.rmImage(imageTag, callback);
+  });
+
+program
+  .command('rmcache')
+  .description('移除构建缓存。在依赖下载出现异常，或希望更新依赖时使用。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.logProjectHome();
+    run.rmImageCache(callback);
+  });
+
+
+program.parse(process.argv);
+
+if (!program.args.length) {
+  program.help();
+}
