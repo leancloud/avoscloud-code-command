@@ -1,6 +1,6 @@
 'use strict';
 var path = require('path');
-var AV = require('avoscloud-sdk').AV;
+var AV = require('avoscloud-sdk');
 
 var APP_ID = process.env.LC_APP_ID;
 var APP_KEY = process.env.LC_APP_KEY;

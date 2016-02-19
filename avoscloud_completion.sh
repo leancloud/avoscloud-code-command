@@ -84,7 +84,7 @@ _avoscloud()
 
     COMPREPLY=( $( compgen -W 'search new up deploy publish status undeploy
         image group instance
-        logs app cql redis upload lint clear
+        logs app cql redis upload clear
        ' -- "$cur" ) )
     return 0
 } &&

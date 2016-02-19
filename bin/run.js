@@ -8,13 +8,12 @@
  */
 var path = require('path');
 var fs = require('fs');
-var exec = require('child_process').exec;
 var archiver = require('archiver');
 var os = require('os');
 var request = require('request');
 var _ = require('underscore');
 var nodemon = require('nodemon');
-var AV = require('avoscloud-sdk').AV;
+var AV = require('avoscloud-sdk');
 var qiniu = require('qiniu');
 var nodeUtil = require('util');
 var sprintf = require("sprintf-js").sprintf;
@@ -489,7 +488,7 @@ exports.changeGroup = function(targetGroup, instance, cb) {
       data: {
         groupName: targetGroup
       }
-    }, function(err, data) {
+    }, function(err) {
       if (err) {
         return cb(err);
       }
@@ -1417,19 +1416,6 @@ var doCloudQuery = exports.doCloudQuery = function(cb) {
              doCloudQuery(cb);
            });
         });
-    });
-};
-
-exports.doLint = function(cb) {
-    console.log("linting ...");
-    var cmd = path.join(__dirname, '..', 'node_modules', 'jshint', 'bin', 'jshint') + ' . --exclude node_modules';
-    exec(cmd, function(err, stdout, stderr) {
-        console.log(stdout);
-        console.log(stderr);
-        if (!err) {
-            console.log('lint ok');
-        }
-        cb();
     });
 };
 

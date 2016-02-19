@@ -158,12 +158,6 @@ program
     run.importFiles(files, callback);
   });
 
-program.command('lint')
-  .description('静态检查代码错误。')
-  .action(function() {
-    run.doLint(callback);
-  });
-
 program
   .command('clear')
   .description('清除本地状态，在输入 app id 或者 master key 错误的情况下使用。')

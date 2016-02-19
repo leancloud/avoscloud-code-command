@@ -38,7 +38,6 @@
     "fstream": "0.1.25",
     "iconv-lite": "0.2.11",
     "jade": "0.26.0",
-    "jshint": "^2.6.0",
     "mailgun": "0.4.2",
     "mandrill": "0.1.0",
     "mime": "1.2.11",
