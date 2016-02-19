@@ -27,6 +27,7 @@ var AdmZip = require('adm-zip');
 var Q = require('q');
 var table = require('text-table');
 var moment = require('moment');
+var semver = require('semver');
 var debug = require('debug')('lean');
 
 var Runtime = require('../lib/runtime');
@@ -42,7 +43,7 @@ if (!TMP_DIR.match(/.*\/$/)) {
     TMP_DIR = TMP_DIR + path.sep;
 }
 
-var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "..", "package.json"))).version;
+var version = require('../package.json').version;
 
 var APP = null;
 var CLOUD_PATH = path.resolve('.');
@@ -1240,6 +1241,7 @@ exports.appStatus = function(isList, cb) {
   });
 };
 exports.queryLatestVersion = function(){
+  debug('queryLatestVersion');
 	request({
     url: 'https://download.leancloud.cn/sdk/cloud_code_commandline.json',
     json: true
@@ -1249,7 +1251,7 @@ exports.queryLatestVersion = function(){
     }
     var latestVersion = body.version;
     var changelog = body.changelog || '1.内部重构';
-    if(latestVersion.localeCompare(version) > 0){
+    if(semver.gt(latestVersion, version)){
       console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g avoscloud-code"), latestVersion, changelog);
     }
   });
