@@ -12,7 +12,6 @@ program
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.listGroups(callback);
   });
 
@@ -25,7 +24,6 @@ program
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.deployGroup(groupName, imageTag, options, callback);
   });
 
@@ -37,7 +35,6 @@ program
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.undeployGroup(groupName, callback);
   });
 

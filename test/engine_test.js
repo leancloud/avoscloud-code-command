@@ -8,7 +8,7 @@ var path = require('path');
 var lcCmd = path.resolve(__dirname, '../bin/lean');
 
 var app = {
-  name: 'cmdTest',
+  name: 'cmd-unit-test',
   appId: 'EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz',
   appKey: 'WQL3loTmH8UdzDAc0OneOD2b',
   masterKey: '3HxKdCG098L9Hf4gwwkS5o2W'
@@ -60,8 +60,8 @@ describe('engine', function() {
       '< 请输入应用的 Master Key',
       '> ' + app.masterKey,
       '< 正在创建项目',
-      '< 关联应用：cmdTest -- EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz',
-      '< 切换到应用 cmdTest',
+      '< 关联应用：cmd-unit-test -- EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz',
+      '< 切换到应用 cmd-unit-test',
       '< 项目创建完成',
       '> EOF'
     ];
@@ -108,7 +108,7 @@ describe('engine', function() {
       exec(lcCmd + ' app', function(code, stdout, stderr) {
         code.should.equal(0);
         should.not.exist(stderr);
-        stdout.should.match(/\* cmdTest EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz/);
+        stdout.should.match(/\* cmd-unit-test EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz/);
         done();
       });
     });
@@ -126,7 +126,7 @@ describe('engine', function() {
       exec(lcCmd + ' app list', function(code, stdout, stderr) {
         code.should.equal(0);
         should.not.exist(stderr);
-        stdout.should.equal('\u001b[32m* cmdTest EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz\u001b[39m\n  dev     4h2h4okwiyn8b6cle0oig00vitayum8ephrlsvg7xo8o19ne\n');
+        stdout.should.equal('\u001b[32m* cmd-unit-test EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz\u001b[39m\n  dev           4h2h4okwiyn8b6cle0oig00vitayum8ephrlsvg7xo8o19ne\n');
         done();
       });
     });
@@ -137,9 +137,9 @@ describe('engine', function() {
         should.not.exist(stderr);
         stdout.should.match(/切换到应用 dev/);
         exec(lcCmd + ' app list', function(code, stdout) {
-          stdout.should.equal('  cmdTest EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz\n\u001b[32m* dev     4h2h4okwiyn8b6cle0oig00vitayum8ephrlsvg7xo8o19ne\u001b[39m\n');
+          stdout.should.equal('  cmd-unit-test EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz\n\u001b[32m* dev           4h2h4okwiyn8b6cle0oig00vitayum8ephrlsvg7xo8o19ne\u001b[39m\n');
           exec(lcCmd + ' app checkout ' + app.name, function(code, stdout) {
-            stdout.should.match(/切换到应用 cmdTest/);
+            stdout.should.match(/切换到应用 cmd-unit-test/);
             done();
           });
         });
@@ -152,7 +152,7 @@ describe('engine', function() {
         should.not.exist(stderr);
         stdout.should.match(/移除应用关联：dev/);
         exec(lcCmd + ' app list', function(code, stdout) {
-          stdout.should.equal('\u001b[32m* cmdTest EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz\u001b[39m\n');
+          stdout.should.equal('\u001b[32m* cmd-unit-test EqSqN9TtwLm5rmgjEs3snVel-gzGzoHsz\u001b[39m\n');
           done();
         });
       });

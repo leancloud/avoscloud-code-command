@@ -12,7 +12,6 @@ program
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.listInstances(callback);
   });
 
@@ -26,7 +25,6 @@ program
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.createInstance(options, callback);
   });
 
@@ -38,7 +36,6 @@ program
 //    if (options.app) {
 //      run.setCurrentApp(options.app);
 //    }
-//    run.logProjectHome();
 //    run.changeGroup(targetGroup, instance, callback);
 //  });
 
@@ -50,7 +47,6 @@ program
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.deleteInstance(instanceName, callback);
   });
 

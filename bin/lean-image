@@ -12,20 +12,19 @@ program
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.listImages(callback);
   });
 
 program
   .command('build')
   .description('构建镜像。')
-  .option('-o, --log <log>', '本次部署的提交日志，仅对从本地部署有效。')
+  .option('-o, --log <log>', '本次部署的提交日志，仅对从本地构建有效。')
+  .option('--noCache [false]', '构建时不使用缓存，使构建总是下载最新的依赖。', false)
   .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
   .action(function(options) {
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.buildImageFromLocal(options, callback);
   });
 
@@ -37,22 +36,8 @@ program
     if (options.app) {
       run.setCurrentApp(options.app);
     }
-    run.logProjectHome();
     run.rmImage(imageTag, callback);
   });
-
-program
-  .command('rmcache')
-  .description('移除构建缓存。在依赖下载出现异常，或希望更新依赖时使用。')
-  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
-  .action(function(options) {
-    if (options.app) {
-      run.setCurrentApp(options.app);
-    }
-    run.logProjectHome();
-    run.rmImageCache(callback);
-  });
-
 
 program.parse(process.argv);
 
