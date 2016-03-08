@@ -45,6 +45,8 @@ sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
     status [options]                         查询当前部署状态。
     undeploy [options]                       从 LeanEngine 平台清除云引擎部署，包括生产环境和开发环境。
     logs [options]                           查看云引擎日志。
+    image                                    应用镜像管理。
+    instance                                 应用实例管理。
     app                                      多应用管理，可以使用一个云引擎项目关联多个 LeanCloud 应用。
     cql [options]                            进入 CQL 查询交互。
     redis                                    LeanCache Redis 命令行。

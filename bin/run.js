@@ -731,7 +731,7 @@ exports.publishCloudCode = function(cb) {
 
 var publishCloudCodeV4 = function(cb) {
   if (ENGINE_INFO.mode === 'free') {
-    console.log('体验模式使用 deploy 命令即可部署到生产环境，所以该指令忽略。');
+    console.log('免费版使用 deploy 命令即可部署到生产环境，所以该指令忽略。');
     return cb();
   }
   var imageTag;
@@ -1555,6 +1555,6 @@ var logProjectHome = function () {
         exitWith('请使用：app checkout <app> 选择应用。');
     }
     if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
-        console.log('运行模式：%s', color.green(ENGINE_INFO.mode === 'free' ? '体验模式' : '生产模式'));
+        console.log('运行方案：%s', color.green(ENGINE_INFO.mode === 'free' ? '免费版' : '专业版'));
     }
 };
