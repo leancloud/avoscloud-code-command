@@ -1,5 +1,5 @@
 {
-  "name": "leancloud-command-line-tool",
+  "name": "avoscloud-code",
   "version": "0.11.0",
   "main": "./bin/lean",
   "description": "LeanCloud Command Line Tool",
