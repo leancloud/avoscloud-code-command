@@ -1,0 +1,175 @@
+#!/usr/bin/env node
+'use strict';
+
+/**
+ * AVOS Cloud command-line tool
+ * Author: dennis zhuang<xzhuang@avoscloud.com>
+ * Project: https://github.com/avoscloud/avoscloud-code-command
+ * Created by : Emacs JavaScript Mode
+ */
+
+var fs = require('fs');
+var exec = require('child_process').exec;
+var path = require('path');
+var util = require('util');
+
+var program = require('commander');
+var color = require('cli-color');
+var _ = require('underscore');
+
+var run = require('./run');
+var callback = require('../lib/util').callback;
+
+var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "..", "package.json"))).version;
+
+program.version(version);
+
+run.queryLatestVersion();
+
+program
+  .command('up')
+  .description('本地启动云引擎应用。')
+  .option('-d, --debug', '启用 Debug 模式，参见 https://nodejs.org/api/debugger.html')
+  .option('-P, --port <3000>', '指定本地调试的端口，默认 3000。', 3000)
+  .action(function() {
+    var args = _.values(arguments);
+    var options = args.pop();
+    run.up(args, parseInt(options.port), options.debug, callback);
+  });
+
+program
+  .command('search <keywords...>')
+  .description('根据关键字查询开发文档。')
+  .action(function(keywords) {
+    keywords = keywords.join(' ');
+    console.log('正在打开浏览器，搜索「' + color.green(keywords) + '」……');
+    exec('open https://leancloud.cn/search.html?q=' + encodeURIComponent(keywords), callback);
+  });
+
+program
+  .command('new')
+  .description('创建云引擎项目。')
+  .option('--appId <appId>', '应用 ID。')
+  .option('--runtime <node|python>', '运行环境，可选：Node.js, Python')
+  .action(function(options) {
+    run.createNewProject(options.appId, options.runtime, callback);
+  });
+
+program
+  .command('deploy')
+  .description('部署到云引擎。')
+  .option('-o, --log <log>', '本次部署的提交日志，仅对从本地部署有效。')
+  .option('-g, --git', '使用定义在管理平台的 git 仓库部署。')
+  .option('-r, --revision <revision|branch>', 'git 的版本号或分支，仅对从 git 仓库部署有效。', 'master')
+  .option('--noCache [false]', '构建时不使用缓存，使构建总是下载最新的依赖。', false)
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .option('--enable <feature1,feature2>', '启用实验性功能。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    if (options.git) {
+      return run.deployGitCloudCode(options, callback);
+    } else {
+      run.deployLocalCloudCode(options, callback);
+    }
+  });
+
+program
+  .command('publish')
+  .description('发布开发环境代码到生产环境。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.publishCloudCode(callback);
+  });
+
+program
+  .command('status')
+  .description('查询当前部署状态。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.queryStatus(callback);
+  });
+
+program
+  .command('undeploy')
+  .description('从 LeanEngine 平台清除云引擎部署，包括生产环境和开发环境。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.undeployCloudCode(callback);
+  });
+
+program
+  .command('logs')
+  .option('-n, --lines [10]', '查看云引擎最新日志的行数，默认 10 行。', 10)
+  .option('-t, --tailf [false]', '自动刷新云引擎日志，默认为 false。', false)
+  .option('-e, --env [stg|prod]', 'stg 为预备环境，prod 为生产环境，默认 prod。', 'prod')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .description('查看云引擎日志。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.viewCloudLog(options, callback);
+  });
+
+program
+  .command('image', '应用镜像管理。')
+  //.command('group', '应用实例分组管理。')
+  .command('instance', '应用实例管理。');
+
+program
+  .command('app', '多应用管理，可以使用一个云引擎项目关联多个 LeanCloud 应用。');
+
+program
+  .command('cql')
+  .description('进入 CQL 查询交互。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.doCloudQuery(callback);
+  });
+
+program
+  .command('redis', 'LeanCache Redis 命令行。');
+
+program
+  .command('upload <file-or-directory...>')
+  .description('导入文件到 LeanCloud 平台，如果是目录，则会将该目录下的文件递归导入。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(files, options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.importFiles(files, callback);
+  });
+
+program
+  .command('clear')
+  .description('清除本地状态，在输入 app id 或者 master key 错误的情况下使用。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.deleteMasterKeys(callback);
+  });
+
+program.parse(process.argv);
+
+var cmd = program.args[0];
+if (util.isObject(cmd)) {
+  cmd = cmd._name;
+}
+run.sendStats(cmd);

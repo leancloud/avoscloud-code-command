@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+'use strict';
+var program = require('commander');
+var run = require('./run');
+var callback = require('../lib/util').callback;
+
+program
+  .command('list')
+  .description('查看可用的 Redis 实例。')
+  .action(function() {
+    run.getRedisInstances(callback);
+  });
+
+program
+  .command('conn <instance> [db]')
+  .description('连接指定 Redis 实例，db 默认为 0')
+  .action(function(instance, db) {
+    run.doRedisClient(instance, db, callback);
+  });
+
+program.parse(process.argv);
+
+if (!program.args.length) {
+  program.help();
+}

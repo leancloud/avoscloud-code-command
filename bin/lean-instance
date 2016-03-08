@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+'use strict';
+var program = require('commander');
+var run = require('./run');
+var callback = require('../lib/util').callback;
+
+program
+  .command('list')
+  .description('查看实例列表。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.listInstances(callback);
+  });
+
+program
+  .command('new')
+  .description('创建新实例。')
+  .option('--name <name>', '实例名称，默认为 web1, web2 依此类推。')
+  .option('--groupName <groupName>', '实例组名称，默认为第一个实例组。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.createInstance(options, callback);
+  });
+
+//program
+//  .command('chgrp <targetGroup> <instance>')
+//  .description('将实例更换到指定组，实例会使用目标组的 image 重新部署。')
+//  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+//  .action(function(targetGroup, instance, options) {
+//    if (options.app) {
+//      run.setCurrentApp(options.app);
+//    }
+//    run.changeGroup(targetGroup, instance, callback);
+//  });
+
+program
+  .command('rm <instanceName>')
+  .description('移除实例。')
+  .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
+  .action(function(instanceName, options) {
+    if (options.app) {
+      run.setCurrentApp(options.app);
+    }
+    run.deleteInstance(instanceName, callback);
+  });
+
+program.parse(process.argv);
+
+if (!program.args.length) {
+  program.help();
+}

@@ -1,3 +1,12 @@
+## v0.11.0
+* 使用 `lean` 替代 `avoscloud` 命令。
+* 使用 `lean up` 作为启动本地项目的命令，而不是之前的 `avoscloud` 回车。
+* 使用 `lean app <add|checkout|rm>` 替代 `avoscloud <add|checkout|rm>` 。
+* 增加了 `lean image` 子命令，用于云引擎应用镜像管理。
+* 增加了 `lean instance` 子命令，用于云引擎应用实例管理。
+* 移除 `avoscloud lint` 子命令，因为涉及到多语言运行环境，不同语言都有自己的静态代码检查工具，所以建议用户自行安装和使用。
+* 完善了命令的提示信息。
+
 ## v0.10.0
 * 更新项目框架的下载地址，避免 DNS 污染
 * 支持用 .leanengineignore 配置上传代码时忽略的文件
@@ -47,12 +56,12 @@
 * 修复 部署失败仍然提示 'Deploy cloud code successfully' 的 Bug。
 
 ## v0.7.1
-* 修复关闭 _File 表写入权限后无法正常通过本地部署云代码的 Bug。
+* 修复关闭 _File 表写入权限后无法正常通过本地部署云引擎的 Bug。
 
 ## v0.7.0
-* 增加 `--debug` （简写`-d`）选项，启用 debug 模式，使用 [node debugger](https://nodejs.org/api/debugger.html)调试你的云代码。
+* 增加 `--debug` （简写`-d`）选项，启用 debug 模式，使用 [node debugger](https://nodejs.org/api/debugger.html)调试你的云引擎。
 * 改进部署，打印更详细的部署步骤和日志，增强体验。
-* 云代码函数增加 `request.ip` 获取调用客户端 IP。
+* 云引擎函数增加 `request.ip` 获取调用客户端 IP。
 * 改进错误输出。
 * 修复 `AV.Cloud.httpRequest` 无法 POST 中文信息的 Bug（同步服务端）
 * 修复 `-r` 选项对 Git 仓库部署无效的 Bug

@@ -8,15 +8,13 @@
  */
 var path = require('path');
 var fs = require('fs');
-var lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
-var exec = require('child_process').exec;
 var archiver = require('archiver');
 var os = require('os');
 var request = require('request');
 var _ = require('underscore');
-var AV = require('avoscloud-sdk').AV;
+var nodemon = require('nodemon');
+var AV = require('avoscloud-sdk');
 var qiniu = require('qiniu');
-var util = require(lib + '/util');
 var nodeUtil = require('util');
 var sprintf = require("sprintf-js").sprintf;
 var promptly = require('promptly');
@@ -25,6 +23,14 @@ var async = require('async');
 var color = require('cli-color');
 var Table = require('cli-table');
 var AdmZip = require('adm-zip');
+var Q = require('q');
+var table = require('text-table');
+var moment = require('moment');
+var semver = require('semver');
+var debug = require('debug')('lean');
+
+var Runtime = require('../lib/runtime');
+var util = require('../lib/util');
 
 //set qiniu timeout
 qiniu.conf.RPC_TIMEOUT = 3600000;
@@ -36,37 +42,25 @@ if (!TMP_DIR.match(/.*\/$/)) {
     TMP_DIR = TMP_DIR + path.sep;
 }
 
-var version = JSON.parse(fs.readFileSync(path.join(path.dirname(fs.realpathSync(__filename)), "..", "package.json"))).version;
+var version = require('../package.json').version;
 
-var PROJECT = null;
+var APP = null;
 var CLOUD_PATH = path.resolve('.');
-var PORT = 3000;
+var ENGINE_INFO;
 
-// 设置命令作用的 project
-exports.setProject = function(project) {
-  PROJECT = project;
+// 设置命令作用的 app
+exports.setCurrentApp = function(app) {
+  APP = app;
 };
 
 var setCloudPath = exports.setCloudPath = function(cloudPath) {
   CLOUD_PATH = cloudPath;
 };
 
-exports.setPort = function(port) {
-  PORT = port;
-};
-
 function exitWith(err) {
     console.error('[ERROR] ' + err);
     process.exit(1);
 }
-
-var errorCb = function(cb, exitCode, action, cause) {
-  var error = new Error();
-  error.action = action;
-  error.exitCode = exitCode;
-  error.cause = cause;
-  cb(error);
-};
 
 /**
  * Tried to get user's home directory by environment variable.
@@ -78,42 +72,55 @@ function getUserHome() {
     return home;
 }
 
-exports.deleteMasterKeys = function() {
-    var home = getUserHome();
-    var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
-    var leancloudAppKeysFile = path.join(home, '.leancloud/app_keys');
+var leancloudFolder = path.join(getUserHome(), '.leancloud');
+var leancloudAppKeysFile = path.join(leancloudFolder, 'app_keys');
 
-    try {
-      console.log("[INFO] 删除 " + avoscloudKeysFile + " ...");
-      fs.truncateSync(avoscloudKeysFile, 0);
-    } catch (err) {
-      if (err.code !== 'ENOENT')
-        exitWith(err.message);
+exports.deleteMasterKeys = function(cb) {
+  var home = getUserHome();
+  var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
+
+  console.log("删除 " + avoscloudKeysFile + " ...");
+  console.log("删除 " + leancloudAppKeysFile + " ...");
+  Q.allSettled([
+    Q.nfcall(fs.truncate, avoscloudKeysFile, 0),
+    Q.nfcall(fs.truncate, leancloudAppKeysFile, 0)
+  ]).spread(function(avosFile, lcFile) {
+    if (avosFile.state === 'rejected' && avosFile.reason.code !== 'ENOENT') {
+      return cb(new Error('删除 ' + avoscloudKeysFile + ' 失败：' + avosFile.reason.message));
     }
-
-    try {
-      console.log("[INFO] 删除 " + leancloudAppKeysFile + " ...");
-      fs.truncateSync(leancloudAppKeysFile, 0);
-    } catch (err) {
-      if (err.code !== 'ENOENT')
-        exitWith(err.message);
+    if (lcFile.state === 'rejected' && lcFile.reason.code !== 'ENOENT') {
+      return cb(new Error('删除 ' + leancloudAppKeysFile + ' 失败：' + lcFile.reason.message));
     }
-
-    console.log("[INFO] 清除成功");
+    console.log("\n清除成功\n");
+    return cb();
+  });
 };
 
-var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, cb) {
+var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHome, cb) {
   if (_.isFunction(appId)) {
       cb = appId;
       appId = getAppSync().appId;
   }
+  if (_.isFunction(isLogProjectHome)) {
+      cb = isLogProjectHome;
+      isLogProjectHome = true;
+  }
+  if (appId === AV.applicationId) {
+    return cb(null, AV);
+  }
   getKeys(appId, function(err, keys) {
     if(err) {
-      return exitWith(err.message);
+      return cb(err);
     }
     AV.initialize(appId, keys.appKey, keys.masterKey);
     AV.Cloud.useMasterKey();
-    cb(AV);
+    util.request('functions/_ops/engine', function(err, data) {
+      ENGINE_INFO = data;
+      if (isLogProjectHome) {
+        logProjectHome();
+      }
+      cb(null, AV);
+    });
   });
 };
 
@@ -133,54 +140,81 @@ function destroyFile(objectId) {
         file.id = objectId.trim();
         file.destroy();
     } catch (e) {
+        debug(e.stack);
         //ignore
     }
 }
 
-function uploadFile(localFile, props, cb, retry, retries, lastErr) {
-    //Retried too many times, report error.
-    if (retries && retries > 3) {
-        console.warn("上传文件失败超过 3 次，放弃：" + localFile);
-        if (cb) {
-            cb(lastErr);
-        }
-        return;
+function uploadFile(localFile, props, attempts, cb) {
+  if (nodeUtil.isFunction(attempts)) {
+    cb = attempts;
+    attempts = 0;
+  }
+  util.request("qiniu", {
+    method: 'POST',
+    data: props
+  }, function (err, data) {
+    if (err) {
+      //Retried too many times, report error.
+      if (attempts > 3) {
+          console.warn("上传文件失败超过 3 次，放弃：" + localFile);
+          return cb(err);
+      }
+      //mabye retry to upload it
+      uploadFile(localFile, props, attempts + 1, cb);
+    } else {
+      var objectId = data.objectId;
+      var uptoken = data.token;
+      var bucket = data.bucket;
+      if (!uptoken) {
+        return cb(new Error(data.error));
+      }
+      var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
+      qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
+        cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), objectId);
+      });
     }
-    if(props) {
-      //use master key to upload files.
-      props._MasterKey = AV.masterKey || AV.applicationKey;
+  });
+}
+
+function pollEvents(eventToken, cb) {
+  var from = null;
+  var moreEvent = true;
+  var doLoop = function() {
+    var url = 'functions/_ops/events/poll/' + eventToken;
+    if (from) {
+      url += '?from=' + from;
     }
-    util.requestCloud("qiniu", props, 'POST', {
-        success: function(resp) {
-            var objectId = resp.objectId;
-            var uptoken = resp.token;
-            var bucket = resp.bucket;
-            if (!uptoken) {
-                if (cb) {
-                    cb(JSON.parse(resp.responseText).error);
-                    return;
-                }
-            }
-            var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
-            qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
-                if (cb) {
-                    cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), objectId);
-                }
-            });
-        },
-        error: function(err) {
-            //mabye retry to upload it
-            if (retry) {
-                if (!retries)
-                    retries = 0;
-                uploadFile(localFile, props, cb, retry, retries + 1, err);
-            } else {
-                if (cb) {
-                    cb(err);
-                }
-            }
+    util.request(url, function(err, data) {
+      var errLog = null;
+      if (err) {
+        console.error('获取云引擎日志失败：%s', err.message);
+      } else {
+        moreEvent = data.moreEvent;
+        data.events.reverse().forEach(function(logInfo) {
+          console.log('%s [%s] %s', new Date(logInfo.time).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content);
+          from = logInfo.time;
+          if (logInfo.level.toLocaleUpperCase() === 'ERROR') {
+            errLog = logInfo.content;
+          }
+        });
+      }
+      if (moreEvent) {
+        setTimeout(function() {
+          doLoop();
+        }, 1000);
+      } else {
+        if (errLog) {
+          return cb(new Error(errLog));
         }
+        cb();
+      }
     });
+  };
+  // 等待操作日志入库
+  setTimeout(function() {
+    doLoop();
+  }, 3000);
 }
 
 function loopLogs(opsToken, prod, cb) {
@@ -191,30 +225,31 @@ function loopLogs(opsToken, prod, cb) {
     if (start) {
       url += '&start=' + start;
     }
-    util.requestCloud(url, {}, 'GET', {
-      success: function(res) {
-        moreData = res.moreData;
-        var err = null;
-        res.logs.reverse().forEach(function(logInfo) {
-          console.log('%s [%s] %s', new Date(logInfo.time).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content);
-          start = logInfo.time;
-          if (logInfo.level.toLocaleUpperCase() === 'ERROR') {
-            err = logInfo.content;
-          }
-        });
-        if (moreData) {
-          setTimeout(function() {
-            doLoop();
-          }, 1000);
-        } else {
-          cb(err);
-        }
-      },
-      error: function(err) {
-        console.error('[ERROR]loopLogs: ', err.message || (err.statusText && err.statusText.message));
-        setTimeout(doLoop, 1000);
+    util.request(url, function(err, data) {
+      if (err) {
+        console.error('获取云引擎日志失败：%s', err.message);
       }
-    }, true);
+      moreData = data.moreData;
+      var errLog = null;
+      data.logs.reverse().forEach(function(logInfo) {
+        console.log('%s [%s] %s', new Date(logInfo.time).toLocaleString(), logInfo.level.toLocaleUpperCase(), logInfo.content);
+        start = logInfo.time;
+        if (logInfo.level.toLocaleUpperCase() === 'ERROR') {
+          errLog = logInfo.content;
+        }
+      });
+      if (moreData) {
+        setTimeout(function() {
+          doLoop();
+        }, 1000);
+      } else {
+        if (errLog) {
+          return cb(new Error(errLog));
+        }
+        cb();
+      }
+      
+    });
   };
   // 等待部署开始日志入库
   setTimeout(function() {
@@ -222,151 +257,522 @@ function loopLogs(opsToken, prod, cb) {
   }, 3000);
 }
 
-exports.deployLocalCloudCode = function (runtimeInfo, cloudPath, options, cb) {
-    initAVOSCloudSDK(function() {
-        console.log("[INFO] 压缩项目文件……");
-        var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
-        var output = fs.createWriteStream(file);
-        var archive = archiver('zip');
+var uploadProject = function() {
+  var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
+  return Q.ninvoke(Runtime, 'detect', CLOUD_PATH).then(function(runtimeInfo) {
+    return Q.Promise(function(resolve, reject) {
+      console.log("压缩项目文件 ...");
+      var output = fs.createWriteStream(file);
+      var archive = archiver('zip');
+      
+      output.on('close', function() {
+        resolve();
+      });
 
-        output.on('close', function() {
-            console.log("[INFO] 生成临时文件：" + file);
-            //upload file to cloud code
-            console.log("[INFO] 开始上传项目文件……");
-            var key = util.guid() + '.zip';
-            uploadFile(file, {
-                key: key,
-                name: file,
-                mime_type: 'application/zip, application/octet-stream'
-            }, function(err, url, fileId) {
-                if (err) {
-                  destroyFile(fileId);
-                  errorCb(cb, 1, "上传项目文件", err);
-                } else {
-                    //notify avoscloud platform to fetch new deployment.
-                    util.requestCloud('functions/_ops/deployByCommand', {
-                        revision: url,
-                        fileId: fileId,
-                        log: options.deployLog,
-                        options: options.options
-                    }, 'POST', {
-                        success: function(resp) {
-                            loopLogs(resp.opsToken, 0, function(err) {
-                                if (err) {
-                                    return errorCb(cb, 128, "部署失败", err);
-                                }
-                                console.log("[INFO] 部署成功");
-                                queryStatus(cb);
-                            });
-                        },
-                        error: function(err) {
-                          errorCb(cb, 128, "部署失败", err);
-	                        }
-                    }, true);
-                }
-            }, false);
-        });
+      archive.on('error', function(err) {
+          err.action = '项目文件打包';
+          reject(err);
+      });
 
-        archive.on('error', function(err) {
-            errorCb(cb, 1, "压缩项目文件", err);
-        });
+      var patterns = getIgnorePatterns(CLOUD_PATH);
+      if (patterns) {
+        patterns = [{ src: ['**'].concat(patterns.map(function(pattern) {
+          if (pattern[0] == '!')
+            return pattern.slice(1);
+          else
+            return '!' + pattern;
+        })) }];
+      } else {
+        patterns = runtimeInfo.bulk();
+      }
 
-        var patterns = getIgnorePatterns(cloudPath);
-
-        if (patterns) {
-          patterns = [{ src: ['**'].concat(patterns.map(function(pattern) {
-            if (pattern[0] == '!')
-              return pattern.slice(1);
-            else
-              return '!' + pattern;
-          })) }];
-        } else {
-          patterns = runtimeInfo.bulk();
-        }
-
-        archive.pipe(output);
-        archive.bulk(patterns);
-        archive.finalize();
+      archive.pipe(output);
+      archive.bulk(patterns);
+      archive.finalize();
     });
+  }).then(function() {
+    console.log("生成临时文件：" + file);
+    //upload file to cloud code
+    console.log("开始上传项目文件 ...");
+    var key = util.guid() + '.zip';
+    return Q.nfcall(uploadFile, file, {
+        key: key,
+        name: file,
+        mime_type: 'application/zip, application/octet-stream'
+    });
+  });
 };
 
-exports.deployGitCloudCode = function (revision, options, cb) {
-    initAVOSCloudSDK(function() {
-        util.requestCloud('functions/_ops/deployByCommand', {
-            after: revision,
-            url: options.giturl,
-            options: options.options
-        }, 'POST', {
-            success: function(resp) {
-                loopLogs(resp.opsToken, 0, function(err) {
-                    if (err) {
-                        return errorCb(cb, 129, "从 Git 仓库部署", err);
-                    }
-                    console.log("[INFO] 部署成功");
-                    queryStatus(cb);
-                });
-            },
-            error: function(err) {
-                errorCb(cb, 129, "从 Git 仓库部署", err);
-            }
-        }, true);
+exports.buildImageFromLocal = function(options, cb) {
+  var fileId;
+  initAVOSCloudSDK(function() {
+    uploadProject().then(function(args) {
+      fileId = args[1];
+      return Q.nfcall(util.request, 'functions/_ops/images', {
+        method: 'POST',
+        data: {
+          zipUrl: args[0],
+          comment: options.log,
+          noDependenciesCache: JSON.parse(options.noCache),
+          async: true
+        }
+      });
+    }).then(function(data) {
+      return Q.nfcall(pollEvents, data.eventToken);
+    }).then(function() {
+      console.log("\n构建成功\n");
+      return Q.nfcall(listImages, 1);
+    }).then(cb).catch(function(err) {
+      if(fileId) {
+        destroyFile(fileId);
+      }
+      err.action = '构建应用镜像';
+      return cb(err);
     });
+  });
+};
+
+var listImages = exports.listImages = function(limit, cb) {
+  if (nodeUtil.isFunction(limit)) {
+    cb = limit;
+    limit = 10;
+  }
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/images', function(err, data) {
+      if (err) {
+        return cb(err);
+      }
+      data = data.slice(0, limit);
+      var datas = [
+        [ 'IMAGE TAG', 'STATUS', 'VERSION', 'COMMENT', 'RUNTIME', 'CREATED' ]
+      ];
+      data.forEach(function(image) {
+        datas.push([image.imageTag, image.status, image.version, image.comment, image.runtime, moment(image.created).fromNow()]);
+      });
+      console.log(table(datas));
+      cb();
+    });
+  });
+};
+
+exports.rmImage = function(imageTag, cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/images/' + imageTag, {
+      method: 'DELETE',
+    }, function(err) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n操作成功\n");
+      cb();
+    });
+  });
+};
+
+exports.rmImageCache = function(cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/images/deleteBuildCache', {
+      method: 'POST',
+    }, function(err) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n操作成功\n");
+      cb();
+    });
+  });
+};
+
+var envMap = {
+  '0': 'stg',
+  '1': 'prod'
+};
+
+var showGroup = function(groups) {
+  var datas = [
+    [ 'GROUP NAME', 'ENV', 'CURRENT IMAGE', 'INSTANCES', 'CREATED', 'DEPLOYED']
+  ];
+  groups.forEach(function(obj) {
+    datas.push([
+      obj.groupName,
+      envMap[obj.prod],
+      obj.currentImage && obj.currentImage.imageTag || '',
+      '[' + obj.instances.map(function(instance) {
+        return instance.name + '(' + instance.status + ')';
+      }).join(',') + ']',
+      moment(obj.created).fromNow(),
+      moment(obj.deployed).fromNow()
+    ]);
+  });
+  console.log(table(datas));
+};
+
+exports.listGroups = function(cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/groups', function(err, data) {
+      if (err) {
+        return cb(err);
+      }
+      showGroup(data);
+      cb();
+    });
+  });
+};
+
+var deployGroup = exports.deployGroup = function(groupName, imageTag, options, cb) {
+  Q.nfcall(initAVOSCloudSDK).then(function() {
+    return Q.nfcall(util.request, 'functions/_ops/groups/' + groupName + '/deploy', {
+      method: JSON.parse(options.force) ? 'POST' : 'PUT',
+      data: {
+        imageTag: imageTag,
+        async: true
+      }
+    });
+  }).then(function(data) {
+    return Q.nfcall(pollEvents, data.eventToken);
+  }).then(function() {
+    console.log("\n部署成功\n");
+    return Q.nfcall(util.request, 'functions/_ops/groups');
+  }).then(function(groups) {
+    showGroup(_.where(groups, {groupName: groupName}));
+    return;
+  }).then(cb).catch(function(err) {
+    err.action = '部署实例组';
+    return cb(err);
+  });
+};
+
+exports.undeployGroup = function(groupName, cb) {
+  Q.nfcall(initAVOSCloudSDK).then(function() {
+    return Q.nfcall(util.request, 'functions/_ops/groups/' + groupName + '/deploy', {
+      method: 'DELETE'
+    });
+  }).then(function() {
+    console.log("\n清除成功\n");
+    return Q.nfcall(util.request, 'functions/_ops/groups');
+  }).then(function(groups) {
+    showGroup(_.where(groups, {groupName: groupName}));
+    return;
+  }).then(cb).catch(function(err) {
+    err.action = '清除实例组部署';
+    return cb(err);
+  });
+};
+
+var quotaMap = {
+  '1': '1CPU/512MB',
+  '2': '2CPU/1GB',
+  '4': '4CPU/2GB',
+};
+
+exports.createInstance = function(options, cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/instances', {
+      method: 'POST',
+      data: {
+        name: options.name,
+        groupName: options.groupName
+      }
+    }, function(err, obj) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n创建成功\n");
+      var datas = [
+        [ 'NAME', 'STATUS', 'GROUP NAME', 'QUOTA', 'IMAGE TAG', 'DEPLOYED', 'CREATED' ]
+      ];
+      datas.push([
+        obj.name,
+        obj.status,
+        obj.groupName,
+        quotaMap[obj.quota] || obj.quota,
+        obj.imageInfo && obj.imageInfo.imageTag || '',
+        moment(obj.deployed).fromNow(),
+        moment(obj.created).fromNow()
+        ]);
+      console.log(table(datas));
+      cb();
+    });
+  });
+};
+
+exports.changeGroup = function(targetGroup, instance, cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/instances/' + instance + '/groupName', {
+      method: 'PUT',
+      data: {
+        groupName: targetGroup
+      }
+    }, function(err) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n切换成功\n");
+      cb();
+    });
+  });
+};
+
+exports.deleteInstance = function(instance, cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/instances/' + instance, {
+      method: 'DELETE'
+    }, function(err) {
+      if (err) {
+        return cb(err);
+      }
+      console.log("\n移除成功\n");
+      cb();
+    });
+  });
+};
+
+var listInstances = exports.listInstances = function(cb) {
+  initAVOSCloudSDK(function() {
+    util.request('functions/_ops/instances', function(err, data) {
+      if (err) {
+        return cb(err);
+      }
+      var datas = [
+        [ 'NAME', 'STATUS', 'GROUP NAME', 'QUOTA', 'IMAGE TAG', 'DEPLOYED', 'CREATED' ]
+      ];
+      data.forEach(function(obj) {
+        datas.push([
+          obj.name,
+          obj.status,
+          obj.groupName,
+          quotaMap[obj.quota] || obj.quota,
+          obj.imageInfo && obj.imageInfo.imageTag || '',
+          moment(obj.deployed).fromNow(),
+          moment(obj.created).fromNow()
+          ]);
+      });
+      console.log(table(datas));
+      cb();
+    });
+  });
+};
+
+exports.deployLocalCloudCode = function (options, cb) {
+  initAVOSCloudSDK(function() {
+    if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
+      return deployLocalCloudCodeV4(options, cb);
+    } else {
+      var fileId;
+      return uploadProject().then(function(args) {
+        fileId = args[1];
+        return Q.nfcall(util.request, 'functions/_ops/deployByCommand', {
+          method: 'POST',
+          data: {
+            revision: args[0],
+            fileId: fileId,
+            log: options.log,
+            options: options.enable
+          }
+        });
+      }).then(function(data) {
+        return Q.nfcall(loopLogs, data.opsToken, 0);
+      }).then(function() {
+        console.log("\n部署成功\n");
+        return Q.nfcall(queryStatus);
+      }).then(cb).catch(function(err) {
+        if(fileId) {
+          destroyFile(fileId);
+        }
+        err.action = '部署云引擎应用';
+        return cb(err);
+      });
+    }
+  });
+};
+
+var deployLocalCloudCodeV4 = function(options, cb) {
+  var fileId, group;
+  return getDefaultGroup().then(function(_group) {
+    group = _group;
+    if (group.prod === 0) {
+      console.log('部署到：' + color.green('预备环境'));
+    } else {
+      console.log('部署到：' + color.green('生产环境(' + group.groupName+ ')'));
+    }
+    return uploadProject();
+  }).then(function(args) {
+    fileId = args[1];
+    return Q.nfcall(util.request, 'functions/_ops/groups/' + group.groupName + '/buildAndDeploy', {
+      method: 'POST',
+      data: {
+        zipUrl: args[0],
+        comment: options.log,
+        noDependenciesCache: JSON.parse(options.noCache),
+        async: true
+      }
+    });
+  }).then(function(data) {
+    return Q.nfcall(pollEvents, data.eventToken);
+  }).then(function() {
+    console.log("\n部署成功\n");
+    return Q.nfcall(listInstances);
+  }).then(cb).catch(function(err) {
+    if(fileId) {
+      destroyFile(fileId);
+    }
+    err.action = '部署应用';
+    return cb(err);
+  });
+};
+
+exports.deployGitCloudCode = function (options, cb) {
+  initAVOSCloudSDK(function() {
+    if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
+      return deployGitCloudCodeV4(options, cb);
+    } else {
+      util.request('functions/_ops/deployByCommand', {
+          method: 'POST',
+          data: {
+            after: options.revision,
+            options: options.options
+          }
+      }, function(err, data) {
+        if (err) {
+          return cb(err);
+        }
+        loopLogs(data.opsToken, 0, function(err) {
+            if (err) {
+                err.action = '部署云引擎应用';
+                return cb(err);
+            }
+            console.log("\n部署成功\n");
+            queryStatus(cb);
+        });
+      });
+    }
+  });
+};
+
+var deployGitCloudCodeV4 = function(options, cb) {
+  return Q.fcall(function() {
+    return getDefaultGroup().then(function(group) {
+      if (group.prod === 0) {
+        console.log('部署到：' + color.green('预备环境'));
+      } else {
+        console.log('部署到：' + color.green('生产环境(' + group.groupName+ ')'));
+      }
+      return Q.nfcall(util.request, 'functions/_ops/groups/' + group.groupName + '/buildAndDeploy', {
+        method: 'POST',
+        data: {
+          comment: options.log,
+          noDependenciesCache: JSON.parse(options.noCache),
+          async: true
+        }
+      });
+    });
+  }).then(function(data) {
+    return Q.nfcall(pollEvents, data.eventToken);
+  }).then(function() {
+    console.log("\n部署成功\n");
+    return Q.nfcall(listInstances);
+  }).then(cb).catch(function(err) {
+    err.action = '部署应用';
+    return cb(err);
+  });
+};
+
+var getDefaultGroup = function() {
+  return Q.nfcall(util.request, 'functions/_ops/groups').then(function(groups) {
+    return _.find(groups, function(group) {
+      if (ENGINE_INFO.mode === 'free') {
+        return group.groupName !== 'staging';
+      } else {
+        return group.groupName === 'staging';
+      }
+    });
+  });
+};
+
+var getDefaultProdGroup = function() {
+  return Q.nfcall(util.request, 'functions/_ops/groups').then(function(groups) {
+    return _.find(groups, function(group) {
+      return group.groupName !== 'staging';
+    });
+  });
 };
 
 function outputStatus(status) {
     console.log('------------------------------------------------------------------------');
-    console.log(sprintf("%s : '%s'", "测试环境版本    ", status.dev));
-    console.log(sprintf("%s : '%s'", "测试环境提交日志", status.devLog));
-    console.log(sprintf("%s : '%s'", "生产环境版本    ", status.prod));
-    console.log(sprintf("%s : '%s'", "生产环境提交日志", status.prodLog));
+    console.log(sprintf("%s：'%s'", "预备环境版本    ", status.dev));
+    console.log(sprintf("%s：'%s'", "预备环境提交日志", status.devLog));
+    console.log(sprintf("%s：'%s'", "生产环境版本    ", status.prod));
+    console.log(sprintf("%s：'%s'", "生产环境提交日志", status.prodLog));
     console.log('------------------------------------------------------------------------');
 }
 
 exports.publishCloudCode = function(cb) {
-    initAVOSCloudSDK(function() {
-        util.requestCloud('functions/_ops/publish', {}, 'POST', {
-            success: function(resp) {
-                loopLogs(resp.opsToken, 1, function(err) {
-                    if (err) {
-                        return errorCb(cb, 130, "发布生产环境", err);
-                    }
-                    console.log("[INFO] 发布成功");
-                    queryStatus(cb);
-                });
-            },
-            error: function(err) {
-                errorCb(cb, 130, "发布生产环境", err);
-            }
-        }, true);
-    });
+  initAVOSCloudSDK(function() {
+    if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
+      return publishCloudCodeV4(cb);
+    } else {
+      util.request('functions/_ops/publish', {
+        method: 'POST'
+      }, function(err, data) {
+        if (err) {
+          return cb(err);
+        }
+        loopLogs(data.opsToken, 1, function(err) {
+          if (err) {
+            return cb(err);
+          }
+          console.log("\n发布成功\n");
+          queryStatus(cb);
+        });
+      });
+    }
+  });
+};
+
+var publishCloudCodeV4 = function(cb) {
+  if (ENGINE_INFO.mode === 'free') {
+    console.log('免费版使用 deploy 命令即可部署到生产环境，所以该指令忽略。');
+    return cb();
+  }
+  var imageTag;
+  return Q.nfcall(util.request, 'functions/_ops/groups').then(function(groups) {
+    var group = _.findWhere(groups, {prod: 0});
+    if (!group.currentImage) {
+      throw new Error('预备环境没有相关部署');
+    }
+    imageTag = group.currentImage.imageTag;
+    return getDefaultProdGroup();
+  }).then(function(group) {
+    return Q.nfcall(deployGroup, group.groupName, imageTag, {force: false});
+  }).then(cb).catch(function(err) {
+    err.action = '发布应用';
+    return cb(err);
+  });
 };
 
 var queryStatus = exports.queryStatus = function(cb) {
     initAVOSCloudSDK(function() {
-        util.requestCloud('functions/status', {}, 'GET', {
-            success: function(resp) {
-                console.log("项目状态：");
-                outputStatus(resp);
-                cb();
-            },
-            error: function(err) {
-              errorCb(cb, 131, "查询项目状态", err);
-            }
-        }, true);
+        util.request('functions/status', function(err, data) {
+          if (err) {
+            return cb(err);
+          }
+          outputStatus(data);
+          cb();
+        });
     });
 };
 
 exports.undeployCloudCode = function(cb) {
     initAVOSCloudSDK(function() {
-        util.requestCloud('functions/undeploy/repo', {}, 'POST', {
-            success: function() {
-                console.log("[INFO] 清除成功");
-                queryStatus(cb);
-            },
-            error: function(err) {
-                errorCb(cb, 132, "清除项目", err);
-            }
-        }, true);
+        util.request('functions/undeploy/repo', {
+          method: 'POST'
+        }, function(err) {
+          if (err) {
+            return cb(err);
+          }
+          console.log("\n清除成功\n");
+          queryStatus(cb);
+        });
     });
 };
 
@@ -384,8 +790,7 @@ function input(info, cb, password) {
      *Generate device uuid for statistics.
      */
 function getDeviceId() {
-    var home = getUserHome();
-    var deviceIdFile = home + path.sep + '.avoscloud_device_id';
+    var deviceIdFile = path.join(leancloudFolder, 'device_id');
     var exists = fs.existsSync(deviceIdFile);
     if (exists) {
         return fs.readFileSync(deviceIdFile, {
@@ -401,6 +806,7 @@ function getDeviceId() {
 }
 
 exports.sendStats = function(cmd) {
+    debug('sendStats: %s', cmd);
     try {
         var sessionId = util.guid();
         var timestamp = new Date().getTime();
@@ -431,22 +837,25 @@ exports.sendStats = function(cmd) {
                 }
             }
         };
-        util.ajax(
-            'POST',
-            'https://cn.avoscloud.com/1/stats/collect',
-            JSON.stringify(data),
-            function() {},
-            function() {},
-            'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
-            'nrit4mhmqzm1euc3n3k9fv3w0wo72v1bdic6tfrl2usxix3e');
+        util.request('stats/collect', {
+          method: 'POST',
+          appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
+          appKey: 'nrit4mhmqzm1euc3n3k9fv3w0wo72v1bdic6tfrl2usxix3e',
+          data: data
+        }, function(err) {
+          if (err) {
+            debug(err.stack);
+          }
+        });
     } catch (err) {
+        debug(err.stack);
         //ignore
     }
 };
 
-function outputLogs(resp) {
-    if (resp && resp.length > 0) {
-        resp.reverse().forEach(function(log) {
+function outputLogs(datas) {
+    if (datas && datas.length > 0) {
+        datas.reverse().forEach(function(log) {
             var time = new Date(log.time).toLocaleString();
             var env = log.production == 1 ? 'PROD' : 'STG';
             var content = log.content.replace(/\n$/, '');
@@ -455,49 +864,54 @@ function outputLogs(resp) {
     }
 }
 
-exports.viewCloudLog = function (lines, tailf, prod, lastLogUpdatedTime, cb) {
+exports.viewCloudLog = function (options, cb) {
+    var tailf = JSON.parse(options.tailf);
+    var lastLogUpdatedTime;
+    var doViewCloudLog = function () {
+        var prod = options.env.toLowerCase() === 'stg' ? 0 : 1;
+        var url = 'tables/EngineLogs?production=' + prod;
+        if (!tailf && options.lines) {
+          url += '&limit=' + options.lines;
+        }
+        if (lastLogUpdatedTime) {
+          url += '&since=' + encodeURIComponent(lastLogUpdatedTime);
+        }
+        util.request(url, {
+          method: 'GET'
+        }, function (err, data) {
+          if (err) {
+            return cb(err);
+          }
+          if (data.results) {
+            data = data.results;
+          }
+          var datas = data.map(function(item) {
+            if (_.isString(item))
+              return JSON.parse(item);
+            else
+              return item;
+          });
+          if (datas.length > 0) {
+              lastLogUpdatedTime = datas[0].time;
+          }
+          outputLogs(datas);
+          if (tailf) {
+              //fetch log every 500 milliseconds.
+              setTimeout(function() {
+                  doViewCloudLog();
+              }, 500);
+          } else {
+            cb();
+          }
+        });
+    };
     initAVOSCloudSDK(function() {
-        var doViewCloudLog = function doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb) {
-            var url = 'tables/EngineLogs?production=' + prod;
-            if (lastLogUpdatedTime) {
-              url += '&since=' + encodeURIComponent(lastLogUpdatedTime);
-            }
-            util.requestCloud(url, {}, 'GET', {
-                success: function(resp) {
-                    if (resp.results) {
-                      resp = resp.results;
-                    }
-                    resp = resp.map(function(item) {
-                      if (_.isString(item))
-                        return JSON.parse(item);
-                      else
-                        return item;
-                    });
-                    if (resp.length > 0) {
-                        lastLogUpdatedTime = resp[0].time;
-                    }
-                    outputLogs(resp);
-                    if (tailf) {
-                        //fetch log every 500 milliseconds.
-                        setTimeout(function() {
-                            doViewCloudLog(null, tailf, lastLogUpdatedTime, cb);
-                        }, 500);
-                    }
-                },
-                error: function(err) {
-                    errorCb(cb, 133, "查询应用日志", err);
-                }
-            }, true);
-        };
-
-        doViewCloudLog(lines, tailf, lastLogUpdatedTime, cb);
+        doViewCloudLog();
     });
 };
 
 var migrateAvoscloudKeys = _.once(function() {
     var avoscloudAppKeysFile = path.join(getUserHome(), '.avoscloud_keys');
-    var leancloudFolder = path.join(getUserHome(), '.leancloud');
-    var leancloudAppKeysFile = path.join(leancloudFolder, 'app_keys');
 
     if (fs.existsSync(avoscloudAppKeysFile)) {
         if (fs.existsSync(leancloudAppKeysFile))
@@ -568,7 +982,6 @@ function updateMasterKeys(appId, keys, options, callback) {
             appKey: keys.appKey
         };
 
-        var leancloudFolder = path.join(getUserHome(), '.leancloud');
         fs.mkdir(leancloudFolder, '0700', function(err) {
             if (err && err.code != 'EEXIST')
                 return exitWith(err.message);
@@ -589,11 +1002,14 @@ function updateMasterKeys(appId, keys, options, callback) {
 function getKeys(appId, cb) {
   loadLocalAppKeys(function(err, appKeys) {
     if(err) {
-      return exitWith(err.message);
+      return cb(err);
     }
 
     var fetchAndUpdateKeys = function(masterKey, cb) {
-      fetchAppDetail(appId, masterKey, function(err, appDetail) {
+      util.request('__leancloud/apps/appDetail', {
+        appId: appId,
+        masterKey: masterKey
+      }, function(err, appDetail) {
         updateMasterKeys(appId, {
           masterKey: masterKey,
           appKey: appDetail.app_key
@@ -603,7 +1019,7 @@ function getKeys(appId, cb) {
 
     var keys = appKeys[appId];
     if(!keys) {
-      promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到): ', function(err, masterKey) {
+      promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到)：', function(err, masterKey) {
         if (!masterKey || masterKey.trim() === '') {
             return exitWith("无效的 Master Key");
         }
@@ -620,65 +1036,118 @@ function getKeys(appId, cb) {
 /**
  *Creaet a new avoscloud cloud code project.
  */
-exports.createNewProject = function(cb) {
+exports.createNewProject = function(appId, runtime, cb) {
+  var _appId, repoName;
+  Q.fcall(function() {
+    if(appId) {
+      return appId;
+    }
     console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。");
-    input("请输入应用的 Application ID: ", function(appId) {
-        if (!appId || appId.trim() === '')
-            return exitWith("无效的 Application ID");
-
-        appId = appId.trim();
-        initAVOSCloudSDK(appId, function(AV) {
-            var languagesMapping = {
-                'nodejs': 'node-js-getting-started',
-                'node': 'node-js-getting-started',
-                'n': 'node-js-getting-started',
-                'python': 'python-getting-started',
-                'py': 'python-getting-started',
-                'p': 'python-getting-started'
-            };
-
-            input("请选择项目语言，Node.js(N) 或 Python(P): ", function(language) {
-                var repoName = languagesMapping[language.toLowerCase()];
-
-                if (!repoName)
-                    return exitWith("无效的语言");
-
-                console.log("正在创建项目 ...");
-
-                fetchAppDetail(AV.applicationId, AV.masterKey, function(err, appDetail) {
-                    try {
-                        fs.mkdirSync(appDetail.app_name);
-                    } catch (err) {
-                        if (err.code != 'EEXIST')
-                            return exitWith(err.message);
-                    }
-
-                    var zipFilePath = path.join(TMP_DIR, appId + '.zip');
-                    request('http://lcinternal-cloud-code-update.leanapp.cn/' + repoName + '.zip')
-                        .pipe(fs.createWriteStream(zipFilePath))
-                        .on('close', function() {
-                            try {
-                                var unzipper = new AdmZip(zipFilePath);
-
-                                unzipper.getEntries().forEach(function(file) {
-                                    console.log(color.green('  ' + file.entryName));
-                                });
-
-                                unzipper.extractAllTo(appDetail.app_name, true);
-
-                                setCloudPath(path.resolve(appDetail.app_name));
-                                addApp(appDetail.app_name, appId);
-                                checkoutApp(appDetail.app_name);
-                                console.log('项目创建完成！');
-                                cb();
-                            } catch (err) {
-                                console.error('解压缩文件失败：%s，服务器响应：%s', err.message, fs.readFileSync(zipFilePath, 'utf-8'));
-                            }
-                        });
-                });
-            });
-        });
+    return Q.ninvoke(promptly, 'prompt', '请输入应用的 Application ID: ');
+  }).then(function(appId) {
+    if (!appId || appId.trim() === '') {
+      throw new Error("无效的 Application ID");
+    }
+    _appId = appId.trim();
+    if(runtime) {
+      return runtime;
+    }
+    return Q.ninvoke(promptly, 'prompt', '请选择项目语言，Node.js(N) 或 Python(P): ');
+  }).then(function(runtime) {
+    runtime = runtime.trim();
+    var runtimesMapping = {
+      'nodejs': 'node-js-getting-started',
+      'node': 'node-js-getting-started',
+      'n': 'node-js-getting-started',
+      'python': 'python-getting-started',
+      'py': 'python-getting-started',
+      'p': 'python-getting-started'
+    };
+    repoName = runtimesMapping[runtime.toLowerCase()];
+    if (!repoName) {
+      throw new Error("无效的运行环境：" + runtime);
+    }
+    return Q.nfcall(initAVOSCloudSDK, _appId, false);
+  }).then(function(AV) {
+    console.log("正在创建项目 ...");
+    return Q.nfcall(util.request, '__leancloud/apps/appDetail', {
+      appId: AV.applicationId,
+      masterKey: AV.masterKey
     });
+  }).then(function(appDetail) {
+    try {
+      fs.mkdirSync(appDetail.app_name);
+    } catch (err) {
+      if (err.code != 'EEXIST') {
+        err.action = '创建项目';
+        throw err;
+      }
+    }
+    var zipFilePath = path.join(TMP_DIR, _appId + '.zip');
+    return Q.Promise(function(resolve, reject) {
+      request('http://lcinternal-cloud-code-update.leanapp.cn/' + repoName + '.zip')
+      .pipe(fs.createWriteStream(zipFilePath))
+      .on('close', function() {
+        try {
+          var unzipper = new AdmZip(zipFilePath);
+
+          unzipper.getEntries().forEach(function(file) {
+            console.log(color.green('  ' + file.entryName));
+          });
+
+          unzipper.extractAllTo(appDetail.app_name, true);
+
+          setCloudPath(path.resolve(appDetail.app_name));
+          Q.nfcall(addApp, appDetail.app_name, _appId).then(function() {
+            return Q.nfcall(checkoutApp, appDetail.app_name);
+          }).then(function() {
+            console.log('项目创建完成！');
+            resolve();
+          }).catch(function(err) {
+            reject(err);
+          });
+        } catch (err) {
+          console.error('解压缩失败：%s，服务器响应：%s', err.stack, fs.readFileSync(zipFilePath, 'utf-8'));
+          resolve();
+        }
+      }).on('error', function(err) {
+        err.action = '创建项目：下载项目框架';
+        reject(err);
+      });
+    });
+  }).then(cb).catch(cb);
+};
+
+exports.up = function(args, port, isDebug, cb) {
+  port = port || 3000;
+  Q.nfcall(initAVOSCloudSDK).then(function() {
+    return Q.ninvoke(Runtime, 'detect', CLOUD_PATH);
+  }).then(function(runtimeInfo) {
+    runtimeInfo.setDebug(isDebug);
+    var monconfig = runtimeInfo.getMonconfig(args, port);
+    console.log('提示：键入 %s 命令并回车来强制重启本进程', color.green('rs'));
+    nodemon(monconfig);
+    nodemon.on('restart', function (files) {
+      console.log('因为文件变更而项目重启：%s', color.green(files));
+    });
+    nodemon.on('crash', function() {
+      cb();
+    });
+    if (runtimeInfo.runtime != 'cloudcode') {
+      var testServerPort = port + 1;
+      var testServer = require('../lib/testUtilServer');
+      testServer.set('leanenginePort', port);
+      testServer.set('port', testServerPort);
+      testServer.set('appId', AV.applicationId);
+      testServer.set('appKey', AV.applicationKey);
+      testServer.set('masterKey', AV.masterKey);
+      console.log('提示：使用 %s 测试 Cloud 函数', color.green('http://localhost:' + testServerPort));
+      testServer.listen(testServerPort);
+    }
+  }).catch(function(err) {
+    err.action = '本地启动云引擎应用';
+    cb(err);
+  });
 };
 
 function importFile(f, realPath, cb) {
@@ -692,7 +1161,7 @@ function importFile(f, realPath, cb) {
             uploadFile(realPath, {
                 key: util.guid() + extname,
                 name: path.basename(realPath),
-                mime_type: mime.lookup(realPath),
+                mime_type: mime.lookup(realPath), 
                 metaData: {
                     size: stats.size,
                     _checksum: checksum
@@ -709,13 +1178,13 @@ function importFile(f, realPath, cb) {
                     console.log('上传文件 ' + realPath + ' 成功：' + url);
                     cb();
                 }
-            }, true);
+            });
         });
     } else if (stats.isDirectory()) {
         fs.readdir(realPath, function(err, files) {
             if (err)
                 return cb("读取目录 " + realPath + " 失败：" + err);
-            console.log("开始上传目录 " + realPath + " 中的文件……");
+            console.log("开始上传目录 " + realPath + " 中的文件 ...");
             async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(subFile, cb) {
                 //pass in the eachLimit callback
                 importFile(subFile, realPath + path.sep + subFile, cb);
@@ -743,7 +1212,12 @@ exports.importFiles = function (files, cb) {
             } else {
                 cb(f + " 不存在，忽略");
             }
-        }, cb);
+        }, function(err) {
+          if (err) {
+            err.action = '上传文件';
+          }
+          cb(err);
+        });
     });
 };
 
@@ -790,13 +1264,13 @@ var getAppSync = exports.getAppSync = function() {
     var apps = getAppsSync();
     var appTags = Object.keys(apps);
     if (appTags.length === 0) {
-        return exitWith("当前目录没有任何应用信息，请使用：add <name> <app id> 关联应用。");
+        return exitWith("当前目录没有关联任何应用信息。请使用：app add <name> <app id> 关联应用。");
     }
-    if (PROJECT) {
-        if (apps[PROJECT]) {
-            return { tag: PROJECT, appId: apps[PROJECT] };
+    if (APP) {
+        if (apps[APP]) {
+            return { tag: APP, appId: apps[APP] };
         } else {
-            return exitWith("当前目录没有关联 '" + PROJECT + "' 应用信息，请使用：add <name> <app id> 关联应用。");
+            return exitWith("当前目录没有关联 '" + APP + "' 应用信息，请使用：app add <name> <app id> 关联应用。");
         }
     }
     var currAppFile = path.join(CLOUD_PATH, '.avoscloud/curr_app');
@@ -809,7 +1283,7 @@ var getAppSync = exports.getAppSync = function() {
     if (appTags.length == 1) {
         return { tag: appTags[0], appId: apps[appTags[0]] };
     } else {
-        exitWith("当前目录关联了多个应用 " + appTags + "，请使用：checkout <app> 选择应用。");
+        exitWith("当前目录关联了多个应用 " + appTags + "，请使用：app checkout <app> 选择应用。");
     }
 };
 
@@ -830,62 +1304,46 @@ function writeAppsSync(apps) {
     });
 }
 
-var fetchAppDetail = function(appId, masterKey, callback) {
-  request({
-      url: AV.serverURL + '/1.1/__leancloud/apps/appDetail',
-      headers: {
-          'X-AVOSCloud-Application-Id': appId,
-          'X-AVOSCloud-Application-Key': masterKey + ',master'
-      }
-  }, function(err, res, body) {
-    if (err) {
-        exitWith(err.message);
-    } else if (res.statusCode != 200) {
-        try {
-            exitWith(JSON.parse(body).error);
-        } catch (err) {
-            exitWith(res.statusText || res.statusCode);
-        }
-    } else {
-      try {
-          callback(null, JSON.parse(body));
-      } catch (err) {
-          exitWith(err.message);
-      }
-    }
+var addApp = exports.addApp = function(name, appId, cb) {
+  setImmediate(function() {
+    if (!/\w+/.test(name))
+        return cb(new Error("无效的应用名"));
+    if (!/[a-zA-Z0-9]+/.test(appId))
+        return cb(new Error("无效的 Application ID"));
+    var apps = getAppsSync();
+    if (apps[name])
+        return cb(new Error("应用 '" + name + "' 已经存在"));
+    apps[name] = appId;
+    writeAppsSync(apps);
+    console.log("关联应用：%s -- %s", name, appId);
+    cb();
   });
 };
 
-var addApp = exports.addApp = function(name, appId) {
-    if (!/\w+/.test(name))
-        return exitWith("无效的应用名");
-    if (!/[a-zA-Z0-9]+/.test(appId))
-        return exitWith("无效的 Application ID");
-    var apps = getAppsSync();
-    if (apps[name])
-         return exitWith("应用 '" + name + "' 已经存在");
-    apps[name] = appId;
-    writeAppsSync(apps);
-    console.log("[INFO] 关联应用：%s -- %s", name, appId);
-};
-
-exports.removeApp = function(name) {
+exports.removeApp = function(name, cb) {
+  setImmediate(function() {
     var apps = getAppsSync();
     if (apps[name])
         delete apps[name];
     writeAppsSync(apps);
-    console.log("[INFO] 移除应用关联：%s", name);
+    console.log("移除应用关联：%s", name);
+    cb();
+  });
 };
 
-var checkoutApp = exports.checkoutApp = function(name) {
+var checkoutApp = exports.checkoutApp = function(name, cb) {
+  setImmediate(function() {
     var apps = getAppsSync();
     if (!apps[name])
-        return exitWith("应用 '" + name + "' 不存在");
+        return cb(new Error("应用 '" + name + "' 不存在"));
     writeCurrAppSync(name);
-    console.log("[INFO] 切换到应用 " + name);
+    console.log("切换到应用 " + name);
+    cb();
+  });
 };
 
-exports.appStatus = function(isList) {
+exports.appStatus = function(isList, cb) {
+  setImmediate(function() {
     var currApp = getAppSync();
     if (isList) {
         var apps = getAppsSync();
@@ -905,24 +1363,24 @@ exports.appStatus = function(isList) {
     } else {
         console.log(color.green("* " + currApp.tag + " " + currApp.appId));
     }
+    cb();
+  });
 };
 exports.queryLatestVersion = function(){
-	try{
-		util.ajax('GET','https://download.leancloud.cn/sdk/cloud_code_commandline.json',{},
-				  function(resp){
-					  try{
-						  var latestVersion = resp.version;
-						  var changelog = resp.changelog || '1.内部重构';
-						  if(latestVersion.localeCompare(version) > 0){
-							  console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g avoscloud-code"), latestVersion, changelog);
-						  }
-					  }catch(err){
-						  //ignore
-					  }
-				  });
-	}catch(err){
-		//ignore
-	}
+  debug('queryLatestVersion');
+	request({
+    url: 'https://download.leancloud.cn/sdk/cloud_code_commandline.json',
+    json: true
+  }, function(err, res, body) {
+    if (err || res.statusCode >= 400) {
+      return debug(err.stack || err || res.statusCode + ':' + body);
+    }
+    var latestVersion = body.version;
+    var changelog = body.changelog || '1.内部重构';
+    if(semver.gt(latestVersion, version)){
+      console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g avoscloud-code"), latestVersion, changelog);
+    }
+  });
 };
 
 function sortObject(o) {
@@ -1021,31 +1479,34 @@ function getIgnorePatterns(cloudPath) {
   return patterns;
 }
 
-exports.getRedisInstances = function() {
+exports.getRedisInstances = function(cb) {
   initAVOSCloudSDK(function(){
     util.getRedisInstances(function(err, datas) {
       if (err) {
-        return exitWith('查询 Redis 实例出错：', err);
+        err.action = '查询 LeanCache 实例';
+        return cb(err);
       }
       if(datas.length === 0) {
-        console.log('该应用没有 Redis 实例');
+        console.log('该应用没有 LeanCache 实例');
       } else {
-        console.log('\tInstance\tMax Memory');
-        console.log('\t--------------------------');
+        console.log('Instance\tMax Memory');
+        console.log('--------------------------');
         for(var i in datas) {
           var data = datas[i];
-          console.log('\t%s\t%d MB', data.instance, data.max_memory);
+          console.log('%s\t%d MB', data.instance, data.max_memory);
         }
       }
+      cb();
     });
   });
 };
 
-var doRedisClient = exports.doRedisClient = function(server, db) {
+var doRedisClient = exports.doRedisClient = function(server, db, cb) {
+  db = db || 0;
   initAVOSCloudSDK(function(){
     input("Redis> ", function(command) {
       if (command === 'quit' || command === 'exit') {
-        return;
+        return cb();
       }
       util.requestRedis(server, db, command, function(err, data) {
         if(err) {
@@ -1053,7 +1514,7 @@ var doRedisClient = exports.doRedisClient = function(server, db) {
         } else {
           console.log(data);
         }
-        doRedisClient(server, db);
+        doRedisClient(server, db, cb);
       });
     });
   });
@@ -1062,58 +1523,38 @@ var doRedisClient = exports.doRedisClient = function(server, db) {
 var doCloudQuery = exports.doCloudQuery = function(cb) {
     initAVOSCloudSDK(function(){
        input("CQL> ",function(cql){
-           if(cql === 'exit')
+           if(cql === 'exit' || cql === 'quit')
                return cb();
            if(/.*;$/.test(cql))
                cql = cql.substring(0, cql.length - 1);
            var  vertical =/.*\\G$/.test(cql);
            if(vertical)
                cql = cql.substring(0, cql.length -2);
-             //console.dir(cql);
-           util.requestCloud('cloudQuery', {cql: cql}, 'GET', {
-               success: function(resp) {
-                   outputQueryResult(resp, vertical);
-                   doCloudQuery(cb);
-               },
-               error: function(err) {
-                   try{
-                       var error = JSON.parse(err.responseText);
-                       console.log(color.red(error.code + ': ' + error.error));
-                   }catch(e){
-                       console.log(color.red(err.responseText));
-                   }
-                   doCloudQuery();
-               }
+           console.dir(cql);
+           var url = 'cloudQuery?cql=' + encodeURIComponent(cql);
+           util.request(url, function(err, data) {
+             if (err) {
+               console.log(color.red(err));
+             } else if (!data.results) { 
+               console.log(color.red(data.code + ': ' + data.error));
+             } else {
+               outputQueryResult(data, vertical);
+             }
+             doCloudQuery(cb);
            });
         });
     });
 };
 
-exports.doLint = function(cb) {
-    console.log("linting ...");
-    var cmd = path.join(__dirname, '..', 'node_modules', 'jshint', 'bin', 'jshint') + ' . --exclude node_modules';
-    exec(cmd, function(err, stdout, stderr) {
-        console.log(stdout);
-        console.log(stderr);
-        if (err) {
-            process.exit(err.code);
-        } else {
-            console.log('lint ok');
-            cb();
-        }
-    });
-};
-
-exports.logProjectHome = function () {
-    console.log('[INFO] LeanEngine 项目根目录：' + color.green(CLOUD_PATH));
+var logProjectHome = function () {
+    console.log('LeanEngine 项目根目录：' + CLOUD_PATH);
     var currApp = getAppSync();
     if (currApp) {
-        console.log('[INFO] 当前应用: %s', color.red(currApp.tag + ' ' + currApp.appId));
+        console.log('当前应用：%s', color.green(currApp.tag + ' ' + currApp.appId));
     } else {
-        exitWith('请使用：checkout <app> 选择应用。');
+        exitWith('请使用：app checkout <app> 选择应用。');
     }
-};
-
-exports.getPort = function() {
-  return PORT;
+    if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
+        console.log('运行方案：%s', color.green(ENGINE_INFO.mode === 'free' ? '免费版' : '专业版'));
+    }
 };
