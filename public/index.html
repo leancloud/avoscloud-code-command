@@ -3,6 +3,7 @@
 <head>
   <script type="text/javascript" src="http://cdn.staticfile.org/jquery/2.0.3/jquery.min.js"></script>
   <script type="text/javascript" src="https://select2.github.io/dist/js/select2.full.min.js"></script>
+  <script type="text/javascript" src="https://select2.github.io/dist/js/i18n/zh-CN.js"></script>
   <script type="text/javascript" src="http://cdn.staticfile.org/underscore.js/1.5.2/underscore-min.js"></script>
   <script type="text/javascript" src="https://cdn1.lncld.net/static/js/av-core-mini-0.5.4.js"></script>
   <link rel="stylesheet" href="http://cdn.staticfile.org/twitter-bootstrap/3.3.1/css/bootstrap.min.css" type="text/css" media="screen"/>
@@ -176,14 +177,17 @@
       });
       
       $("#functions").select2({
-            placeholder: "请选择云函数",
-            allowClear: true
+        language:"zh-CN",
+        placeholder: "请选择云函数",
+        allowClear: true
       });
       $("#hooks").select2({
+        language:"zh-CN",
         placeholder: "请选择函数",
         allowClear: true
       });
       $("#classes").select2({
+        language:"zh-CN",
         placeholder: "请选择Class",
         allowClear: true
       });
