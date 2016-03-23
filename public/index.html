@@ -56,6 +56,7 @@
                   .attr("value", name)
                   .text(name));
         });
+        $('#functions').trigger('change');
       });
 
       $.get("/__engine/1/classes", function (data){
