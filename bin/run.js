@@ -662,6 +662,7 @@ var deployGitCloudCodeV4 = function(options, cb) {
         data: {
           comment: options.log,
           noDependenciesCache: JSON.parse(options.noCache),
+          gitTag: options.revision,
           async: true
         }
       });
