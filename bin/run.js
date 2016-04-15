@@ -146,7 +146,7 @@ function destroyFile(objectId) {
 }
 
 function uploadFile(localFile, props, attempts, cb) {
-  if (nodeUtil.isFunction(attempts)) {
+  if (_.isFunction(attempts)) {
     cb = attempts;
     attempts = 0;
   }
@@ -333,7 +333,7 @@ exports.buildImageFromLocal = function(options, cb) {
 };
 
 var listImages = exports.listImages = function(limit, cb) {
-  if (nodeUtil.isFunction(limit)) {
+  if (_.isFunction(limit)) {
     cb = limit;
     limit = 10;
   }
