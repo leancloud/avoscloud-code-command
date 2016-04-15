@@ -1010,6 +1010,9 @@ function getKeys(appId, cb) {
         appId: appId,
         masterKey: masterKey
       }, function(err, appDetail) {
+        if (err) {
+          return cb(err);
+        }
         updateMasterKeys(appId, {
           masterKey: masterKey,
           appKey: appDetail.app_key
