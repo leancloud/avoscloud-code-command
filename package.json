@@ -1,6 +1,6 @@
 {
   "name": "avoscloud-code",
-  "version": "0.11.1",
+  "version": "1.0.0",
   "main": "./bin/lean",
   "description": "LeanCloud Command Line Tool",
   "repository": {
@@ -68,7 +68,7 @@
     "lean": "./bin/lean"
   },
   "engines": [
-    "node >= 0.10.0"
+    "node >= 0.12.0"
   ],
   "devDependencies": {
     "expect.js ": "0.2.0",
