@@ -115,6 +115,10 @@ var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHo
     AV.initialize(appId, keys.appKey, keys.masterKey);
     AV.Cloud.useMasterKey();
     util.request('functions/_ops/engine', function(err, data) {
+      if (err) {
+        console.error('[ERROR] 获取应用信息失败：' + err.stack);
+        process.exit(1);
+      }
       ENGINE_INFO = data;
       if (isLogProjectHome) {
         logProjectHome();
