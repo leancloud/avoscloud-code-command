@@ -1,4 +1,4 @@
 {
-  "version": "0.10.0",
-  "changelog": "支持用 .leanengineignore 配置上传代码时忽略的文件。"
+  "version": "1.0.0",
+  "changelog": "全面支持云引擎新版本，建议更新"
 }

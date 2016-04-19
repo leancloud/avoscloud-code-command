@@ -171,7 +171,11 @@ function uploadFile(localFile, props, attempts, cb) {
       var uptoken = data.token;
       var bucket = data.bucket;
       if (!uptoken) {
-        return cb(new Error(data.error));
+        if (_.isObject(data.error)) {
+          return cb(new Error(require('util').inspect(data.error)));
+        } else {
+          return cb(new Error(data));
+        }
       }
       var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
       qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
