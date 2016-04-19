@@ -248,7 +248,7 @@ function loopLogs(opsToken, prod, cb) {
         }
         cb();
       }
-      
+
     });
   };
   // 等待部署开始日志入库
@@ -264,7 +264,7 @@ var uploadProject = function() {
       console.log("压缩项目文件 ...");
       var output = fs.createWriteStream(file);
       var archive = archiver('zip');
-      
+
       output.on('close', function() {
         resolve();
       });
@@ -1165,7 +1165,7 @@ function importFile(f, realPath, cb) {
             uploadFile(realPath, {
                 key: util.guid() + extname,
                 name: path.basename(realPath),
-                mime_type: mime.lookup(realPath), 
+                mime_type: mime.lookup(realPath),
                 metaData: {
                     size: stats.size,
                     _checksum: checksum
@@ -1268,13 +1268,13 @@ var getAppSync = exports.getAppSync = function() {
     var apps = getAppsSync();
     var appTags = Object.keys(apps);
     if (appTags.length === 0) {
-        return exitWith("当前目录没有关联任何应用信息。请使用：app add <name> <app id> 关联应用。");
+        return exitWith("当前目录没有关联任何应用信息。请使用：lean app add <name> <app id> 关联应用。");
     }
     if (APP) {
         if (apps[APP]) {
             return { tag: APP, appId: apps[APP] };
         } else {
-            return exitWith("当前目录没有关联 '" + APP + "' 应用信息，请使用：app add <name> <app id> 关联应用。");
+            return exitWith("当前目录没有关联 '" + APP + "' 应用信息，请使用：lean app add <name> <app id> 关联应用。");
         }
     }
     var currAppFile = path.join(CLOUD_PATH, '.avoscloud/curr_app');
@@ -1287,7 +1287,7 @@ var getAppSync = exports.getAppSync = function() {
     if (appTags.length == 1) {
         return { tag: appTags[0], appId: apps[appTags[0]] };
     } else {
-        exitWith("当前目录关联了多个应用 " + appTags + "，请使用：app checkout <app> 选择应用。");
+        exitWith("当前目录关联了多个应用 " + appTags + "，请使用：lean app checkout <app> 选择应用。");
     }
 };
 
@@ -1539,7 +1539,7 @@ var doCloudQuery = exports.doCloudQuery = function(cb) {
            util.request(url, function(err, data) {
              if (err) {
                console.log(color.red(err));
-             } else if (!data.results) { 
+             } else if (!data.results) {
                console.log(color.red(data.code + ': ' + data.error));
              } else {
                outputQueryResult(data, vertical);
@@ -1556,7 +1556,7 @@ var logProjectHome = function () {
     if (currApp) {
         console.log('当前应用：%s', color.green(currApp.tag + ' ' + currApp.appId));
     } else {
-        exitWith('请使用：app checkout <app> 选择应用。');
+        exitWith('请使用：lean app checkout <app> 选择应用。');
     }
     if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
         console.log('运行方案：%s', color.green(ENGINE_INFO.mode === 'free' ? '免费版' : '专业版'));
