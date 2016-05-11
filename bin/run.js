@@ -113,6 +113,11 @@ var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHo
       return cb(err);
     }
     AV.initialize(appId, keys.appKey, keys.masterKey);
+
+    if (keys.apiServer) {
+      AV.serverURL = keys.apiServer;
+    }
+
     AV.Cloud.useMasterKey();
     util.request('functions/_ops/engine', function(err, data) {
       if (err) {
@@ -988,7 +993,8 @@ function updateMasterKeys(appId, keys, options, callback) {
 
         appKeys[appId] = {
             masterKey: keys.masterKey,
-            appKey: keys.appKey
+            appKey: keys.appKey,
+            apiServer: keys.apiServer
         };
 
         fs.mkdir(leancloudFolder, '0700', function(err) {
@@ -1015,17 +1021,48 @@ function getKeys(appId, cb) {
     }
 
     var fetchAndUpdateKeys = function(masterKey, cb) {
-      util.request('__leancloud/apps/appDetail', {
-        appId: appId,
-        masterKey: masterKey
-      }, function(err, appDetail) {
+      var saveKeysCallback = function(callback, apiServer) {
+        return function(err, appDetail) {
+          if (err) {
+            return callback(err);
+          }
+
+          if (!appDetail) {
+            return callback(new Error('没有找到应用信息，请确认 appId 和 masterKey 填写正确'));
+          }
+
+          updateMasterKeys(appId, {
+            masterKey: masterKey,
+            appKey: appDetail.app_key,
+            apiServer: apiServer
+          }, {force: true}, cb);
+        };
+      }
+
+      request({
+        url: 'https://app-router.leancloud.cn/1/route?appId=' + appId,
+      }, function(err, res, body) {
         if (err) {
           return cb(err);
         }
-        updateMasterKeys(appId, {
+
+        var result = JSON.parse(body);
+
+        util.request('__leancloud/apps/appDetail', {
+          appId: appId,
           masterKey: masterKey,
-          appKey: appDetail.app_key
-        }, {force: true}, cb);
+          apiServer: result.api_server
+        }, function(err, appDetail) {
+          if (err) {
+            util.request('__leancloud/apps/appDetail', {
+              appId: appId,
+              masterKey: masterKey,
+              apiServer: AV._config.usApiUrl
+            }, saveKeysCallback(cb, AV._config.usApiUrl));
+          } else {
+            saveKeysCallback(cb, result.api_server)(err, appDetail);
+          }
+        });
       });
     };
 
