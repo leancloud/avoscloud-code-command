@@ -2,12 +2,14 @@
 var path = require('path');
 var AV = require('avoscloud-sdk');
 
-var APP_ID = process.env.LC_APP_ID;
-var APP_KEY = process.env.LC_APP_KEY;
-var MASTER_KEY = process.env.LC_APP_MASTER_KEY;
 var PORT = process.env.LC_APP_PORT;
 
-AV.initialize(APP_ID, APP_KEY, MASTER_KEY);
+AV.init({
+  appId: process.env.LC_APP_ID,
+  appKey: process.env.LC_APP_KEY,
+  masterKey: process.env.LC_APP_MASTER_KEY
+})
+
 AV.Cloud.useMasterKey();
 
 var CLOUD_PATH = path.resolve('.');

@@ -48,6 +48,11 @@ var APP = null;
 var CLOUD_PATH = path.resolve('.');
 var ENGINE_INFO;
 
+var API_HOST = {
+  cn: 'https://api.leancloud.cn',
+  us: 'https://us-api.leancloud.cn'
+};
+
 // 设置命令作用的 app
 exports.setCurrentApp = function(app) {
   APP = app;
@@ -112,10 +117,14 @@ var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHo
     if(err) {
       return cb(err);
     }
-    AV.initialize(appId, keys.appKey, keys.masterKey);
+    AV.init({
+      appId: appId,
+      appKey: keys.appKey,
+      masterKey: keys.masterKey
+    });
 
     if (keys.apiServer) {
-      AV.serverURL = keys.apiServer;
+      AV._config.APIServerURL = keys.apiServer;
     }
 
     AV.Cloud.useMasterKey();
@@ -1004,8 +1013,10 @@ function getKeys(appId, cb) {
       return cb(err);
     }
 
+    var apiServer;
+
     var fetchAndUpdateKeys = function(masterKey, cb) {
-      var saveKeysCallback = function(callback, apiServer) {
+      var saveKeysCallback = function(callback) {
         return function(err, appDetail) {
           if (err) {
             return callback(err);
@@ -1014,6 +1025,8 @@ function getKeys(appId, cb) {
           if (!appDetail) {
             return callback(new Error('没有找到应用信息，请确认 appId 和 masterKey 填写正确'));
           }
+
+          AV._config.APIServerURL = apiServer;
 
           updateMasterKeys(appId, {
             masterKey: masterKey,
@@ -1031,20 +1044,25 @@ function getKeys(appId, cb) {
         }
 
         var result = JSON.parse(body);
+        apiServer = 'https://' + result.api_server;
 
         util.request('__leancloud/apps/appDetail', {
           appId: appId,
           masterKey: masterKey,
-          apiServer: result.api_server
+          apiServer: apiServer
         }, function(err, appDetail) {
+
+
           if (err) {
+            apiServer = API_HOST.us;
+
             util.request('__leancloud/apps/appDetail', {
               appId: appId,
               masterKey: masterKey,
-              apiServer: AV._config.usApiUrl
-            }, saveKeysCallback(cb, AV._config.usApiUrl));
+              apiServer: apiServer
+            }, saveKeysCallback(cb));
           } else {
-            saveKeysCallback(cb, result.api_server)(err, appDetail);
+            saveKeysCallback(cb)(err, appDetail);
           }
         });
       });
