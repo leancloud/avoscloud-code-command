@@ -159,33 +159,17 @@ function uploadFile(localFile, props, attempts, cb) {
     cb = attempts;
     attempts = 0;
   }
-  util.request("qiniu", {
-    method: 'POST',
-    data: props
-  }, function (err, data) {
-    if (err) {
-      //Retried too many times, report error.
-      if (attempts > 3) {
-          console.warn("上传文件失败超过 3 次，放弃：" + localFile);
-          return cb(err);
-      }
-      //mabye retry to upload it
-      uploadFile(localFile, props, attempts + 1, cb);
+
+  var file = new AV.File(props.name, fs.readFileSync(localFile), 'application/zip, application/octet-stream');
+
+  file.save().then(function(result) {
+    cb(null, file.url(), file.id);
+  }).catch(function(err) {
+    if (attempts > 3) {
+      console.warn("上传文件失败超过 3 次，放弃：" + localFile);
+      cb(err);
     } else {
-      var objectId = data.objectId;
-      var uptoken = data.token;
-      var bucket = data.bucket;
-      if (!uptoken) {
-        if (_.isObject(data.error)) {
-          return cb(new Error(require('util').inspect(data.error)));
-        } else {
-          return cb(new Error(data));
-        }
-      }
-      var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
-      qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
-        cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), objectId);
-      });
+      uploadFile(localFile, props, attempts + 1, cb);
     }
   });
 }
@@ -310,7 +294,7 @@ var uploadProject = function() {
     var key = util.guid() + '.zip';
     return Q.nfcall(uploadFile, file, {
         key: key,
-        name: file,
+        name: path.basename(file),
         mime_type: 'application/zip, application/octet-stream'
     });
   });
