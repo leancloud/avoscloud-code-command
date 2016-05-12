@@ -1357,7 +1357,7 @@ function writeAppsSync(apps) {
 
 var addApp = exports.addApp = function(name, appId, cb) {
   setImmediate(function() {
-    if (!/\w+/.test(name))
+    if (!name || !name.trim())
         return cb(new Error("无效的应用名"));
     if (!/[a-zA-Z0-9]+/.test(appId))
         return cb(new Error("无效的 Application ID"));
