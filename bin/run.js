@@ -48,11 +48,6 @@ var APP = null;
 var CLOUD_PATH = path.resolve('.');
 var ENGINE_INFO;
 
-var API_HOST = {
-  cn: 'https://api.leancloud.cn',
-  us: 'https://us-api.leancloud.cn'
-};
-
 // 设置命令作用的 app
 exports.setCurrentApp = function(app) {
   APP = app;
@@ -125,6 +120,10 @@ var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHo
 
     if (keys.apiServer) {
       AV._config.APIServerURL = keys.apiServer;
+    }
+
+    if (keys.region) {
+      AV._config.region = keys.region;
     }
 
     AV.Cloud.useMasterKey();
@@ -848,7 +847,8 @@ exports.sendStats = function(cmd) {
           method: 'POST',
           appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
           appKey: 'nrit4mhmqzm1euc3n3k9fv3w0wo72v1bdic6tfrl2usxix3e',
-          data: data
+          data: data,
+          apiServer: util.API_HOST.cn
         }, function(err) {
           if (err) {
             debug(err.stack);
@@ -987,7 +987,8 @@ function updateMasterKeys(appId, keys, options, callback) {
         appKeys[appId] = {
             masterKey: keys.masterKey,
             appKey: keys.appKey,
-            apiServer: keys.apiServer
+            apiServer: keys.apiServer,
+            region: keys.region
         };
 
         fs.mkdir(leancloudFolder, '0700', function(err) {
@@ -1014,6 +1015,7 @@ function getKeys(appId, cb) {
     }
 
     var apiServer;
+    var region = 'cn';
 
     var fetchAndUpdateKeys = function(masterKey, cb) {
       var saveKeysCallback = function(callback) {
@@ -1027,11 +1029,13 @@ function getKeys(appId, cb) {
           }
 
           AV._config.APIServerURL = apiServer;
+          AV._config.region = region;
 
           updateMasterKeys(appId, {
             masterKey: masterKey,
             appKey: appDetail.app_key,
-            apiServer: apiServer
+            apiServer: apiServer,
+            region: region
           }, {force: true}, cb);
         };
       }
@@ -1051,10 +1055,9 @@ function getKeys(appId, cb) {
           masterKey: masterKey,
           apiServer: apiServer
         }, function(err, appDetail) {
-
-
           if (err) {
-            apiServer = API_HOST.us;
+            apiServer = util.API_HOST.us;
+            region = 'us';
 
             util.request('__leancloud/apps/appDetail', {
               appId: appId,
