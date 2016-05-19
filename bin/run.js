@@ -112,7 +112,20 @@ var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHo
     if(err) {
       return cb(err);
     }
-    AV.initialize(appId, keys.appKey, keys.masterKey);
+    AV.init({
+      appId: appId,
+      appKey: keys.appKey,
+      masterKey: keys.masterKey
+    });
+
+    if (keys.apiServer) {
+      AV._config.APIServerURL = keys.apiServer;
+    }
+
+    if (keys.region) {
+      AV._config.region = keys.region;
+    }
+
     AV.Cloud.useMasterKey();
     util.request('functions/_ops/engine', function(err, data) {
       if (err) {
@@ -154,33 +167,17 @@ function uploadFile(localFile, props, attempts, cb) {
     cb = attempts;
     attempts = 0;
   }
-  util.request("qiniu", {
-    method: 'POST',
-    data: props
-  }, function (err, data) {
-    if (err) {
-      //Retried too many times, report error.
-      if (attempts > 3) {
-          console.warn("上传文件失败超过 3 次，放弃：" + localFile);
-          return cb(err);
-      }
-      //mabye retry to upload it
-      uploadFile(localFile, props, attempts + 1, cb);
+
+  var file = new AV.File(props.name, fs.readFileSync(localFile), 'application/zip, application/octet-stream');
+
+  file.save().then(function(result) {
+    cb(null, file.url(), file.id);
+  }).catch(function(err) {
+    if (attempts > 3) {
+      console.warn("上传文件失败超过 3 次，放弃：" + localFile);
+      cb(err);
     } else {
-      var objectId = data.objectId;
-      var uptoken = data.token;
-      var bucket = data.bucket;
-      if (!uptoken) {
-        if (_.isObject(data.error)) {
-          return cb(new Error(require('util').inspect(data.error)));
-        } else {
-          return cb(new Error(data));
-        }
-      }
-      var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
-      qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
-        cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), objectId);
-      });
+      uploadFile(localFile, props, attempts + 1, cb);
     }
   });
 }
@@ -305,7 +302,7 @@ var uploadProject = function() {
     var key = util.guid() + '.zip';
     return Q.nfcall(uploadFile, file, {
         key: key,
-        name: file,
+        name: path.basename(file),
         mime_type: 'application/zip, application/octet-stream'
     });
   });
@@ -850,7 +847,8 @@ exports.sendStats = function(cmd) {
           method: 'POST',
           appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
           appKey: 'nrit4mhmqzm1euc3n3k9fv3w0wo72v1bdic6tfrl2usxix3e',
-          data: data
+          data: data,
+          apiServer: util.API_HOST.cn
         }, function(err) {
           if (err) {
             debug(err.stack);
@@ -988,7 +986,9 @@ function updateMasterKeys(appId, keys, options, callback) {
 
         appKeys[appId] = {
             masterKey: keys.masterKey,
-            appKey: keys.appKey
+            appKey: keys.appKey,
+            apiServer: keys.apiServer,
+            region: keys.region
         };
 
         fs.mkdir(leancloudFolder, '0700', function(err) {
@@ -1014,18 +1014,60 @@ function getKeys(appId, cb) {
       return cb(err);
     }
 
+    var apiServer;
+    var region = 'cn';
+
     var fetchAndUpdateKeys = function(masterKey, cb) {
-      util.request('__leancloud/apps/appDetail', {
-        appId: appId,
-        masterKey: masterKey
-      }, function(err, appDetail) {
+      var saveKeysCallback = function(callback) {
+        return function(err, appDetail) {
+          if (err) {
+            return callback(err);
+          }
+
+          if (!appDetail) {
+            return callback(new Error('没有找到应用信息，请确认 appId 和 masterKey 填写正确'));
+          }
+
+          AV._config.APIServerURL = apiServer;
+          AV._config.region = region;
+
+          updateMasterKeys(appId, {
+            masterKey: masterKey,
+            appKey: appDetail.app_key,
+            apiServer: apiServer,
+            region: region
+          }, {force: true}, cb);
+        };
+      }
+
+      request({
+        url: 'https://app-router.leancloud.cn/1/route?appId=' + appId,
+      }, function(err, res, body) {
         if (err) {
           return cb(err);
         }
-        updateMasterKeys(appId, {
+
+        var result = JSON.parse(body);
+        apiServer = 'https://' + result.api_server;
+
+        util.request('__leancloud/apps/appDetail', {
+          appId: appId,
           masterKey: masterKey,
-          appKey: appDetail.app_key
-        }, {force: true}, cb);
+          apiServer: apiServer
+        }, function(err, appDetail) {
+          if (err) {
+            apiServer = util.API_HOST.us;
+            region = 'us';
+
+            util.request('__leancloud/apps/appDetail', {
+              appId: appId,
+              masterKey: masterKey,
+              apiServer: apiServer
+            }, saveKeysCallback(cb));
+          } else {
+            saveKeysCallback(cb)(err, appDetail);
+          }
+        });
       });
     };
 
@@ -1318,7 +1360,7 @@ function writeAppsSync(apps) {
 
 var addApp = exports.addApp = function(name, appId, cb) {
   setImmediate(function() {
-    if (!/\w+/.test(name))
+    if (!name || !name.trim())
         return cb(new Error("无效的应用名"));
     if (!/[a-zA-Z0-9]+/.test(appId))
         return cb(new Error("无效的 Application ID"));
