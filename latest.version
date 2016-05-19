@@ -1,4 +1,4 @@
 {
-  "version": "1.1.0",
-  "changelog": "添加 Python 3 支持、添加长前缀环境变量（LEANCLOUD_APP_ID）支持"
+  "version": "1.2.0",
+  "changelog": "支持美国节点应用本地调试和部署、支持 PHP 项目本地调试和部署"
 }
