@@ -112,9 +112,26 @@ var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHo
     if(err) {
       return cb(err);
     }
-    AV.initialize(appId, keys.appKey, keys.masterKey);
+    AV.init({
+      appId: appId,
+      appKey: keys.appKey,
+      masterKey: keys.masterKey
+    });
+
+    if (keys.apiServer) {
+      AV._config.APIServerURL = keys.apiServer;
+    }
+
+    if (keys.region) {
+      AV._config.region = keys.region;
+    }
+
     AV.Cloud.useMasterKey();
     util.request('functions/_ops/engine', function(err, data) {
+      if (err) {
+        console.error('[ERROR] 获取应用信息失败：' + err.stack);
+        process.exit(1);
+      }
       ENGINE_INFO = data;
       if (isLogProjectHome) {
         logProjectHome();
@@ -146,33 +163,21 @@ function destroyFile(objectId) {
 }
 
 function uploadFile(localFile, props, attempts, cb) {
-  if (nodeUtil.isFunction(attempts)) {
+  if (_.isFunction(attempts)) {
     cb = attempts;
     attempts = 0;
   }
-  util.request("qiniu", {
-    method: 'POST',
-    data: props
-  }, function (err, data) {
-    if (err) {
-      //Retried too many times, report error.
-      if (attempts > 3) {
-          console.warn("上传文件失败超过 3 次，放弃：" + localFile);
-          return cb(err);
-      }
-      //mabye retry to upload it
-      uploadFile(localFile, props, attempts + 1, cb);
+
+  var file = new AV.File(props.name, fs.readFileSync(localFile), 'application/zip, application/octet-stream');
+
+  file.save().then(function(result) {
+    cb(null, file.url(), file.id);
+  }).catch(function(err) {
+    if (attempts > 3) {
+      console.warn("上传文件失败超过 3 次，放弃：" + localFile);
+      cb(err);
     } else {
-      var objectId = data.objectId;
-      var uptoken = data.token;
-      var bucket = data.bucket;
-      if (!uptoken) {
-        return cb(new Error(data.error));
-      }
-      var qiniuUrlPrefix = 'http://' + bucketDomain(bucket) + '.qiniudn.com/';
-      qiniu.io.put(uptoken, props.key, fs.readFileSync(localFile), null, function(err, ret) {
-        cb(err, qiniuUrlPrefix + (ret ? ret.key : '404.html'), objectId);
-      });
+      uploadFile(localFile, props, attempts + 1, cb);
     }
   });
 }
@@ -248,7 +253,7 @@ function loopLogs(opsToken, prod, cb) {
         }
         cb();
       }
-      
+
     });
   };
   // 等待部署开始日志入库
@@ -264,7 +269,7 @@ var uploadProject = function() {
       console.log("压缩项目文件 ...");
       var output = fs.createWriteStream(file);
       var archive = archiver('zip');
-      
+
       output.on('close', function() {
         resolve();
       });
@@ -297,7 +302,7 @@ var uploadProject = function() {
     var key = util.guid() + '.zip';
     return Q.nfcall(uploadFile, file, {
         key: key,
-        name: file,
+        name: path.basename(file),
         mime_type: 'application/zip, application/octet-stream'
     });
   });
@@ -333,7 +338,7 @@ exports.buildImageFromLocal = function(options, cb) {
 };
 
 var listImages = exports.listImages = function(limit, cb) {
-  if (nodeUtil.isFunction(limit)) {
+  if (_.isFunction(limit)) {
     cb = limit;
     limit = 10;
   }
@@ -662,6 +667,7 @@ var deployGitCloudCodeV4 = function(options, cb) {
         data: {
           comment: options.log,
           noDependenciesCache: JSON.parse(options.noCache),
+          gitTag: options.revision,
           async: true
         }
       });
@@ -841,7 +847,8 @@ exports.sendStats = function(cmd) {
           method: 'POST',
           appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
           appKey: 'nrit4mhmqzm1euc3n3k9fv3w0wo72v1bdic6tfrl2usxix3e',
-          data: data
+          data: data,
+          apiServer: util.API_HOST.cn
         }, function(err) {
           if (err) {
             debug(err.stack);
@@ -979,7 +986,9 @@ function updateMasterKeys(appId, keys, options, callback) {
 
         appKeys[appId] = {
             masterKey: keys.masterKey,
-            appKey: keys.appKey
+            appKey: keys.appKey,
+            apiServer: keys.apiServer,
+            region: keys.region
         };
 
         fs.mkdir(leancloudFolder, '0700', function(err) {
@@ -1005,15 +1014,60 @@ function getKeys(appId, cb) {
       return cb(err);
     }
 
+    var apiServer;
+    var region = 'cn';
+
     var fetchAndUpdateKeys = function(masterKey, cb) {
-      util.request('__leancloud/apps/appDetail', {
-        appId: appId,
-        masterKey: masterKey
-      }, function(err, appDetail) {
-        updateMasterKeys(appId, {
+      var saveKeysCallback = function(callback) {
+        return function(err, appDetail) {
+          if (err) {
+            return callback(err);
+          }
+
+          if (!appDetail) {
+            return callback(new Error('没有找到应用信息，请确认 appId 和 masterKey 填写正确'));
+          }
+
+          AV._config.APIServerURL = apiServer;
+          AV._config.region = region;
+
+          updateMasterKeys(appId, {
+            masterKey: masterKey,
+            appKey: appDetail.app_key,
+            apiServer: apiServer,
+            region: region
+          }, {force: true}, cb);
+        };
+      }
+
+      request({
+        url: 'https://app-router.leancloud.cn/1/route?appId=' + appId,
+      }, function(err, res, body) {
+        if (err) {
+          return cb(err);
+        }
+
+        var result = JSON.parse(body);
+        apiServer = 'https://' + result.api_server;
+
+        util.request('__leancloud/apps/appDetail', {
+          appId: appId,
           masterKey: masterKey,
-          appKey: appDetail.app_key
-        }, {force: true}, cb);
+          apiServer: apiServer
+        }, function(err, appDetail) {
+          if (err) {
+            apiServer = util.API_HOST.us;
+            region = 'us';
+
+            util.request('__leancloud/apps/appDetail', {
+              appId: appId,
+              masterKey: masterKey,
+              apiServer: apiServer
+            }, saveKeysCallback(cb));
+          } else {
+            saveKeysCallback(cb)(err, appDetail);
+          }
+        });
       });
     };
 
@@ -1161,7 +1215,7 @@ function importFile(f, realPath, cb) {
             uploadFile(realPath, {
                 key: util.guid() + extname,
                 name: path.basename(realPath),
-                mime_type: mime.lookup(realPath), 
+                mime_type: mime.lookup(realPath),
                 metaData: {
                     size: stats.size,
                     _checksum: checksum
@@ -1264,13 +1318,13 @@ var getAppSync = exports.getAppSync = function() {
     var apps = getAppsSync();
     var appTags = Object.keys(apps);
     if (appTags.length === 0) {
-        return exitWith("当前目录没有关联任何应用信息。请使用：app add <name> <app id> 关联应用。");
+        return exitWith("当前目录没有关联任何应用信息。请使用：lean app add <name> <app id> 关联应用。");
     }
     if (APP) {
         if (apps[APP]) {
             return { tag: APP, appId: apps[APP] };
         } else {
-            return exitWith("当前目录没有关联 '" + APP + "' 应用信息，请使用：app add <name> <app id> 关联应用。");
+            return exitWith("当前目录没有关联 '" + APP + "' 应用信息，请使用：lean app add <name> <app id> 关联应用。");
         }
     }
     var currAppFile = path.join(CLOUD_PATH, '.avoscloud/curr_app');
@@ -1283,7 +1337,7 @@ var getAppSync = exports.getAppSync = function() {
     if (appTags.length == 1) {
         return { tag: appTags[0], appId: apps[appTags[0]] };
     } else {
-        exitWith("当前目录关联了多个应用 " + appTags + "，请使用：app checkout <app> 选择应用。");
+        exitWith("当前目录关联了多个应用 " + appTags + "，请使用：lean app checkout <app> 选择应用。");
     }
 };
 
@@ -1306,7 +1360,7 @@ function writeAppsSync(apps) {
 
 var addApp = exports.addApp = function(name, appId, cb) {
   setImmediate(function() {
-    if (!/\w+/.test(name))
+    if (!name || !name.trim())
         return cb(new Error("无效的应用名"));
     if (!/[a-zA-Z0-9]+/.test(appId))
         return cb(new Error("无效的 Application ID"));
@@ -1535,7 +1589,7 @@ var doCloudQuery = exports.doCloudQuery = function(cb) {
            util.request(url, function(err, data) {
              if (err) {
                console.log(color.red(err));
-             } else if (!data.results) { 
+             } else if (!data.results) {
                console.log(color.red(data.code + ': ' + data.error));
              } else {
                outputQueryResult(data, vertical);
@@ -1552,7 +1606,7 @@ var logProjectHome = function () {
     if (currApp) {
         console.log('当前应用：%s', color.green(currApp.tag + ' ' + currApp.appId));
     } else {
-        exitWith('请使用：app checkout <app> 选择应用。');
+        exitWith('请使用：lean app checkout <app> 选择应用。');
     }
     if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
         console.log('运行方案：%s', color.green(ENGINE_INFO.mode === 'free' ? '免费版' : '专业版'));

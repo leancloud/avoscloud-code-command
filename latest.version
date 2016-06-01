@@ -1,4 +1,4 @@
 {
-  "version": "0.10.0",
-  "changelog": "支持用 .leanengineignore 配置上传代码时忽略的文件。"
+  "version": "1.2.0",
+  "changelog": "支持美国节点应用本地调试和部署、支持 PHP 项目本地调试和部署"
 }
