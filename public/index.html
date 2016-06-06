@@ -11,6 +11,7 @@
   <link href="//cdn.bootcss.com/select2-bootstrap-css/1.4.6/select2-bootstrap.min.css" rel="stylesheet">
   <script type="text/javascript" charset="utf-8">
     var appId, appKey, masterKey, leanenginePort;
+    var actionsInfo = {};
 
     $(document).ready(function (){
 
@@ -33,6 +34,7 @@
         if(className != null && className != ''){
           $('#hooks').find('option').remove().end();
           $.get("/__engine/1/classes/" + className + "/actions", function (data){
+            actionsInfo[className] = data;
             _.each(data, function (name){
               $('#hooks').append($("<option></option>")
                 .attr("value", "/" + name.className + "/" + name.action)
@@ -163,13 +165,26 @@
             if (err) {
               return $('#result').html(err.message || err);
             }
-            var url = "http://localhost:" + leanenginePort + "/1.1/functions" + $('#hooks').val();
+            var url = window.location.protocol + '//' + window.location.hostname + ':' + leanenginePort + "/1.1/functions" + $('#hooks').val();
             getObject(function(err, data) {
               if (err) {
                 return $('#result').html(err.message || err);
               }
-              if ($('#hooks').val().match(/(before|after)Update$/) && $('#updatedKeys').val())
+
+              if ($('#hooks').val().match(/(before|after)Update$/) && $('#updatedKeys').val()) {
                 data.object._updatedKeys = $('#updatedKeys').val().split(/,\s+/);
+              }
+
+              var sign = _.findWhere(_.toArray(actionsInfo[$('#classes').val()]), {
+                action: $('#hooks').text()
+              }).sign;
+
+              if ($('#hooks').text().indexOf('before') === 0) {
+                data.object.__before = sign;
+              } else if ($('#hooks').text().indexOf('after') === 0) {
+                data.object.__after = sign;
+              }
+
               request(url, data, user);
             });
           })
