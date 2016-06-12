@@ -1050,6 +1050,10 @@ function getKeys(appId, cb) {
         var result = JSON.parse(body);
         apiServer = 'https://' + result.api_server;
 
+        if (util.API_HOST.us.indexOf(result.api_server) != -1) {
+          region = 'us';
+        }
+
         util.request('__leancloud/apps/appDetail', {
           appId: appId,
           masterKey: masterKey,
