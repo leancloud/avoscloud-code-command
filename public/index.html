@@ -11,7 +11,8 @@
   <link href="//cdn.bootcss.com/select2-bootstrap-css/1.4.6/select2-bootstrap.min.css" rel="stylesheet">
   <script type="text/javascript" charset="utf-8">
     var appId, appKey, masterKey, leanenginePort;
-    var actionsInfo = {};
+    var hooksInfo = {};
+    var functionsInfo = [];
 
     $(document).ready(function (){
 
@@ -34,7 +35,7 @@
         if(className != null && className != ''){
           $('#hooks').find('option').remove().end();
           $.get("/__engine/1/classes/" + className + "/actions", function (data){
-            actionsInfo[className] = data;
+            hooksInfo[className] = data;
             _.each(data, function (name){
               $('#hooks').append($("<option></option>")
                 .attr("value", "/" + name.className + "/" + name.action)
@@ -53,11 +54,12 @@
       });
 
       $.get("/__engine/1/functions", function (data){
-        _.each(data, function (name){
+        functionsInfo = data;
+        _.each(data, function (info) {
           $('#functions')
               .append($("<option></option>")
-                  .attr("value", name)
-                  .text(name));
+                  .attr("value", info.name)
+                  .text(info.name));
         });
         $('#functions').trigger('change');
       });
@@ -123,6 +125,14 @@
           if(paramsStr != null && paramsStr.trim() != ''){
               data = JSON.parse(parseJSON(paramsStr));
           }
+          if (_.contains([
+            '_messageReceived', '_receiversOffline', '_messageSent', '_conversationStart', '_conversationStarted',
+            '_conversationAdd', '_conversationRemove', '_conversationUpdate'
+          ], $('#functions').val())) {
+            data = data || {};
+            data.__sign = _.findWhere(functionsInfo, {name: $('#functions').val()}).sign;
+          }
+
           getUser($('#userId1').val(), function(err, user) {
             if (err) {
               return $('#result').html(err.message || err);
@@ -175,14 +185,18 @@
                 data.object._updatedKeys = $('#updatedKeys').val().split(/,\s+/);
               }
 
-              var sign = _.findWhere(_.toArray(actionsInfo[$('#classes').val()]), {
+              var hookInfo = _.findWhere(hooksInfo[$('#classes').val()], {
                 action: $('#hooks').text()
-              }).sign;
+              });
+
+              var sign = hookInfo && hookInfo.sign;
 
               if ($('#hooks').text().indexOf('before') === 0) {
                 data.object.__before = sign;
               } else if ($('#hooks').text().indexOf('after') === 0) {
                 data.object.__after = sign;
+              } else {
+                data.object.__sign = sign;
               }
 
               request(url, data, user);
