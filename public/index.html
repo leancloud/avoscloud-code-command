@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="http://cdn.staticfile.org/twitter-bootstrap/3.3.1/css/bootstrap.min.css" type="text/css" media="screen"/>
   <script type="text/javascript" charset="utf-8">
     var appId, appKey, masterKey, leanenginePort;
+    var hooksInfo = {};
+    var functionsInfo = [];
 
     $(document).ready(function (){
 
@@ -29,6 +31,7 @@
         if(className != null && className != ''){
           $('#hooks').find('option').remove().end();
           $.get("/__engine/1/classes/" + className + "/actions", function (data){
+            hooksInfo[className] = data;
             _.each(data, function (name){
               $('#hooks').append($("<option></option>")
                 .attr("value", "/" + name.className + "/" + name.action)
@@ -47,11 +50,12 @@
       });
 
       $.get("/__engine/1/functions", function (data){
-        _.each(data, function (name){
+        functionsInfo = data;
+        _.each(data, function (info) {
           $('#functions')
               .append($("<option></option>")
-                  .attr("value", name)
-                  .text(name));
+                  .attr("value", info.name)
+                  .text(info.name));
         });
       });
 
@@ -116,6 +120,14 @@
           if(paramsStr != null && paramsStr.trim() != ''){
               data = JSON.parse(parseJSON(paramsStr));
           }
+          if (_.contains([
+            '_messageReceived', '_receiversOffline', '_messageSent', '_conversationStart', '_conversationStarted',
+            '_conversationAdd', '_conversationRemove', '_conversationUpdate'
+          ], $('#functions').val())) {
+            data = data || {};
+            data.__sign = _.findWhere(functionsInfo, {name: $('#functions').val()}).sign;
+          }
+
           getUser($('#userId1').val(), function(err, user) {
             if (err) {
               return $('#result').html(err.message || err);
@@ -158,13 +170,30 @@
             if (err) {
               return $('#result').html(err.message || err);
             }
-            var url = "http://localhost:" + leanenginePort + "/1.1/functions" + $('#hooks').val();
+            var url = window.location.protocol + '//' + window.location.hostname + ':' + leanenginePort + "/1.1/functions" + $('#hooks').val();
             getObject(function(err, data) {
               if (err) {
                 return $('#result').html(err.message || err);
               }
-              if ($('#hooks').val().match(/(before|after)Update$/) && $('#updatedKeys').val())
+
+              if ($('#hooks').val().match(/(before|after)Update$/) && $('#updatedKeys').val()) {
                 data.object._updatedKeys = $('#updatedKeys').val().split(/,\s+/);
+              }
+
+              var hookInfo = _.findWhere(hooksInfo[$('#classes').val()], {
+                action: $('#hooks').text()
+              });
+
+              var sign = hookInfo && hookInfo.sign;
+
+              if ($('#hooks').text().indexOf('before') === 0) {
+                data.object.__before = sign;
+              } else if ($('#hooks').text().indexOf('after') === 0) {
+                data.object.__after = sign;
+              } else {
+                data.object.__sign = sign;
+              }
+
               request(url, data, user);
             });
           })
