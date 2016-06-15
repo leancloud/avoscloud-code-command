@@ -81,6 +81,11 @@ source ~/.avoscloud_completion.sh
 
 部署、发布等命令在第一次运行的时候要求输入应用的 master key，您可以在 LeanCloud 平台的应用设置里找到 master key。输入后，命令行工具会将这个应用信息记录在 `~/.leancloud/app_keys` 中（0600 文件权限模式）。如果您在认证过程中出现问题，或在公共机器上使用命令行工具，可运行 `lean clear` 来删除认证信息。
 
+
+## 开发备注
+
+* 发布版本时请同时向 NPM 上 avoscloud-code-command 和 leancloud-cli 这两个包名 publish。
+
 ## 贡献者
 
 感谢下列用户提交的 Patch:
