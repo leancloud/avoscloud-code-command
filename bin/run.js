@@ -1,11 +1,5 @@
 #!/usr/bin/env node
 'use strict';
-/**
- * AVOS Cloud command-line tool
- * Author: dennis zhuang<xzhuang@avoscloud.com>
- * Project: https://github.com/avoscloud/avoscloud-code-command
- * Created by : Emacs JavaScript Mode
- */
 var path = require('path');
 var fs = require('fs');
 var archiver = require('archiver');
@@ -32,6 +26,8 @@ var debug = require('debug')('lean');
 var Runtime = require('../lib/runtime');
 var util = require('../lib/util');
 
+var pkg = require('../package.json');
+
 //set qiniu timeout
 qiniu.conf.RPC_TIMEOUT = 3600000;
 
@@ -41,8 +37,6 @@ var TMP_DIR = os.tmpdir();
 if (!TMP_DIR.match(/.*\/$/)) {
     TMP_DIR = TMP_DIR + path.sep;
 }
-
-var version = require('../package.json').version;
 
 var APP = null;
 var CLOUD_PATH = path.resolve('.');
@@ -819,10 +813,10 @@ exports.sendStats = function(cmd) {
         var data = {
             appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
             device: {
-                sdk_version: version,
+                sdk_version: pkg.version,
                 os_version: (os.platform() + ' ' + os.arch() + ' ' + os.release()),
                 device_id: getDeviceId(),
-                app_version: version,
+                app_version: pkg.version,
                 device_model: os.platform(),
                 os: 'ios'
             },
@@ -1435,8 +1429,8 @@ exports.queryLatestVersion = function(){
     }
     var latestVersion = body.version;
     var changelog = body.changelog || '1.内部重构';
-    if(semver.gt(latestVersion, version)){
-      console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g avoscloud-code"), latestVersion, changelog);
+    if(semver.gt(latestVersion, pkg.version)){
+      console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g " + pkg.name), latestVersion, changelog);
     }
   });
 };
