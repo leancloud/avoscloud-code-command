@@ -599,12 +599,12 @@ var deployLocalCloudCodeV4 = function(options, cb) {
     fileId = args[1];
     return Q.nfcall(util.request, 'functions/_ops/groups/' + group.groupName + '/buildAndDeploy', {
       method: 'POST',
-      data: {
+      data: _.extend({
         zipUrl: args[0],
         comment: options.log,
         noDependenciesCache: JSON.parse(options.noCache),
         async: true
-      }
+      }, parseEneableOptions(options.enable))
     });
   }).then(function(data) {
     return Q.nfcall(pollEvents, data.eventToken);
@@ -658,12 +658,12 @@ var deployGitCloudCodeV4 = function(options, cb) {
       }
       return Q.nfcall(util.request, 'functions/_ops/groups/' + group.groupName + '/buildAndDeploy', {
         method: 'POST',
-        data: {
+        data: _.extend({
           comment: options.log,
           noDependenciesCache: JSON.parse(options.noCache),
           gitTag: options.revision,
           async: true
-        }
+        }, parseEneableOptions(options.enable))
       });
     });
   }).then(function(data) {
@@ -1610,3 +1610,21 @@ var logProjectHome = function () {
         console.log('运行方案：%s', color.green(ENGINE_INFO.mode === 'free' ? '免费版' : '专业版'));
     }
 };
+
+function parseEneableOptions(enable) {
+  var result = {};
+
+  if (enable) {
+    var options = enable.split(/\s*,\s*/);
+
+    options.forEach(function(option) {
+      var matched = option.match(/^([^\s\=]+)=(.*)/);
+
+      if (matched) {
+        result[matched[1]] = matched[2];
+      }
+    });
+  }
+
+  return result;
+}
