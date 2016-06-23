@@ -62,7 +62,7 @@ program
   .option('-r, --revision <revision|branch>', 'git 的版本号或分支，仅对从 git 仓库部署有效。', 'master')
   .option('--noCache [false]', '构建时不使用缓存，使构建总是下载最新的依赖。', false)
   .option('--app <app>', '命令运行在指定应用上，默认运行在当前应用或者 origin 应用上。')
-  .option('--enable <feature1,feature2>', '启用实验性功能。')
+  .option('--enable <option1=xx>,<option2=oo>', '启用实验性功能。')
   .action(function(options) {
     if (options.app) {
       run.setCurrentApp(options.app);

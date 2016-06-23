@@ -5,35 +5,33 @@
 安装和更新请使用下列命令：
 
 ```
-sudo npm install -g avoscloud-code
+sudo npm install -g leancloud-cli
 ```
 
 如果从 npm 安装失败，可以从 GitHub 安装：
 
 ```
-sudo npm install -g  git+https://github.com/leancloud/avoscloud-code-command
+sudo npm install -g git+https://github.com/leancloud/avoscloud-code-command
 ```
 
-详细的使用指南见 [云引擎命令行工具使用详解](http://leancloud.cn/docs/cloud_code_commandline.html)，更新日志见 [changelog.md](https://github.com/leancloud/avoscloud-code-command/blob/master/changelog.md)。
+详细的使用指南见 [云引擎命令行工具使用详解](https://leancloud.cn/docs/leanengine_cli.html)，更新日志见 [changelog.md](https://github.com/leancloud/avoscloud-code-command/releases)。
 
 ## 说明
 
 为了方便本地运行和调试云引擎，请遵照下列步骤进行:
 
 * 要在本地调试云引擎，你需要安装 [Node.js](http://nodejs.org) 最新版本。
-* 运行命令：`sudo npm install -g avoscloud-code` 安装调试 SDK。以后更新升级也请执行此命令。
+* 运行命令：`sudo npm install -g leancloud-cli` 来安装命令行工具，以后更新升级也请执行此命令。
 * 在项目根目录运行 `lean up`，将启动本地调试服务器。
 * 访问 [localhost:3000](http://localhost:3000/) 即可访问本机启动的云引擎项目。
 * 访问 [localhost:3001](http://localhost:3001) 调试云引擎函数和 class hook 函数等。
-  * 云引擎 2.0 版访问 [localhost:3000/avos](http://localhost:3000/avos)
 
 ## 功能说明
 
 `lean -h` 输出：
 
 ```
-  Usage: lean [options] [command]
-
+  Usage: lean [command] [options]
 
   Commands:
 
@@ -81,10 +79,13 @@ source ~/.avoscloud_completion.sh
 
 部署、发布等命令在第一次运行的时候要求输入应用的 master key，您可以在 LeanCloud 平台的应用设置里找到 master key。输入后，命令行工具会将这个应用信息记录在 `~/.leancloud/app_keys` 中（0600 文件权限模式）。如果您在认证过程中出现问题，或在公共机器上使用命令行工具，可运行 `lean clear` 来删除认证信息。
 
-
 ## 开发备注
 
-* 发布版本时请同时向 NPM 上 avoscloud-code-command 和 leancloud-cli 这两个包名 publish。
+发布版本时：
+
+* 请同时向 NPM 上 avoscloud-code 和 leancloud-cli 这两个包名 publish
+* 注意为新版本添加 git tag, 并将更新内容填写到 `changelog.md` 和 GitHub 的 Release 页面。
+* 修改用于自动更新的 `latest.version` 并上传到服务器。
 
 ## 贡献者
 
