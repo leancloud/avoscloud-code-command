@@ -172,6 +172,8 @@
             }
             var url = window.location.protocol + '//' + window.location.hostname + ':' + leanenginePort + "/1.1/functions" + $('#hooks').val();
             getObject(function(err, data) {
+              var hookName = $('#hooks :selected').text();
+
               if (err) {
                 return $('#result').html(err.message || err);
               }
@@ -180,15 +182,13 @@
                 data.object._updatedKeys = $('#updatedKeys').val().split(/,\s+/);
               }
 
-              var hookInfo = _.findWhere(hooksInfo[$('#classes').val()], {
-                action: $('#hooks').text()
-              });
+              var hookInfo = _.findWhere(hooksInfo[$('#classes').val()], {action: hookName});
 
               var sign = hookInfo && hookInfo.sign;
 
-              if ($('#hooks').text().indexOf('before') === 0) {
+              if (hookName.indexOf('before') === 0) {
                 data.object.__before = sign;
-              } else if ($('#hooks').text().indexOf('after') === 0) {
+              } else if (hookName.indexOf('after') === 0) {
                 data.object.__after = sign;
               } else {
                 data.object.__sign = sign;
