@@ -1089,7 +1089,7 @@ function getKeys(appId, cb) {
  *Creaet a new avoscloud cloud code project.
  */
 exports.createNewProject = function(appId, runtime, cb) {
-  var _appId, repoName;
+  var _appId, repoUrl, templates;
   Q.fcall(function() {
     if(appId) {
       return appId;
@@ -1101,24 +1101,52 @@ exports.createNewProject = function(appId, runtime, cb) {
       throw new Error("无效的 Application ID");
     }
     _appId = appId.trim();
-    if(runtime) {
-      return runtime;
-    }
-    return Q.ninvoke(promptly, 'prompt', '请选择项目语言，Node.js(N) 或 Python(P): ');
+
+    return Q.nfcall(request, 'http://lcinternal-cloud-code-update.leanapp.cn').then(function(result) {
+      var res = result[0], body = result[1];
+      if (res.statusCode == 200) {
+        templates = _.toArray(JSON.parse(body));
+      } else {
+        throw new Error(res.statusCode + ':' + body);
+      }
+    }).then(function() {
+      var runtimesMapping = {
+        'nodejs': 'node-js-getting-started',
+        'node': 'node-js-getting-started',
+        'n': 'node-js-getting-started',
+        'python': 'python-getting-started',
+        'py': 'python-getting-started',
+        'p': 'python-getting-started'
+      };
+
+      if(runtime) {
+        if (runtimesMapping[runtime.toLowerCase()]) {
+          runtime = runtimesMapping[runtime.toLowerCase()];
+        }
+
+        var template = _.findWhere(templates, {name: runtime});
+
+        if (template) {
+          return runtime;
+        } else {
+          throw new Error("无效的运行环境：" + runtime);
+        }
+      } else {
+        console.log(table(templates.map(function(template, index) {
+          return [index, template.name];
+        })))
+
+        return Q.ninvoke(promptly, 'prompt', '请输入项目模板的序号：').then(function(templateId) {
+          if (templates[parseInt(templateId)]) {
+            return templates[parseInt(templateId)].name;
+          } else {
+            throw new Error("不存在的选项：" + templateId);
+          }
+        });
+      }
+    })
   }).then(function(runtime) {
-    runtime = runtime.trim();
-    var runtimesMapping = {
-      'nodejs': 'node-js-getting-started',
-      'node': 'node-js-getting-started',
-      'n': 'node-js-getting-started',
-      'python': 'python-getting-started',
-      'py': 'python-getting-started',
-      'p': 'python-getting-started'
-    };
-    repoName = runtimesMapping[runtime.toLowerCase()];
-    if (!repoName) {
-      throw new Error("无效的运行环境：" + runtime);
-    }
+    repoUrl = _.findWhere(templates, {name: runtime}).url;
     return Q.nfcall(initAVOSCloudSDK, _appId, false);
   }).then(function(AV) {
     console.log("正在创建项目 ...");
@@ -1137,7 +1165,7 @@ exports.createNewProject = function(appId, runtime, cb) {
     }
     var zipFilePath = path.join(TMP_DIR, _appId + '.zip');
     return Q.Promise(function(resolve, reject) {
-      request('http://lcinternal-cloud-code-update.leanapp.cn/' + repoName + '.zip')
+      request('http://lcinternal-cloud-code-update.leanapp.cn' + repoUrl)
       .pipe(fs.createWriteStream(zipFilePath))
       .on('close', function() {
         try {
