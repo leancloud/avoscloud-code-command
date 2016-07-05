@@ -83,9 +83,9 @@ source ~/.avoscloud_completion.sh
 
 发布版本时：
 
-* 请同时向 NPM 上 avoscloud-code 和 leancloud-cli 这两个包名 publish
 * 注意为新版本添加 git tag, 并将更新内容填写到 `changelog.md` 和 GitHub 的 Release 页面。
 * 修改用于自动更新的 `latest.version` 并上传到服务器。
+* 同时向 NPM 上 avoscloud-code 和 leancloud-cli 这两个包名 publish
 
 ## 贡献者
 

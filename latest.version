@@ -1,4 +1,4 @@
 {
-  "version": "1.3.0",
-  "changelog": "调试 Hook 时发送用于安全校验的签名，和线上环境保持一致"
+  "version": "1.3.1",
+  "changelog": "支持创建 PHP 的项目模板和其他 Bug 修复"
 }
