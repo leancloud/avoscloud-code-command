@@ -1044,7 +1044,7 @@ function getKeys(appId, cb) {
         var result = JSON.parse(body);
         apiServer = 'https://' + result.api_server;
 
-        if (util.API_HOST.us.indexOf(result.api_server) != -1) {
+        if (util.API_HOST.us == 'https://' + result.api_server) {
           region = 'us';
         }
 
