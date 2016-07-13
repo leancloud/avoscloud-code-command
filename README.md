@@ -8,11 +8,7 @@
 sudo npm install -g leancloud-cli
 ```
 
-如果从 npm 安装失败，可以从 GitHub 安装：
-
-```
-sudo npm install -g git+https://github.com/leancloud/avoscloud-code-command
-```
+若网络状况不佳可尝试国内的 NPM 源：`sudo npm install -g leancloud-cli --registry=https://registry.npm.taobao.org`。
 
 详细的使用指南见 [云引擎命令行工具使用详解](https://leancloud.cn/docs/leanengine_cli.html)，更新日志见 [changelog.md](https://github.com/leancloud/avoscloud-code-command/releases)。
 
