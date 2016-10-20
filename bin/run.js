@@ -10,7 +10,7 @@ var nodemon = require('nodemon');
 var AV = require('avoscloud-sdk');
 var qiniu = require('qiniu');
 var nodeUtil = require('util');
-var sprintf = require("sprintf-js").sprintf;
+var sprintf = require('sprintf-js').sprintf;
 var promptly = require('promptly');
 var mime = require('mime');
 var async = require('async');
@@ -35,7 +35,7 @@ var IMPORT_FILE_BATCH_SIZE = 20;
 
 var TMP_DIR = os.tmpdir();
 if (!TMP_DIR.match(/.*\/$/)) {
-    TMP_DIR = TMP_DIR + path.sep;
+  TMP_DIR = TMP_DIR + path.sep;
 }
 
 var APP = null;
@@ -52,18 +52,18 @@ var setCloudPath = exports.setCloudPath = function(cloudPath) {
 };
 
 function exitWith(err) {
-    console.error('[ERROR] ' + err);
-    process.exit(1);
+  console.error('[ERROR] ' + err);
+  process.exit(1);
 }
 
 /**
  * Tried to get user's home directory by environment variable.
  */
 function getUserHome() {
-    var home = process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH;
-    if (!home)
-        return exitWith("无法找到用户 HOME 目录");
-    return home;
+  var home = process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH;
+  if (!home)
+    return exitWith('无法找到用户 HOME 目录');
+  return home;
 }
 
 var leancloudFolder = path.join(getUserHome(), '.leancloud');
@@ -73,8 +73,8 @@ exports.deleteMasterKeys = function(cb) {
   var home = getUserHome();
   var avoscloudKeysFile = path.join(home, '.avoscloud_keys');
 
-  console.log("删除 " + avoscloudKeysFile + " ...");
-  console.log("删除 " + leancloudAppKeysFile + " ...");
+  console.log('删除 ' + avoscloudKeysFile + ' ...');
+  console.log('删除 ' + leancloudAppKeysFile + ' ...');
   Q.allSettled([
     Q.nfcall(fs.truncate, avoscloudKeysFile, 0),
     Q.nfcall(fs.truncate, leancloudAppKeysFile, 0)
@@ -85,19 +85,19 @@ exports.deleteMasterKeys = function(cb) {
     if (lcFile.state === 'rejected' && lcFile.reason.code !== 'ENOENT') {
       return cb(new Error('删除 ' + leancloudAppKeysFile + ' 失败：' + lcFile.reason.message));
     }
-    console.log("\n清除成功\n");
+    console.log('\n清除成功\n');
     return cb();
   });
 };
 
 var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHome, cb) {
   if (_.isFunction(appId)) {
-      cb = appId;
-      appId = getAppSync().appId;
+    cb = appId;
+    appId = getAppSync().appId;
   }
   if (_.isFunction(isLogProjectHome)) {
-      cb = isLogProjectHome;
-      isLogProjectHome = true;
+    cb = isLogProjectHome;
+    isLogProjectHome = true;
   }
   if (appId === AV.applicationId) {
     return cb(null, AV);
@@ -135,25 +135,17 @@ var initAVOSCloudSDK = exports.initAVOSCloudSDK = function(appId, isLogProjectHo
   });
 };
 
-function bucketDomain(bucket) {
-    //special bucket for old projects.
-    if (bucket == 'paas_files')
-        return 'paas-files';
-    else
-        return 'ac-' + bucket;
-}
-
 function destroyFile(objectId) {
-    if (!objectId || objectId.trim() === '')
-        return;
-    try {
-        var file = new AV.File();
-        file.id = objectId.trim();
-        file.destroy();
-    } catch (e) {
-        debug(e.stack);
-        //ignore
-    }
+  if (!objectId || objectId.trim() === '')
+    return;
+  try {
+    var file = new AV.File();
+    file.id = objectId.trim();
+    file.destroy();
+  } catch (e) {
+    debug(e.stack);
+    //ignore
+  }
 }
 
 function uploadFile(localFile, props, attempts, cb) {
@@ -164,11 +156,11 @@ function uploadFile(localFile, props, attempts, cb) {
 
   var file = new AV.File(props.name, fs.readFileSync(localFile), 'application/zip, application/octet-stream');
 
-  file.save().then(function(result) {
+  file.save().then(function() {
     cb(null, file.url(), file.id);
   }).catch(function(err) {
     if (attempts > 3) {
-      console.warn("上传文件失败超过 3 次，放弃：" + localFile);
+      console.warn('上传文件失败超过 3 次，放弃：' + localFile);
       cb(err);
     } else {
       uploadFile(localFile, props, attempts + 1, cb);
@@ -256,11 +248,11 @@ function loopLogs(opsToken, prod, cb) {
   }, 3000);
 }
 
-var uploadProject = function() {
+var uploadProject = function(options) {
   var file = path.join(TMP_DIR, new Date().getTime() + '.zip');
-  return Q.ninvoke(Runtime, 'detect', CLOUD_PATH).then(function(runtimeInfo) {
+  return Q.ninvoke(Runtime, 'detect', CLOUD_PATH, options).then(function(runtimeInfo) {
     return Q.Promise(function(resolve, reject) {
-      console.log("压缩项目文件 ...");
+      console.log('压缩项目文件 ...');
       var output = fs.createWriteStream(file);
       var archive = archiver('zip');
 
@@ -269,35 +261,23 @@ var uploadProject = function() {
       });
 
       archive.on('error', function(err) {
-          err.action = '项目文件打包';
-          reject(err);
+        err.action = '项目文件打包';
+        reject(err);
       });
 
-      var patterns = getIgnorePatterns(CLOUD_PATH);
-      if (patterns) {
-        patterns = [{ src: ['**'].concat(patterns.map(function(pattern) {
-          if (pattern[0] == '!')
-            return pattern.slice(1);
-          else
-            return '!' + pattern;
-        })) }];
-      } else {
-        patterns = runtimeInfo.bulk();
-      }
-
       archive.pipe(output);
-      archive.bulk(patterns);
+      runtimeInfo.archive(archive);
       archive.finalize();
     });
   }).then(function() {
-    console.log("生成临时文件：" + file);
+    console.log('生成临时文件：' + file);
     //upload file to cloud code
-    console.log("开始上传项目文件 ...");
+    console.log('开始上传项目文件 ...');
     var key = util.guid() + '.zip';
     return Q.nfcall(uploadFile, file, {
-        key: key,
-        name: path.basename(file),
-        mime_type: 'application/zip, application/octet-stream'
+      key: key,
+      name: path.basename(file),
+      mime_type: 'application/zip, application/octet-stream'
     });
   });
 };
@@ -319,7 +299,7 @@ exports.buildImageFromLocal = function(options, cb) {
     }).then(function(data) {
       return Q.nfcall(pollEvents, data.eventToken);
     }).then(function() {
-      console.log("\n构建成功\n");
+      console.log('\n构建成功\n');
       return Q.nfcall(listImages, 1);
     }).then(cb).catch(function(err) {
       if(fileId) {
@@ -362,7 +342,7 @@ exports.rmImage = function(imageTag, cb) {
       if (err) {
         return cb(err);
       }
-      console.log("\n操作成功\n");
+      console.log('\n操作成功\n');
       cb();
     });
   });
@@ -376,7 +356,7 @@ exports.rmImageCache = function(cb) {
       if (err) {
         return cb(err);
       }
-      console.log("\n操作成功\n");
+      console.log('\n操作成功\n');
       cb();
     });
   });
@@ -430,7 +410,7 @@ var deployGroup = exports.deployGroup = function(groupName, imageTag, options, c
   }).then(function(data) {
     return Q.nfcall(pollEvents, data.eventToken);
   }).then(function() {
-    console.log("\n部署成功\n");
+    console.log('\n部署成功\n');
     return Q.nfcall(util.request, 'functions/_ops/groups');
   }).then(function(groups) {
     showGroup(_.where(groups, {groupName: groupName}));
@@ -447,7 +427,7 @@ exports.undeployGroup = function(groupName, cb) {
       method: 'DELETE'
     });
   }).then(function() {
-    console.log("\n清除成功\n");
+    console.log('\n清除成功\n');
     return Q.nfcall(util.request, 'functions/_ops/groups');
   }).then(function(groups) {
     showGroup(_.where(groups, {groupName: groupName}));
@@ -476,7 +456,7 @@ exports.createInstance = function(options, cb) {
       if (err) {
         return cb(err);
       }
-      console.log("\n创建成功\n");
+      console.log('\n创建成功\n');
       var datas = [
         [ 'NAME', 'STATUS', 'GROUP NAME', 'QUOTA', 'IMAGE TAG', 'DEPLOYED', 'CREATED' ]
       ];
@@ -488,7 +468,7 @@ exports.createInstance = function(options, cb) {
         obj.imageInfo && obj.imageInfo.imageTag || '',
         moment(obj.deployed).fromNow(),
         moment(obj.created).fromNow()
-        ]);
+      ]);
       console.log(table(datas));
       cb();
     });
@@ -506,7 +486,7 @@ exports.changeGroup = function(targetGroup, instance, cb) {
       if (err) {
         return cb(err);
       }
-      console.log("\n切换成功\n");
+      console.log('\n切换成功\n');
       cb();
     });
   });
@@ -520,7 +500,7 @@ exports.deleteInstance = function(instance, cb) {
       if (err) {
         return cb(err);
       }
-      console.log("\n移除成功\n");
+      console.log('\n移除成功\n');
       cb();
     });
   });
@@ -544,7 +524,7 @@ var listInstances = exports.listInstances = function(cb) {
           obj.imageInfo && obj.imageInfo.imageTag || '',
           moment(obj.deployed).fromNow(),
           moment(obj.created).fromNow()
-          ]);
+        ]);
       });
       console.log(table(datas));
       cb();
@@ -572,7 +552,7 @@ exports.deployLocalCloudCode = function (options, cb) {
       }).then(function(data) {
         return Q.nfcall(loopLogs, data.opsToken, 0);
       }).then(function() {
-        console.log("\n部署成功\n");
+        console.log('\n部署成功\n');
         return Q.nfcall(queryStatus);
       }).then(cb).catch(function(err) {
         if(fileId) {
@@ -594,7 +574,7 @@ var deployLocalCloudCodeV4 = function(options, cb) {
     } else {
       console.log('部署到：' + color.green('生产环境(' + group.groupName+ ')'));
     }
-    return uploadProject();
+    return uploadProject(options);
   }).then(function(args) {
     fileId = args[1];
     return Q.nfcall(util.request, 'functions/_ops/groups/' + group.groupName + '/buildAndDeploy', {
@@ -609,7 +589,7 @@ var deployLocalCloudCodeV4 = function(options, cb) {
   }).then(function(data) {
     return Q.nfcall(pollEvents, data.eventToken);
   }).then(function() {
-    console.log("\n部署成功\n");
+    console.log('\n部署成功\n');
     return Q.nfcall(listInstances);
   }).then(cb).catch(function(err) {
     if(fileId) {
@@ -626,22 +606,22 @@ exports.deployGitCloudCode = function (options, cb) {
       return deployGitCloudCodeV4(options, cb);
     } else {
       util.request('functions/_ops/deployByCommand', {
-          method: 'POST',
-          data: {
-            after: options.revision,
-            options: options.options
-          }
+        method: 'POST',
+        data: {
+          after: options.revision,
+          options: options.options
+        }
       }, function(err, data) {
         if (err) {
           return cb(err);
         }
         loopLogs(data.opsToken, 0, function(err) {
-            if (err) {
-                err.action = '部署云引擎应用';
-                return cb(err);
-            }
-            console.log("\n部署成功\n");
-            queryStatus(cb);
+          if (err) {
+            err.action = '部署云引擎应用';
+            return cb(err);
+          }
+          console.log('\n部署成功\n');
+          queryStatus(cb);
         });
       });
     }
@@ -669,7 +649,7 @@ var deployGitCloudCodeV4 = function(options, cb) {
   }).then(function(data) {
     return Q.nfcall(pollEvents, data.eventToken);
   }).then(function() {
-    console.log("\n部署成功\n");
+    console.log('\n部署成功\n');
     return Q.nfcall(listInstances);
   }).then(cb).catch(function(err) {
     err.action = '部署应用';
@@ -698,12 +678,12 @@ var getDefaultProdGroup = function() {
 };
 
 function outputStatus(status) {
-    console.log('------------------------------------------------------------------------');
-    console.log(sprintf("%s：'%s'", "预备环境版本    ", status.dev));
-    console.log(sprintf("%s：'%s'", "预备环境提交日志", status.devLog));
-    console.log(sprintf("%s：'%s'", "生产环境版本    ", status.prod));
-    console.log(sprintf("%s：'%s'", "生产环境提交日志", status.prodLog));
-    console.log('------------------------------------------------------------------------');
+  console.log('------------------------------------------------------------------------');
+  console.log(sprintf('%s："%s"', '预备环境版本    ', status.dev));
+  console.log(sprintf('%s："%s"', '预备环境提交日志', status.devLog));
+  console.log(sprintf('%s："%s"', '生产环境版本    ', status.prod));
+  console.log(sprintf('%s："%s"', '生产环境提交日志', status.prodLog));
+  console.log('------------------------------------------------------------------------');
 }
 
 exports.publishCloudCode = function(cb) {
@@ -721,7 +701,7 @@ exports.publishCloudCode = function(cb) {
           if (err) {
             return cb(err);
           }
-          console.log("\n发布成功\n");
+          console.log('\n发布成功\n');
           queryStatus(cb);
         });
       });
@@ -751,255 +731,255 @@ var publishCloudCodeV4 = function(cb) {
 };
 
 var queryStatus = exports.queryStatus = function(cb) {
-    initAVOSCloudSDK(function() {
-        util.request('functions/status', function(err, data) {
-          if (err) {
-            return cb(err);
-          }
-          outputStatus(data);
-          cb();
-        });
+  initAVOSCloudSDK(function() {
+    util.request('functions/status', function(err, data) {
+      if (err) {
+        return cb(err);
+      }
+      outputStatus(data);
+      cb();
     });
+  });
 };
 
 exports.undeployCloudCode = function(cb) {
-    initAVOSCloudSDK(function() {
-        util.request('functions/undeploy/repo', {
-          method: 'POST'
-        }, function(err) {
-          if (err) {
-            return cb(err);
-          }
-          console.log("\n清除成功\n");
-          queryStatus(cb);
-        });
+  initAVOSCloudSDK(function() {
+    util.request('functions/undeploy/repo', {
+      method: 'POST'
+    }, function(err) {
+      if (err) {
+        return cb(err);
+      }
+      console.log('\n清除成功\n');
+      queryStatus(cb);
     });
+  });
 };
 
 function input(info, cb, password) {
-    var pcb = function(err, anwser) {
-        cb(anwser);
-    };
-    if (password) {
-        promptly.password(info, pcb);
-    } else {
-        promptly.prompt(info, pcb);
-    }
+  var pcb = function(err, anwser) {
+    cb(anwser);
+  };
+  if (password) {
+    promptly.password(info, pcb);
+  } else {
+    promptly.prompt(info, pcb);
+  }
 }
     /**
      *Generate device uuid for statistics.
      */
 function getDeviceId() {
-    var deviceIdFile = path.join(leancloudFolder, 'device_id');
-    var exists = fs.existsSync(deviceIdFile);
-    if (exists) {
-        return fs.readFileSync(deviceIdFile, {
-            encoding: 'utf-8'
-        });
-    } else {
-        var deviceId = util.guid();
-        fs.writeFileSync(deviceIdFile, deviceId, {
-            encoding: 'utf-8'
-        });
-        return deviceId;
-    }
+  var deviceIdFile = path.join(leancloudFolder, 'device_id');
+  var exists = fs.existsSync(deviceIdFile);
+  if (exists) {
+    return fs.readFileSync(deviceIdFile, {
+      encoding: 'utf-8'
+    });
+  } else {
+    var deviceId = util.guid();
+    fs.writeFileSync(deviceIdFile, deviceId, {
+      encoding: 'utf-8'
+    });
+    return deviceId;
+  }
 }
 
 exports.sendStats = function(cmd) {
-    debug('sendStats: %s', cmd);
-    try {
-        var sessionId = util.guid();
-        var timestamp = new Date().getTime();
-        var data = {
-            appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
-            device: {
-                sdk_version: pkg.version,
-                os_version: (os.platform() + ' ' + os.arch() + ' ' + os.release()),
-                device_id: getDeviceId(),
-                app_version: pkg.version,
-                device_model: os.platform(),
-                os: 'ios'
-            },
-            events: {
-                event: [{
-                    "du": 1,
-                    "name": cmd,
-                    "ts": timestamp
-                }],
-                "launch": {
-                    "date": timestamp,
-                    "sessionId": sessionId
-                },
-                "terminate": {
-                    "activities": [],
-                    "duration": 1,
-                    "sessionId": sessionId
-                }
-            }
-        };
-        util.request('stats/collect', {
-          method: 'POST',
-          appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
-          appKey: 'nrit4mhmqzm1euc3n3k9fv3w0wo72v1bdic6tfrl2usxix3e',
-          data: data,
-          apiServer: util.API_HOST.cn
-        }, function(err) {
-          if (err) {
-            debug(err.stack);
-          }
-        });
-    } catch (err) {
+  debug('sendStats: %s', cmd);
+  try {
+    var sessionId = util.guid();
+    var timestamp = new Date().getTime();
+    var data = {
+      appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
+      device: {
+        sdk_version: pkg.version,
+        os_version: (os.platform() + ' ' + os.arch() + ' ' + os.release()),
+        device_id: getDeviceId(),
+        app_version: pkg.version,
+        device_model: os.platform(),
+        os: 'ios'
+      },
+      events: {
+        event: [{
+          du: 1,
+          name: cmd,
+          ts: timestamp
+        }],
+        launch: {
+          date: timestamp,
+          sessionId: sessionId
+        },
+        terminate: {
+          activities: [],
+          duration: 1,
+          sessionId: sessionId
+        }
+      }
+    };
+    util.request('stats/collect', {
+      method: 'POST',
+      appId: 'lu348f5799fc5u3eujpzn23acmxy761kq6soyovjc3k6kwrs',
+      appKey: 'nrit4mhmqzm1euc3n3k9fv3w0wo72v1bdic6tfrl2usxix3e',
+      data: data,
+      apiServer: util.API_HOST.cn
+    }, function(err) {
+      if (err) {
         debug(err.stack);
-        //ignore
-    }
+      }
+    });
+  } catch (err) {
+    debug(err.stack);
+    //ignore
+  }
 };
 
 function outputLogs(datas) {
-    if (datas && datas.length > 0) {
-        datas.reverse().forEach(function(log) {
-            var time = new Date(log.time).toLocaleString();
-            var env = log.production == 1 ? 'PROD' : 'STG';
-            var content = log.content.replace(/\n$/, '');
-            console.log('%s [%s] [%s] %s', time, env, log.level.toLocaleUpperCase(), content);
-        });
-    }
+  if (datas && datas.length > 0) {
+    datas.reverse().forEach(function(log) {
+      var time = new Date(log.time).toLocaleString();
+      var env = log.production == 1 ? 'PROD' : 'STG';
+      var content = log.content.replace(/\n$/, '');
+      console.log('%s [%s] [%s] %s', time, env, log.level.toLocaleUpperCase(), content);
+    });
+  }
 }
 
 exports.viewCloudLog = function (options, cb) {
-    var tailf = JSON.parse(options.tailf);
-    var lastLogUpdatedTime;
-    var doViewCloudLog = function () {
-        var prod = options.env.toLowerCase() === 'stg' ? 0 : 1;
-        var url = 'tables/EngineLogs?production=' + prod;
-        if (!tailf && options.lines) {
-          url += '&limit=' + options.lines;
-        }
-        if (lastLogUpdatedTime) {
-          url += '&since=' + encodeURIComponent(lastLogUpdatedTime);
-        }
-        util.request(url, {
-          method: 'GET'
-        }, function (err, data) {
-          if (err) {
-            return cb(err);
-          }
-          if (data.results) {
-            data = data.results;
-          }
-          var datas = data.map(function(item) {
-            if (_.isString(item))
-              return JSON.parse(item);
-            else
-              return item;
-          });
-          if (datas.length > 0) {
-              lastLogUpdatedTime = datas[0].time;
-          }
-          outputLogs(datas);
-          if (tailf) {
-              //fetch log every 500 milliseconds.
-              setTimeout(function() {
-                  doViewCloudLog();
-              }, 500);
-          } else {
-            cb();
-          }
-        });
-    };
-    initAVOSCloudSDK(function() {
-        doViewCloudLog();
+  var tailf = JSON.parse(options.tailf);
+  var lastLogUpdatedTime;
+  var doViewCloudLog = function () {
+    var prod = options.env.toLowerCase() === 'stg' ? 0 : 1;
+    var url = 'tables/EngineLogs?production=' + prod;
+    if (!tailf && options.lines) {
+      url += '&limit=' + options.lines;
+    }
+    if (lastLogUpdatedTime) {
+      url += '&since=' + encodeURIComponent(lastLogUpdatedTime);
+    }
+    util.request(url, {
+      method: 'GET'
+    }, function (err, data) {
+      if (err) {
+        return cb(err);
+      }
+      if (data.results) {
+        data = data.results;
+      }
+      var datas = data.map(function(item) {
+        if (_.isString(item))
+          return JSON.parse(item);
+        else
+          return item;
+      });
+      if (datas.length > 0) {
+        lastLogUpdatedTime = datas[0].time;
+      }
+      outputLogs(datas);
+      if (tailf) {
+        //fetch log every 500 milliseconds.
+        setTimeout(function() {
+          doViewCloudLog();
+        }, 500);
+      } else {
+        cb();
+      }
     });
+  };
+  initAVOSCloudSDK(function() {
+    doViewCloudLog();
+  });
 };
 
 var migrateAvoscloudKeys = _.once(function() {
-    var avoscloudAppKeysFile = path.join(getUserHome(), '.avoscloud_keys');
+  var avoscloudAppKeysFile = path.join(getUserHome(), '.avoscloud_keys');
 
-    if (fs.existsSync(avoscloudAppKeysFile)) {
-        if (fs.existsSync(leancloudAppKeysFile))
-            return; // 如果已有新格式的文件则不迁移
+  if (fs.existsSync(avoscloudAppKeysFile)) {
+    if (fs.existsSync(leancloudAppKeysFile))
+      return; // 如果已有新格式的文件则不迁移
 
-        try {
-            fs.mkdirSync(leancloudFolder, '0700');
-        } catch (err) {
-            if (err.code != 'EEXIST')
-                return exitWith(err.message);
-        }
-
-        var data = fs.readFileSync(avoscloudAppKeysFile, 'utf-8');
-
-        if (data.trim() === '')
-            data = '{}';
-
-        var appKeys = _.mapObject(JSON.parse(data), function(value) {
-            if (_.isString(value)) {
-                return {
-                    masterKey: value,
-                    appKey: null
-                };
-            } else {
-                return value;
-            }
-        });
-
-        fs.writeFileSync(leancloudAppKeysFile, JSON.stringify(appKeys), {
-            mode: '0600'
-        });
-
-        fs.unlinkSync(avoscloudAppKeysFile);
+    try {
+      fs.mkdirSync(leancloudFolder, '0700');
+    } catch (err) {
+      if (err.code != 'EEXIST')
+        return exitWith(err.message);
     }
+
+    var data = fs.readFileSync(avoscloudAppKeysFile, 'utf-8');
+
+    if (data.trim() === '')
+      data = '{}';
+
+    var appKeys = _.mapObject(JSON.parse(data), function(value) {
+      if (_.isString(value)) {
+        return {
+          masterKey: value,
+          appKey: null
+        };
+      } else {
+        return value;
+      }
+    });
+
+    fs.writeFileSync(leancloudAppKeysFile, JSON.stringify(appKeys), {
+      mode: '0600'
+    });
+
+    fs.unlinkSync(avoscloudAppKeysFile);
+  }
 });
 
 function loadLocalAppKeys(callback) {
-    migrateAvoscloudKeys();
+  migrateAvoscloudKeys();
 
-    fs.readFile(path.join(getUserHome(), '.leancloud/app_keys'), 'utf-8', function(err, data) {
-        if (err) {
-            if (err.code == 'ENOENT')
-                return callback(null, {});
-            else
-                return exitWith(err.message);
-        }
+  fs.readFile(path.join(getUserHome(), '.leancloud/app_keys'), 'utf-8', function(err, data) {
+    if (err) {
+      if (err.code == 'ENOENT')
+        return callback(null, {});
+      else
+        return exitWith(err.message);
+    }
 
-        if (data.trim() === '')
-            data = '{}';
+    if (data.trim() === '')
+      data = '{}';
 
-        callback(null, JSON.parse(data));
-    });
+    callback(null, JSON.parse(data));
+  });
 }
 
 function updateMasterKeys(appId, keys, options, callback) {
-    if (_.isFunction(options)) {
-        callback = options;
-        options = {};
-    }
+  if (_.isFunction(options)) {
+    callback = options;
+    options = {};
+  }
 
-    loadLocalAppKeys(function(err, appKeys) {
-        // If the master key is exists and force is false, then return the eixsts master key
-        if (appKeys[appId] && appKeys[appId].masterKey && !options.force)
-            return callback(null, appKeys[appId]);
+  loadLocalAppKeys(function(err, appKeys) {
+    // If the master key is exists and force is false, then return the eixsts master key
+    if (appKeys[appId] && appKeys[appId].masterKey && !options.force)
+      return callback(null, appKeys[appId]);
 
-        appKeys[appId] = {
-            masterKey: keys.masterKey,
-            appKey: keys.appKey,
-            apiServer: keys.apiServer,
-            region: keys.region
-        };
+    appKeys[appId] = {
+      masterKey: keys.masterKey,
+      appKey: keys.appKey,
+      apiServer: keys.apiServer,
+      region: keys.region
+    };
 
-        fs.mkdir(leancloudFolder, '0700', function(err) {
-            if (err && err.code != 'EEXIST')
-                return exitWith(err.message);
+    fs.mkdir(leancloudFolder, '0700', function(err) {
+      if (err && err.code != 'EEXIST')
+        return exitWith(err.message);
 
-            // Save to file ,and make sure file mode is 0600
-            fs.writeFile(path.join(leancloudFolder, 'app_keys'), JSON.stringify(appKeys), {
-                mode: '0600'
-            }, function(err) {
-                if (err)
-                    exitWith(err.message);
-                else
-                    callback(null, appKeys[appId]);
-            });
-        });
+      // Save to file ,and make sure file mode is 0600
+      fs.writeFile(path.join(leancloudFolder, 'app_keys'), JSON.stringify(appKeys), {
+        mode: '0600'
+      }, function(err) {
+        if (err)
+          exitWith(err.message);
+        else
+          callback(null, appKeys[appId]);
+      });
     });
+  });
 }
 
 function getKeys(appId, cb) {
@@ -1032,7 +1012,7 @@ function getKeys(appId, cb) {
             region: region
           }, {force: true}, cb);
         };
-      }
+      };
 
       request({
         url: 'https://app-router.leancloud.cn/1/route?appId=' + appId,
@@ -1073,7 +1053,7 @@ function getKeys(appId, cb) {
     if(!keys) {
       promptly.password('请输入应用的 Master Key (可从开发者平台的应用设置里找到)：', function(err, masterKey) {
         if (!masterKey || masterKey.trim() === '') {
-            return exitWith("无效的 Master Key");
+          return exitWith('无效的 Master Key');
         }
         fetchAndUpdateKeys(masterKey.trim(), cb);
       });
@@ -1094,11 +1074,11 @@ exports.createNewProject = function(appId, runtime, cb) {
     if(appId) {
       return appId;
     }
-    console.log("开始输入应用信息，这些信息可以从'开发者平台的应用设置 -> 应用 key'里找到。");
+    console.log('开始输入应用信息，这些信息可以从"开发者平台的应用设置 -> 应用 key"里找到。');
     return Q.ninvoke(promptly, 'prompt', '请输入应用的 Application ID: ');
   }).then(function(appId) {
     if (!appId || appId.trim() === '') {
-      throw new Error("无效的 Application ID");
+      throw new Error('无效的 Application ID');
     }
     _appId = appId.trim();
 
@@ -1129,27 +1109,27 @@ exports.createNewProject = function(appId, runtime, cb) {
         if (template) {
           return runtime;
         } else {
-          throw new Error("无效的运行环境：" + runtime);
+          throw new Error('无效的运行环境：' + runtime);
         }
       } else {
         console.log(table(templates.map(function(template, index) {
           return [index, template.name];
-        })))
+        })));
 
         return Q.ninvoke(promptly, 'prompt', '请输入项目模板的序号：').then(function(templateId) {
           if (templates[parseInt(templateId)]) {
             return templates[parseInt(templateId)].name;
           } else {
-            throw new Error("不存在的选项：" + templateId);
+            throw new Error('不存在的选项：' + templateId);
           }
         });
       }
-    })
+    });
   }).then(function(runtime) {
     repoUrl = _.findWhere(templates, {name: runtime}).url;
     return Q.nfcall(initAVOSCloudSDK, _appId, false);
   }).then(function(AV) {
-    console.log("正在创建项目 ...");
+    console.log('正在创建项目 ...');
     return Q.nfcall(util.request, '__leancloud/apps/appDetail', {
       appId: AV.applicationId,
       masterKey: AV.masterKey
@@ -1201,7 +1181,7 @@ exports.createNewProject = function(appId, runtime, cb) {
 exports.up = function(args, port, isDebug, cb) {
   port = port || 3000;
   Q.nfcall(initAVOSCloudSDK).then(function() {
-    return Q.ninvoke(Runtime, 'detect', CLOUD_PATH);
+    return Q.ninvoke(Runtime, 'detect', CLOUD_PATH, {});
   }).then(function(runtimeInfo) {
     runtimeInfo.setDebug(isDebug);
     var monconfig = runtimeInfo.getMonconfig(args, port);
@@ -1231,103 +1211,103 @@ exports.up = function(args, port, isDebug, cb) {
 };
 
 function importFile(f, realPath, cb) {
-    var stats = fs.statSync(realPath);
-    if (stats.isFile()) {
-        util.checksumFile(realPath, function(err, checksum) {
-            if (err) {
-                return cb("文件 " + realPath + " 校验和失败:" + err);
-            }
-            var extname = path.extname(realPath) != '.' ? path.extname(realPath) : '';
-            uploadFile(realPath, {
-                key: util.guid() + extname,
-                name: path.basename(realPath),
-                mime_type: mime.lookup(realPath),
-                metaData: {
-                    size: stats.size,
-                    _checksum: checksum
-                }
-            }, function(err, url, objectId) {
-                if (err) {
-                    destroyFile(objectId);
-                    if(_.isError(err)) {
-                      cb(nodeUtil.format('上传文件 ' + realPath + ' 失败：%s', err));
-                    } else {
-                      cb(nodeUtil.format('上传文件 ' + realPath + ' 失败：%j', err));
-                    }
-                } else {
-                    console.log('上传文件 ' + realPath + ' 成功：' + url);
-                    cb();
-                }
-            });
-        });
-    } else if (stats.isDirectory()) {
-        fs.readdir(realPath, function(err, files) {
-            if (err)
-                return cb("读取目录 " + realPath + " 失败：" + err);
-            console.log("开始上传目录 " + realPath + " 中的文件 ...");
-            async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(subFile, cb) {
-                //pass in the eachLimit callback
-                importFile(subFile, realPath + path.sep + subFile, cb);
-            }, function(err) {
-                if (err)
-                    return cb(err);
-                //calling parent callback.
-                cb();
-            });
-        });
-    } else {
-        cb(f + ' 不是一个文件或目录，忽略');
-    }
+  var stats = fs.statSync(realPath);
+  if (stats.isFile()) {
+    util.checksumFile(realPath, function(err, checksum) {
+      if (err) {
+        return cb('文件 ' + realPath + ' 校验和失败:' + err);
+      }
+      var extname = path.extname(realPath) != '.' ? path.extname(realPath) : '';
+      uploadFile(realPath, {
+        key: util.guid() + extname,
+        name: path.basename(realPath),
+        mime_type: mime.lookup(realPath),
+        metaData: {
+          size: stats.size,
+          _checksum: checksum
+        }
+      }, function(err, url, objectId) {
+        if (err) {
+          destroyFile(objectId);
+          if(_.isError(err)) {
+            cb(nodeUtil.format('上传文件 ' + realPath + ' 失败：%s', err));
+          } else {
+            cb(nodeUtil.format('上传文件 ' + realPath + ' 失败：%j', err));
+          }
+        } else {
+          console.log('上传文件 ' + realPath + ' 成功：' + url);
+          cb();
+        }
+      });
+    });
+  } else if (stats.isDirectory()) {
+    fs.readdir(realPath, function(err, files) {
+      if (err)
+        return cb('读取目录 ' + realPath + ' 失败：' + err);
+      console.log('开始上传目录 ' + realPath + ' 中的文件 ...');
+      async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(subFile, cb) {
+        //pass in the eachLimit callback
+        importFile(subFile, realPath + path.sep + subFile, cb);
+      }, function(err) {
+        if (err)
+          return cb(err);
+        //calling parent callback.
+        cb();
+      });
+    });
+  } else {
+    cb(f + ' 不是一个文件或目录，忽略');
+  }
 }
 
 /**
  * import files to avoscloud.
  */
 exports.importFiles = function (files, cb) {
-    initAVOSCloudSDK(function() {
-        async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(f, cb) {
-            var realPath = path.resolve(f);
-            if (fs.existsSync(realPath)) {
-                importFile(f, realPath, cb);
-            } else {
-                cb(f + " 不存在，忽略");
-            }
-        }, function(err) {
-          if (err) {
-            err.action = '上传文件';
-          }
-          cb(err);
-        });
+  initAVOSCloudSDK(function() {
+    async.eachLimit(files, IMPORT_FILE_BATCH_SIZE, function(f, cb) {
+      var realPath = path.resolve(f);
+      if (fs.existsSync(realPath)) {
+        importFile(f, realPath, cb);
+      } else {
+        cb(f + ' 不存在，忽略');
+      }
+    }, function(err) {
+      if (err) {
+        err.action = '上传文件';
+      }
+      cb(err);
     });
+  });
 };
 
 function createConfigIfNessary() {
-    var configDir = path.join(CLOUD_PATH, ".avoscloud");
-    if (fs.existsSync(configDir))
-        return;
-    fs.mkdirSync(configDir);
-    //append it to .gitignore
-    fs.appendFileSync(path.join(CLOUD_PATH, ".gitignore"), ".avoscloud/\n");
+  var configDir = path.join(CLOUD_PATH, '.avoscloud');
+  if (fs.existsSync(configDir))
+    return;
+  fs.mkdirSync(configDir);
+  //append it to .gitignore
+  fs.appendFileSync(path.join(CLOUD_PATH, '.gitignore'), '.avoscloud/\n');
 }
 
 function getAppFromCloudCodeProject() {
-    var appConfig = path.join(CLOUD_PATH, 'config/global.json');
-    if (fs.existsSync(appConfig)) {
-        return {
-            'origin': require(appConfig).applicationId
-        };
-    }
-    return {};
+  var appConfig = path.join(CLOUD_PATH, 'config/global.json');
+  if (fs.existsSync(appConfig)) {
+    return {
+      'origin': require(appConfig).applicationId
+    };
+  }
+  return {};
 }
 
 function getAppsSync() {
-    var appsFile = path.join(CLOUD_PATH, '.avoscloud/apps.json');
-    if (fs.existsSync(appsFile)) {
-        var apps = require(appsFile);
-        if (apps && Object.keys(apps).length > 0)
-            return apps;
-    }
-    return getAppFromCloudCodeProject();
+  var appsFile = path.join(CLOUD_PATH, '.avoscloud/apps.json');
+  if (fs.existsSync(appsFile)) {
+    var apps = require(appsFile);
+    if (apps && Object.keys(apps).length > 0)
+      return apps;
+  }
+  return getAppFromCloudCodeProject();
 }
 
 /**
@@ -1341,61 +1321,61 @@ function getAppsSync() {
  *   * 否则报错
  */
 var getAppSync = exports.getAppSync = function() {
-    var apps = getAppsSync();
-    var appTags = Object.keys(apps);
-    if (appTags.length === 0) {
-        return exitWith("当前目录没有关联任何应用信息。请使用：lean app add <name> <app id> 关联应用。");
-    }
-    if (APP) {
-        if (apps[APP]) {
-            return { tag: APP, appId: apps[APP] };
-        } else {
-            return exitWith("当前目录没有关联 '" + APP + "' 应用信息，请使用：lean app add <name> <app id> 关联应用。");
-        }
-    }
-    var currAppFile = path.join(CLOUD_PATH, '.avoscloud/curr_app');
-    if (fs.existsSync(currAppFile)) {
-        var name = fs.readFileSync(currAppFile, 'utf-8').trim();
-        if (name === '')
-            return null;
-        return { tag: name, appId: getAppsSync()[name] };
-    }
-    if (appTags.length == 1) {
-        return { tag: appTags[0], appId: apps[appTags[0]] };
+  var apps = getAppsSync();
+  var appTags = Object.keys(apps);
+  if (appTags.length === 0) {
+    return exitWith('当前目录没有关联任何应用信息。请使用：lean app add <name> <app id> 关联应用。');
+  }
+  if (APP) {
+    if (apps[APP]) {
+      return { tag: APP, appId: apps[APP] };
     } else {
-        exitWith("当前目录关联了多个应用 " + appTags + "，请使用：lean app checkout <app> 选择应用。");
+      return exitWith('当前目录没有关联 "' + APP + '" 应用信息，请使用：lean app add <name> <app id> 关联应用。');
     }
+  }
+  var currAppFile = path.join(CLOUD_PATH, '.avoscloud/curr_app');
+  if (fs.existsSync(currAppFile)) {
+    var name = fs.readFileSync(currAppFile, 'utf-8').trim();
+    if (name === '')
+      return null;
+    return { tag: name, appId: getAppsSync()[name] };
+  }
+  if (appTags.length == 1) {
+    return { tag: appTags[0], appId: apps[appTags[0]] };
+  } else {
+    exitWith('当前目录关联了多个应用 ' + appTags + '，请使用：lean app checkout <app> 选择应用。');
+  }
 };
 
 function writeCurrAppSync(name) {
-    createConfigIfNessary();
-    fs.writeFileSync(path.join(CLOUD_PATH, '.avoscloud/curr_app'), name, {
-        mode: 384,
-        encoding: 'utf-8'
-    });
+  createConfigIfNessary();
+  fs.writeFileSync(path.join(CLOUD_PATH, '.avoscloud/curr_app'), name, {
+    mode: 384,
+    encoding: 'utf-8'
+  });
 }
 
 function writeAppsSync(apps) {
-    createConfigIfNessary();
-    var appsFile = path.join(CLOUD_PATH, '.avoscloud/apps.json');
-    fs.writeFileSync(appsFile, JSON.stringify(apps), {
-        encoding: 'utf-8',
-        mode: 384
-    });
+  createConfigIfNessary();
+  var appsFile = path.join(CLOUD_PATH, '.avoscloud/apps.json');
+  fs.writeFileSync(appsFile, JSON.stringify(apps), {
+    encoding: 'utf-8',
+    mode: 384
+  });
 }
 
 var addApp = exports.addApp = function(name, appId, cb) {
   setImmediate(function() {
     if (!name || !name.trim())
-        return cb(new Error("无效的应用名"));
+      return cb(new Error('无效的应用名'));
     if (!/[a-zA-Z0-9]+/.test(appId))
-        return cb(new Error("无效的 Application ID"));
+      return cb(new Error('无效的 Application ID'));
     var apps = getAppsSync();
     if (apps[name])
-        return cb(new Error("应用 '" + name + "' 已经存在"));
+      return cb(new Error('应用 "' + name + '" 已经存在'));
     apps[name] = appId;
     writeAppsSync(apps);
-    console.log("关联应用：%s -- %s", name, appId);
+    console.log('关联应用：%s -- %s', name, appId);
     cb();
   });
 };
@@ -1404,9 +1384,9 @@ exports.removeApp = function(name, cb) {
   setImmediate(function() {
     var apps = getAppsSync();
     if (apps[name])
-        delete apps[name];
+      delete apps[name];
     writeAppsSync(apps);
-    console.log("移除应用关联：%s", name);
+    console.log('移除应用关联：%s', name);
     cb();
   });
 };
@@ -1415,9 +1395,9 @@ var checkoutApp = exports.checkoutApp = function(name, cb) {
   setImmediate(function() {
     var apps = getAppsSync();
     if (!apps[name])
-        return cb(new Error("应用 '" + name + "' 不存在"));
+      return cb(new Error('应用 "' + name + '" 不存在'));
     writeCurrAppSync(name);
-    console.log("切换到应用 " + name);
+    console.log('切换到应用 ' + name);
     cb();
   });
 };
@@ -1426,29 +1406,29 @@ exports.appStatus = function(isList, cb) {
   setImmediate(function() {
     var currApp = getAppSync();
     if (isList) {
-        var apps = getAppsSync();
-        var maxNameLength = 0;
-        for (var name in apps) {
-            if (name.length > maxNameLength)
-                maxNameLength = name.length;
+      var apps = getAppsSync();
+      var maxNameLength = 0;
+      for (var name in apps) {
+        if (name.length > maxNameLength)
+          maxNameLength = name.length;
+      }
+      for (name in apps) {
+        var formatedName = sprintf('%-' + maxNameLength + 's', name);
+        if (name == currApp.tag) {
+          console.log(color.green('* ' + formatedName + ' ' + apps[name]));
+        } else {
+          console.log('  ' + formatedName + ' ' + apps[name]);
         }
-        for (name in apps) {
-            var formatedName = sprintf('%-' + maxNameLength + 's', name);
-            if (name == currApp.tag) {
-                console.log(color.green("* " + formatedName + " " + apps[name]));
-            } else {
-                console.log("  " + formatedName + " " + apps[name]);
-            }
-        }
+      }
     } else {
-        console.log(color.green("* " + currApp.tag + " " + currApp.appId));
+      console.log(color.green('* ' + currApp.tag + ' ' + currApp.appId));
     }
     cb();
   });
 };
 exports.queryLatestVersion = function(){
   debug('queryLatestVersion');
-	request({
+  request({
     url: 'https://download.leancloud.cn/sdk/cloud_code_commandline.json',
     json: true
   }, function(err, res, body) {
@@ -1458,105 +1438,89 @@ exports.queryLatestVersion = function(){
     var latestVersion = body.version;
     var changelog = body.changelog || '1.内部重构';
     if(semver.gt(latestVersion, pkg.version)){
-      console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g " + pkg.name), latestVersion, changelog);
+      console.warn(color.green('[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g ' + pkg.name), latestVersion, changelog);
     }
   });
 };
 
 function sortObject(o) {
-    var sorted = {},
+  var sorted = {},
     key, a = [];
-    sorted.objectId = o.objectId;
+  sorted.objectId = o.objectId;
 
-    for (key in o) {
-        if (o.hasOwnProperty(key)) {
-            a.push(key);
-        }
-    }
-
-    a.sort();
-
-    for (key = 0; key < a.length; key++) {
-        if(a[key] != 'objectId' && a[key] != 'updatedAt' && a[key] != 'createdAt')
-            sorted[a[key]] = o[a[key]];
-    }
-    sorted.updatedAt = o.updatedAt;
-    sorted.createdAt = o.createdAt;
-    return sorted;
-}
-
-function outputQueryResult(resp, vertical){
-    var results = resp.results;
-    var count = resp.count;
-    var table, i, result, row;
-    results = results.map(function(result){
-        return sortObject(result);
-    });
-    if((results === null || results.length === 0) && count === null)
-        console.log("*EMPTY*");
-
-    if(count){
-        console.log(color.green('Count: ' + count));
-    }
-
-    if(vertical){
-        table = new Table();
-        for(i = 0; i< results.length ; i++){
-            result = results[i];
-            for(var k in result){
-                row = {};
-                row[k] = result[k] || '';
-                table.push(row);
-            }
-        }
-        console.log(table.toString());
-        return;
-    }
-
-    var head = results.reduce(function(ret, row){
-        var ks = Object.keys(row);
-        if(!ret)
-            return ks;
-        if(ks.length > ret.length)
-            return ks;
-        else
-            return ret;
-    }, []);
-    table = new Table({
-      head: head,
-      chars: { 'top': '═' , 'top-mid': '╤' , 'top-left': '╔' , 'top-right': '╗',
-               'bottom': '═' , 'bottom-mid': '╧' , 'bottom-left': '╚' , 'bottom-right': '╝',
-               'left': '║' , 'left-mid': '╟' , 'mid': '─' , 'mid-mid': '┼',
-               'right': '║' , 'right-mid': '╢' , 'middle': '│' }
-    });
-    for(i = 0; i< results.length ; i++){
-        result = results[i];
-        row = [];
-        for(var j = 0; j < head.length; j++){
-            row.push(result[head[j]] || '');
-        }
-        table.push(row);
-    }
-    console.log(table.toString());
-    if(results && results.length > 0) {
-      console.log(color.green(results.length + ' rows in set.'));
-    }
-}
-
-function getIgnorePatterns(cloudPath) {
-  var patterns;
-
-  try {
-    patterns = fs.readFileSync(path.join(cloudPath, '.leanengineignore')).toString().split(/\n/).filter(function(line) {
-      return line.trim();
-    });
-  } catch (err) {
-    if (err.code != 'ENOENT') {
-      exitWith(err.message);
+  for (key in o) {
+    if (o.hasOwnProperty(key)) {
+      a.push(key);
     }
   }
 
-  return patterns;
+  a.sort();
+
+  for (key = 0; key < a.length; key++) {
+    if(a[key] != 'objectId' && a[key] != 'updatedAt' && a[key] != 'createdAt')
+      sorted[a[key]] = o[a[key]];
+  }
+  sorted.updatedAt = o.updatedAt;
+  sorted.createdAt = o.createdAt;
+  return sorted;
+}
+
+function outputQueryResult(resp, vertical){
+  var results = resp.results;
+  var count = resp.count;
+  var table, i, result, row;
+  results = results.map(function(result){
+    return sortObject(result);
+  });
+  if((results === null || results.length === 0) && count === null)
+    console.log('*EMPTY*');
+
+  if(count){
+    console.log(color.green('Count: ' + count));
+  }
+
+  if(vertical){
+    table = new Table();
+    for(i = 0; i< results.length ; i++){
+      result = results[i];
+      for(var k in result){
+        row = {};
+        row[k] = result[k] || '';
+        table.push(row);
+      }
+    }
+    console.log(table.toString());
+    return;
+  }
+
+  var head = results.reduce(function(ret, row){
+    var ks = Object.keys(row);
+    if(!ret)
+      return ks;
+    if(ks.length > ret.length)
+      return ks;
+    else
+      return ret;
+  }, []);
+  table = new Table({
+    head: head,
+    chars: { 'top': '═' , 'top-mid': '╤' , 'top-left': '╔' , 'top-right': '╗',
+             'bottom': '═' , 'bottom-mid': '╧' , 'bottom-left': '╚' , 'bottom-right': '╝',
+             'left': '║' , 'left-mid': '╟' , 'mid': '─' , 'mid-mid': '┼',
+             'right': '║' , 'right-mid': '╢' , 'middle': '│' }
+  });
+  for(i = 0; i< results.length ; i++){
+    result = results[i];
+    row = [];
+    for(var j = 0; j < head.length; j++){
+      row.push(result[head[j]] || '');
+    }
+    table.push(row);
+  }
+  console.log(table.toString());
+  if(results && results.length > 0) {
+    console.log(color.green(results.length + ' rows in set.'));
+  }
 }
 
 exports.getRedisInstances = function(cb) {
@@ -1584,7 +1548,7 @@ exports.getRedisInstances = function(cb) {
 var doRedisClient = exports.doRedisClient = function(server, db, cb) {
   db = db || 0;
   initAVOSCloudSDK(function(){
-    input("Redis> ", function(command) {
+    input('Redis> ', function(command) {
       if (command === 'quit' || command === 'exit') {
         return cb();
       }
@@ -1601,42 +1565,42 @@ var doRedisClient = exports.doRedisClient = function(server, db, cb) {
 };
 
 var doCloudQuery = exports.doCloudQuery = function(cb) {
-    initAVOSCloudSDK(function(){
-       input("CQL> ",function(cql){
-           if(cql === 'exit' || cql === 'quit')
-               return cb();
-           if(/.*;$/.test(cql))
-               cql = cql.substring(0, cql.length - 1);
-           var  vertical =/.*\\G$/.test(cql);
-           if(vertical)
-               cql = cql.substring(0, cql.length -2);
-           console.dir(cql);
-           var url = 'cloudQuery?cql=' + encodeURIComponent(cql);
-           util.request(url, function(err, data) {
-             if (err) {
-               console.log(color.red(err));
-             } else if (!data.results) {
-               console.log(color.red(data.code + ': ' + data.error));
-             } else {
-               outputQueryResult(data, vertical);
-             }
-             doCloudQuery(cb);
-           });
-        });
+  initAVOSCloudSDK(function(){
+    input('CQL> ',function(cql){
+      if(cql === 'exit' || cql === 'quit')
+        return cb();
+      if(/.*;$/.test(cql))
+        cql = cql.substring(0, cql.length - 1);
+      var  vertical =/.*\\G$/.test(cql);
+      if(vertical)
+        cql = cql.substring(0, cql.length -2);
+      console.log(cql);
+      var url = 'cloudQuery?cql=' + encodeURIComponent(cql);
+      util.request(url, function(err, data) {
+        if (err) {
+          console.log(color.red(err));
+        } else if (!data.results) {
+          console.log(color.red(data.code + ': ' + data.error));
+        } else {
+          outputQueryResult(data, vertical);
+        }
+        doCloudQuery(cb);
+      });
     });
+  });
 };
 
 var logProjectHome = function () {
-    console.log('LeanEngine 项目根目录：' + CLOUD_PATH);
-    var currApp = getAppSync();
-    if (currApp) {
-        console.log('当前应用：%s', color.green(currApp.tag + ' ' + currApp.appId));
-    } else {
-        exitWith('请使用：lean app checkout <app> 选择应用。');
-    }
-    if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
-        console.log('运行方案：%s', color.green(ENGINE_INFO.mode === 'free' ? '免费版' : '专业版'));
-    }
+  console.log('LeanEngine 项目根目录：' + CLOUD_PATH);
+  var currApp = getAppSync();
+  if (currApp) {
+    console.log('当前应用：%s', color.green(currApp.tag + ' ' + currApp.appId));
+  } else {
+    exitWith('请使用：lean app checkout <app> 选择应用。');
+  }
+  if (semver.satisfies(ENGINE_INFO.version, '>=4.0.0')) {
+    console.log('运行方案：%s', color.green(ENGINE_INFO.mode === 'free' ? '免费版' : '专业版'));
+  }
 };
 
 function parseEneableOptions(enable) {
