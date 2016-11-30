@@ -1,3 +1,13 @@
+# 注意
+
+此版本命令行工具已经**废弃**，以后不再维护。我们推出了基于 Go 的新版本的命令行工具，详情参考[文档](https://leancloud.cn/docs/leanengine_cli.html)。
+
+新版本命令行工具 [GitHub repo](https://github.com/leancloud/lean-cli)。
+
+<details>
+<summary>以下为原 README 内容</summary>
+
+
 ## 介绍
 
 **Windows 系统用户请确保安装 Node.js 在系统盘 C 盘，否则命令行工具无法正常运行。**
@@ -93,3 +103,4 @@ source ~/.avoscloud_completion.sh
 
 * License: [GNU LGPL](https://www.gnu.org/licenses/lgpl.html).
 * Author: LeanCloud.cn (support@leancloud.cn)
+</details>
