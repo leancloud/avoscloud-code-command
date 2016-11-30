@@ -1458,7 +1458,10 @@ exports.queryLatestVersion = function(){
     var latestVersion = body.version;
     var changelog = body.changelog || '1.内部重构';
     if(semver.gt(latestVersion, pkg.version)){
-      console.warn(color.green("[WARN] 发现新版本 %s, 变更如下:\n%s\n您可以通过下列命令升级： sudo npm install -g " + pkg.name), latestVersion, changelog);
+      console.warn(color.green("[WARN] %s"), changelog);
+      if (body.forceUpdate) {
+        process.exit();
+      }
     }
   });
 };

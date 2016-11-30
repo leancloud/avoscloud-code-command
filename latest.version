@@ -1,4 +1,5 @@
 {
-  "version": "1.3.2",
-  "changelog": "支持 Java 应用的本地调试和部署、修复部分中国区应用被识别为美国区的问题"
+  "version": "1.4.0",
+  "changelog": "新版（基于 Golang）的命令行工具已正式发布，请访问 https://leancloud.cn/docs/leanengine_cli.html 了解详情，该 Node 版命令行工具将不再维护",
+  "forceUpdate": true
 }
