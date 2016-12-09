@@ -1012,6 +1012,8 @@ function getKeys(appId, cb) {
     var region = 'cn';
 
     var fetchAndUpdateKeys = function(masterKey, cb) {
+      return; // wait for queryLatestVersion
+
       var saveKeysCallback = function(callback) {
         return function(err, appDetail) {
           if (err) {
@@ -1089,6 +1091,8 @@ function getKeys(appId, cb) {
  *Creaet a new avoscloud cloud code project.
  */
 exports.createNewProject = function(appId, runtime, cb) {
+  return; // wait for queryLatestVersion
+
   var _appId, repoUrl, templates;
   Q.fcall(function() {
     if(appId) {
