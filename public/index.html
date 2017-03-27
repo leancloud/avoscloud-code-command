@@ -2,9 +2,13 @@
 <html>
 <head>
   <script type="text/javascript" src="http://cdn.staticfile.org/jquery/2.0.3/jquery.min.js"></script>
+  <script src="//cdn.bootcss.com/select2/4.0.3/js/select2.full.min.js"></script>
+  <script src="//cdn.bootcss.com/select2/4.0.3/js/i18n/zh-CN.js"></script>
   <script type="text/javascript" src="http://cdn.staticfile.org/underscore.js/1.5.2/underscore-min.js"></script>
   <script type="text/javascript" src="https://cdn1.lncld.net/static/js/av-core-mini-0.5.4.js"></script>
   <link rel="stylesheet" href="http://cdn.staticfile.org/twitter-bootstrap/3.3.1/css/bootstrap.min.css" type="text/css" media="screen"/>
+  <link href="//cdn.bootcss.com/select2/4.0.3/css/select2.min.css" rel="stylesheet">
+  <link href="//cdn.bootcss.com/select2-bootstrap-css/1.4.6/select2-bootstrap.min.css" rel="stylesheet">
   <script type="text/javascript" charset="utf-8">
     var appId, appKey, masterKey, leanenginePort;
     var hooksInfo = {};
@@ -57,6 +61,7 @@
                   .attr("value", info.name)
                   .text(info.name));
         });
+        $('#functions').trigger('change');
       });
 
       $.get("/__engine/1/classes", function (data){
@@ -200,6 +205,22 @@
         } catch(e){
           $('#result').html(e.message);
         }
+      });
+
+      $("#functions").select2({
+        language:"zh-CN",
+        placeholder: "请选择云函数",
+        allowClear: true
+      });
+      $("#hooks").select2({
+        language:"zh-CN",
+        placeholder: "请选择函数",
+        allowClear: true
+      });
+      $("#classes").select2({
+        language:"zh-CN",
+        placeholder: "请选择Class",
+        allowClear: true
       });
     });
   </script>
